@@ -1,0 +1,29 @@
+// ป้ายภาษาไทยของค่าในฐานข้อมูล
+export const statusLabel = { active: 'ยังอยู่', sold: 'ขายแล้ว', collapsed: 'ล่ม', unknown: '???' } as const;
+export const statusClass = {
+  active: 'bg-palm-100 text-palm-900',
+  sold: 'bg-honey-100 text-honey-700',
+  collapsed: 'bg-red-100 text-danger',
+  unknown: 'bg-slate-200 text-slate-700',
+} as const;
+
+export const originLabel = {
+  purchased: 'ซื้อมา',
+  queen_bred: 'เพาะนางพญาเอง',
+  split: 'ขยายรัง',
+  natural: 'ขยายเองตามธรรมชาติ',
+  unknown: '???',
+} as const;
+
+export const boxLabel = { teak_2room: 'รังไม้สัก 2 ห้อง', log: 'ขอนไม้', other: 'อื่น ๆ', unknown: '???' } as const;
+
+export const eventLabel = {
+  honey_harvest: 'เก็บน้ำหวาน',
+  queen_cell_taken: 'เก็บไข่นางพญา',
+  brood_split: 'แยกไข่อ่อน/ตัวงาน',
+  note: 'หมายเหตุ',
+  status_change: 'เปลี่ยนสถานะ',
+} as const;
+export const eventIcon = { honey_harvest: '🍯', queen_cell_taken: '👑', brood_split: '🪺', note: '📝', status_change: '🔄' } as const;
+
+export const baht = (n: number | null | undefined) => (n == null ? '???' : `${n.toLocaleString('th-TH')} บาท`);

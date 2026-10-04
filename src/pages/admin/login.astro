@@ -1,0 +1,64 @@
+---
+import '../../styles/global.css';
+import { site } from '../../config/site.ts';
+import { cleanup, login, setSessionCookie, SESSION_COOKIE, userFromToken } from '../../server/auth.ts';
+import { getDb } from '../../server/db.ts';
+
+export const prerender = false;
+
+const db = getDb();
+// ล็อกอินอยู่แล้ว → ไปหน้าหลังบ้าน
+if (await userFromToken(db, Astro.cookies.get(SESSION_COOKIE)?.value)) return Astro.redirect('/admin');
+
+// อนุญาตเฉพาะเส้นทางภายใน /admin กัน open redirect
+const safeNext = (n: string | null) => (n && /^\/admin(\/|$|\?)/.test(n) && !n.startsWith('//') ? n : '/admin');
+
+let error = '';
+let email = '';
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') ?? '');
+  const ip = Astro.request.headers.get('cf-connecting-ip') ?? Astro.clientAddress ?? 'local';
+  const r = await login(db, email, String(form.get('password') ?? ''), ip);
+  if (r.ok) {
+    setSessionCookie(Astro.cookies, r.token);
+    Astro.locals.cfContext?.waitUntil(cleanup(db));
+    return Astro.redirect(safeNext(String(form.get('next') ?? '')));
+  }
+  error = r.reason === 'locked' ? 'ลองผิดหลายครั้งเกินไป กรุณารอ 15 นาทีแล้วลองใหม่' : 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+}
+const next = safeNext(Astro.url.searchParams.get('next'));
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>เข้าสู่ระบบ · {site.name} หลังบ้าน</title>
+  </head>
+  <body class="grid min-h-dvh place-items-center px-4">
+    <main class="w-full max-w-sm">
+      <div class="mb-6 text-center">
+        <div class="text-5xl" aria-hidden="true">🐝</div>
+        <h1 class="mt-2 text-2xl font-bold text-palm-700">{site.name} หลังบ้าน</h1>
+        <p class="text-muted">{site.tagline}</p>
+      </div>
+      <form method="post" class="card space-y-4">
+        <input type="hidden" name="next" value={next} />
+        {error && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">{error}</p>}
+        <div>
+          <label class="label" for="email">อีเมล</label>
+          <input class="field" id="email" name="email" type="email" autocomplete="username" required value={email} autofocus />
+        </div>
+        <div>
+          <label class="label" for="password">รหัสผ่าน</label>
+          <input class="field" id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="btn-primary w-full" type="submit">เข้าสู่ระบบ</button>
+      </form>
+    </main>
+  </body>
+</html>

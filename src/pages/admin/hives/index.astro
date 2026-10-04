@@ -1,0 +1,86 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getDb } from '../../../server/db.ts';
+import { listHives } from '../../../server/hives.ts';
+import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { placeholder } from '../../../lib/placeholders.ts';
+
+export const prerender = false;
+
+const sp = Astro.url.searchParams;
+const filter = {
+  q: sp.get('q') ?? '',
+  status: ['active', 'sold', 'collapsed', 'unknown'].includes(sp.get('status') ?? '') ? sp.get('status')! : '',
+  origin: ['purchased', 'queen_bred', 'split', 'natural'].includes(sp.get('origin') ?? '') ? sp.get('origin')! : '',
+  forSale: sp.get('forSale') === '1',
+  page: Math.max(1, Number(sp.get('page')) || 1),
+};
+const { rows, total, page, pages } = await listHives(getDb(), filter);
+
+const link = (p: number) => {
+  const u = new URLSearchParams(sp);
+  u.set('page', String(p));
+  return `?${u}`;
+};
+---
+
+<AdminLayout title="รังทั้งหมด" active="hives">
+  <form method="get" class="card mb-4 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]" role="search">
+    <div>
+      <label class="label" for="q">ค้นหารหัสรัง / สถานที่ซื้อ</label>
+      <input class="field" id="q" name="q" type="search" value={filter.q} placeholder="เช่น A25 หรือ ภูเก็ต" />
+    </div>
+    <div>
+      <label class="label" for="status">สถานะ</label>
+      <select class="field" id="status" name="status">
+        <option value="">ทั้งหมด</option>
+        {(['active', 'sold', 'collapsed', 'unknown'] as const).map((s) => <option value={s} selected={filter.status === s}>{statusLabel[s]}</option>)}
+      </select>
+    </div>
+    <div>
+      <label class="label" for="origin">ที่มา</label>
+      <select class="field" id="origin" name="origin">
+        <option value="">ทั้งหมด</option>
+        {(['purchased', 'queen_bred', 'split', 'natural'] as const).map((o) => <option value={o} selected={filter.origin === o}>{originLabel[o]}</option>)}
+      </select>
+    </div>
+    <div class="flex items-end gap-3">
+      <label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="forSale" value="1" checked={filter.forSale} class="size-5 accent-palm-600" /> ตั้งขาย</label>
+      <button class="btn-primary" type="submit">ค้นหา</button>
+    </div>
+  </form>
+
+  <p class="mb-3 text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {(filter.q || filter.status || filter.origin || filter.forSale) && <a class="ml-2 underline" href="/admin/hives">ล้างตัวกรอง</a>}</p>
+
+  {rows.length === 0 ? (
+    <div class="card text-center text-muted">ไม่พบรังที่ตรงกับเงื่อนไข</div>
+  ) : (
+    <ul class="grid gap-3 sm:grid-cols-2">
+      {rows.map((h) => (
+        <li>
+          <a href={`/admin/hives/${h.code}`} class="card flex gap-3 transition hover:border-palm-500">
+            <img src={h.photoKey ? `/media/${h.photoKey}` : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-lg font-bold">{h.code}</span>
+                <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
+                {h.forSale && <span class="badge bg-honey-400 text-ink">ขาย {baht(h.salePrice)}</span>}
+              </div>
+              <p class="truncate text-sm text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</p>
+              <p class="text-sm text-muted">ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {pages > 1 && (
+    <nav class="mt-6 flex items-center justify-between" aria-label="เปลี่ยนหน้า">
+      {page > 1 ? <a class="btn-ghost" href={link(page - 1)} rel="prev">← ก่อนหน้า</a> : <span />}
+      <span class="text-sm text-muted">หน้า {page} / {pages}</span>
+      {page < pages ? <a class="btn-ghost" href={link(page + 1)} rel="next">ถัดไป →</a> : <span />}
+    </nav>
+  )}
+</AdminLayout>

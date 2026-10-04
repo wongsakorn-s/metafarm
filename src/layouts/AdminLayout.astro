@@ -1,0 +1,67 @@
+---
+import '../styles/global.css';
+import { site } from '../config/site.ts';
+
+interface Props {
+  title: string;
+  active?: 'dashboard' | 'hives' | 'new';
+}
+const { title, active } = Astro.props;
+const user = Astro.locals.user;
+
+const nav = [
+  { key: 'dashboard', href: '/admin', icon: '📊', label: 'ภาพรวม' },
+  { key: 'hives', href: '/admin/hives', icon: '🐝', label: 'รัง' },
+  { key: 'new', href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรัง' },
+] as const;
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0b7a3e" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · {site.name} หลังบ้าน</title>
+  </head>
+  <body class="min-h-dvh pb-24 md:pb-0 md:pl-60">
+    <!-- เมนูข้าง (คอม) -->
+    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface p-4 md:flex">
+      <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700">🐝 {site.name}</a>
+      <nav class="flex flex-col gap-1" aria-label="เมนูหลัก">
+        {nav.map((n) => (
+          <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
+            class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
+            <span aria-hidden="true">{n.icon}</span>{n.label}
+          </a>
+        ))}
+      </nav>
+      <form method="post" action="/admin/logout" class="mt-auto">
+        <p class="mb-2 truncate text-sm text-muted">{user?.name}</p>
+        <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
+      </form>
+    </aside>
+
+    <header class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
+      <a href="/admin" class="font-bold text-palm-700">🐝 {site.name}</a>
+      <form method="post" action="/admin/logout"><button class="text-sm text-muted underline" type="submit">ออกจากระบบ</button></form>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">
+      <h1 class="mb-5 text-2xl font-bold">{title}</h1>
+      <slot />
+    </main>
+
+    <!-- เมนูล่าง (มือถือ) -->
+    <nav class="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="เมนูหลัก">
+      {nav.map((n) => (
+        <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
+          class:list={['flex min-h-16 flex-col items-center justify-center gap-0.5 text-sm font-medium', active === n.key ? 'text-palm-700' : 'text-muted']}>
+          <span class="text-xl" aria-hidden="true">{n.icon}</span>{n.label}
+        </a>
+      ))}
+    </nav>
+  </body>
+</html>

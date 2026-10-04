@@ -1,0 +1,52 @@
+{
+    "name":  "metafarm",
+    "private":  true,
+    "type":  "module",
+    "version":  "0.0.1",
+    "engines":  {
+                    "node":  "\u003e=24"
+                },
+    "scripts":  {
+                    "dev":  "astro dev",
+                    "build":  "astro build",
+                    "preview":  "astro preview",
+                    "astro":  "astro",
+                    "generate-types":  "wrangler types",
+                    "check":  "astro check",
+                    "test":  "vitest run",
+                    "db:generate":  "drizzle-kit generate",
+                    "db:migrate:local":  "wrangler d1 migrations apply metafarm-db --local",
+                    "db:seed:local":  "wrangler d1 execute metafarm-db --local --file private/import/seed.sql",
+                    "import:excel":  "node --experimental-strip-types --no-warnings scripts/import-excel/index.ts",
+                    "user:create":  "node --no-warnings scripts/create-owner.ts",
+                    "media:seed:local":  "node --no-warnings scripts/upload-media.ts"
+                },
+    "dependencies":  {
+                         "@astrojs/cloudflare":  "^14.3.3",
+                         "@astrojs/react":  "^7.0.0",
+                         "@fontsource-variable/noto-sans-thai":  "^5.3.0",
+                         "@tailwindcss/vite":  "^4.3.3",
+                         "@types/react":  "^19.3.0",
+                         "@types/react-dom":  "^19.3.0",
+                         "astro":  "^7.3.5",
+                         "drizzle-orm":  "^0.45.3",
+                         "react":  "^19.3.0",
+                         "react-dom":  "^19.3.0",
+                         "tailwindcss":  "^4.3.3",
+                         "wrangler":  "^4.147.0",
+                         "zod":  "^4.6.5"
+                     },
+    "allowScripts":  {
+                         "esbuild":  true,
+                         "workerd":  true
+                     },
+    "devDependencies":  {
+                            "@astrojs/check":  "^0.9.10",
+                            "@types/node":  "^22.20.5",
+                            "drizzle-kit":  "^0.31.11",
+                            "fast-xml-parser":  "^5.11.2",
+                            "fflate":  "^0.8.3",
+                            "typescript":  "^6.0.3",
+                            "vitest":  "^5.0.3"
+                        }
+}

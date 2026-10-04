@@ -1,0 +1,87 @@
+import { and, eq, gt, sql } from 'drizzle-orm';
+import type { AstroCookies } from 'astro';
+import { loginAttempts, sessions, users } from '../db/schema.ts';
+import { newToken, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
+import type { Db } from './db.ts';
+
+export const SESSION_COOKIE = 'mf_session';
+const SESSION_DAYS = 30;
+const MAX_FAILURES = 5; // ครั้ง
+const WINDOW_MIN = 15; // นาที
+
+export interface SessionUser {
+  id: number;
+  email: string;
+  name: string;
+  role: 'owner' | 'staff';
+}
+
+const isoIn = (ms: number) => new Date(Date.now() + ms).toISOString();
+
+// hash ปลอมไว้เทียบเมื่อไม่พบผู้ใช้ เพื่อให้เวลาตอบใกล้เคียงกัน (กันการเดาว่ามีอีเมลนี้หรือไม่)
+let dummyHash: Promise<string> | undefined;
+
+export type LoginResult = { ok: true; user: SessionUser; token: string } | { ok: false; reason: 'invalid' | 'locked' };
+
+export async function login(db: Db, emailRaw: string, password: string, ip: string): Promise<LoginResult> {
+  const email = emailRaw.trim().toLowerCase();
+  const key = await sha256Hex(`${email}|${ip}`);
+  const since = isoIn(-WINDOW_MIN * 60_000);
+
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(loginAttempts)
+    .where(and(eq(loginAttempts.keyHash, key), gt(loginAttempts.at, since)));
+  if (n >= MAX_FAILURES) return { ok: false, reason: 'locked' };
+
+  const user = await db.query.users.findFirst({ where: eq(users.email, email) });
+  dummyHash ??= hashPassword('dummy-password-for-timing');
+  const ok = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
+  if (!user || !user.active || !ok) {
+    await db.insert(loginAttempts).values({ keyHash: key });
+    return { ok: false, reason: 'invalid' };
+  }
+
+  await db.delete(loginAttempts).where(eq(loginAttempts.keyHash, key));
+  const token = newToken();
+  await db.insert(sessions).values({
+    userId: user.id,
+    tokenHash: await sha256Hex(token),
+    expiresAt: isoIn(SESSION_DAYS * 86_400_000),
+  });
+  return { ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
+}
+
+export async function userFromToken(db: Db, token: string | undefined): Promise<SessionUser | null> {
+  if (!token) return null;
+  const rows = await db
+    .select({ id: users.id, email: users.email, name: users.name, role: users.role, active: users.active })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.userId))
+    .where(and(eq(sessions.tokenHash, await sha256Hex(token)), gt(sessions.expiresAt, new Date().toISOString())))
+    .limit(1);
+  const u = rows[0];
+  return u?.active ? { id: u.id, email: u.email, name: u.name, role: u.role } : null;
+}
+
+export async function logout(db: Db, token: string | undefined) {
+  if (token) await db.delete(sessions).where(eq(sessions.tokenHash, await sha256Hex(token)));
+}
+
+/** ลบ session หมดอายุ และบันทึกล็อกอินผิดที่เก่าเกินหน้าต่าง (เรียกตอนล็อกอินสำเร็จ) */
+export async function cleanup(db: Db) {
+  const now = new Date().toISOString();
+  await db.delete(sessions).where(sql`${sessions.expiresAt} < ${now}`);
+  await db.delete(loginAttempts).where(sql`${loginAttempts.at} < ${isoIn(-WINDOW_MIN * 60_000)}`);
+}
+
+export function setSessionCookie(cookies: AstroCookies, token: string) {
+  cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: import.meta.env.PROD,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_DAYS * 86_400,
+  });
+}
+export const clearSessionCookie = (cookies: AstroCookies) => cookies.delete(SESSION_COOKIE, { path: '/' });

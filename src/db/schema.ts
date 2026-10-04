@@ -1,0 +1,233 @@
+import { sql } from 'drizzle-orm';
+import {
+  type AnySQLiteColumn,
+  check,
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
+
+// วันที่เก็บเป็น ISO 'YYYY-MM-DD' (text), เวลาเก็บเป็น ISO datetime UTC (text)
+const timestamps = {
+  createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+};
+
+export const HIVE_ORIGINS = ['purchased', 'queen_bred', 'split', 'natural', 'unknown'] as const;
+export const HIVE_STATUSES = ['active', 'sold', 'collapsed', 'unknown'] as const;
+export const BOX_TYPES = ['teak_2room', 'log', 'other', 'unknown'] as const;
+export const DATE_PRECISIONS = ['day', 'month', 'year'] as const;
+export const EVENT_TYPES = [
+  'honey_harvest',
+  'queen_cell_taken',
+  'brood_split',
+  'note',
+  'status_change',
+] as const;
+export const MEDIA_KINDS = ['passport', 'sale', 'video'] as const;
+export const USER_ROLES = ['owner', 'staff'] as const;
+
+export const species = sqliteTable('species', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  nameTh: text('name_th').notNull(),
+  nameSci: text('name_sci'),
+  ...timestamps,
+});
+
+/** 🔒 คู่ค้า — หลังบ้านเท่านั้น */
+export const suppliers = sqliteTable('suppliers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  area: text('area'),
+  notes: text('notes'),
+  ...timestamps,
+});
+
+/** 🔒 ลูกค้า — หลังบ้านเท่านั้น */
+export const customers = sqliteTable('customers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  lineName: text('line_name'),
+  address: text('address'),
+  notes: text('notes'),
+  ...timestamps,
+});
+
+export const hives = sqliteTable(
+  'hives',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    code: text('code').notNull(),
+    speciesId: integer('species_id')
+      .notNull()
+      .references(() => species.id),
+    origin: text('origin', { enum: HIVE_ORIGINS }).notNull().default('unknown'),
+    originPlace: text('origin_place'),
+    acquiredOn: text('acquired_on'),
+    acquiredOnPrecision: text('acquired_on_precision', { enum: DATE_PRECISIONS }),
+    queenBornOn: text('queen_born_on'),
+    queenSourceHiveId: integer('queen_source_hive_id').references(
+      (): AnySQLiteColumn => hives.id,
+    ),
+    broodSourceHiveId: integer('brood_source_hive_id').references(
+      (): AnySQLiteColumn => hives.id,
+    ),
+    boxType: text('box_type', { enum: BOX_TYPES }).notNull().default('unknown'),
+    status: text('status', { enum: HIVE_STATUSES }).notNull().default('active'),
+    statusChangedOn: text('status_changed_on'),
+    collapseReason: text('collapse_reason'),
+    publicNote: text('public_note'),
+    // 🔒 ฟิลด์หลังบ้าน
+    purchasePrice: integer('purchase_price'),
+    supplierId: integer('supplier_id').references(() => suppliers.id),
+    forSale: integer('for_sale', { mode: 'boolean' }).notNull().default(false),
+    salePrice: integer('sale_price'),
+    soldPrice: integer('sold_price'),
+    soldOn: text('sold_on'),
+    customerId: integer('customer_id').references(() => customers.id),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('hives_code_uq').on(t.code),
+    index('hives_status_idx').on(t.status),
+    index('hives_for_sale_idx').on(t.forSale),
+  ],
+);
+
+export const hiveEvents = sqliteTable(
+  'hive_events',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    hiveId: integer('hive_id')
+      .notNull()
+      .references(() => hives.id),
+    type: text('type', { enum: EVENT_TYPES }).notNull(),
+    occurredOn: text('occurred_on').notNull(),
+    occurredOnPrecision: text('occurred_on_precision', { enum: DATE_PRECISIONS })
+      .notNull()
+      .default('day'),
+    honeyMl: integer('honey_ml'),
+    propolisG: integer('propolis_g'),
+    pollenG: integer('pollen_g'),
+    queenCells: integer('queen_cells'),
+    targetHiveId: integer('target_hive_id').references(() => hives.id),
+    fromStatus: text('from_status', { enum: HIVE_STATUSES }),
+    toStatus: text('to_status', { enum: HIVE_STATUSES }),
+    note: text('note'),
+    isPublic: integer('is_public', { mode: 'boolean' }).notNull().default(true),
+    createdBy: integer('created_by').references(() => users.id),
+    /** กันบันทึกซ้ำเมื่อกดซ้ำ/เน็ตหลุด และใช้กับ import ที่รันซ้ำได้ */
+    idempotencyKey: text('idempotency_key'),
+    ...timestamps,
+  },
+  (t) => [
+    index('hive_events_hive_idx').on(t.hiveId, t.occurredOn),
+    uniqueIndex('hive_events_idem_uq').on(t.idempotencyKey),
+    check(
+      'hive_events_amounts_nonneg',
+      sql`coalesce(${t.honeyMl},0) >= 0 and coalesce(${t.propolisG},0) >= 0 and coalesce(${t.pollenG},0) >= 0 and coalesce(${t.queenCells},0) >= 0`,
+    ),
+  ],
+);
+
+export const hiveMedia = sqliteTable(
+  'hive_media',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    hiveId: integer('hive_id')
+      .notNull()
+      .references(() => hives.id),
+    kind: text('kind', { enum: MEDIA_KINDS }).notNull(),
+    r2Key: text('r2_key'),
+    youtubeId: text('youtube_id'),
+    width: integer('width'),
+    height: integer('height'),
+    alt: text('alt'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('hive_media_hive_idx').on(t.hiveId, t.kind, t.sortOrder)],
+);
+
+export const products = sqliteTable(
+  'products',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    category: text('category', { enum: ['hive_box', 'honey', 'other'] }).notNull(),
+    description: text('description'),
+    published: integer('published', { mode: 'boolean' }).notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('products_slug_uq').on(t.slug)],
+);
+
+export const productVariants = sqliteTable('product_variants', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  productId: integer('product_id')
+    .notNull()
+    .references(() => products.id),
+  label: text('label').notNull(),
+  sizeMl: integer('size_ml'),
+  priceThb: integer('price_thb').notNull(),
+  stockQty: integer('stock_qty').notNull().default(0),
+  harvestYearBe: integer('harvest_year_be'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  ...timestamps,
+});
+
+export const users = sqliteTable(
+  'users',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    role: text('role', { enum: USER_ROLES }).notNull().default('staff'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('users_email_uq').on(t.email)],
+);
+
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('sessions_token_uq').on(t.tokenHash)],
+);
+
+/** บันทึกการล็อกอินผิด เพื่อจำกัดจำนวนครั้ง (เก็บเฉพาะ hash ของ email+IP) */
+export const loginAttempts = sqliteTable(
+  'login_attempts',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    keyHash: text('key_hash').notNull(),
+    at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  },
+  (t) => [index('login_attempts_key_idx').on(t.keyHash, t.at)],
+);
+
+export const auditLogs = sqliteTable('audit_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').references(() => users.id),
+  action: text('action').notNull(),
+  entity: text('entity').notNull(),
+  entityId: integer('entity_id'),
+  diff: text('diff', { mode: 'json' }),
+  at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+});

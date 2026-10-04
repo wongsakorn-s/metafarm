@@ -1,0 +1,91 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { getDashboard } from '../../server/hives.ts';
+import { baht, eventIcon, eventLabel, originLabel } from '../../lib/labels.ts';
+import { formatThaiDate } from '../../lib/thai-date.ts';
+
+export const prerender = false;
+
+const d = await getDashboard(getDb());
+const count = (s: string) => d.byStatus.find((x) => x.status === s)?.n ?? 0;
+const total = d.byStatus.reduce((n, x) => n + x.n, 0);
+const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+
+const stats = [
+  { label: 'รังทั้งหมด', value: total, href: '/admin/hives' },
+  { label: 'ยังอยู่', value: count('active'), href: '/admin/hives?status=active' },
+  { label: 'ตั้งขายอยู่', value: d.sale?.n ?? 0, href: '/admin/hives?forSale=1' },
+  { label: 'ขายแล้ว', value: count('sold'), href: '/admin/hives?status=sold' },
+  { label: 'ล่ม', value: count('collapsed'), href: '/admin/hives?status=collapsed' },
+];
+const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
+---
+
+<AdminLayout title="ภาพรวม" active="dashboard">
+  <section aria-label="สรุปจำนวนรัง" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    {stats.map((s) => (
+      <a href={s.href} class="card block text-center transition hover:border-palm-500">
+        <div class="text-3xl font-bold text-palm-700">{s.value.toLocaleString('th-TH')}</div>
+        <div class="text-sm text-muted">{s.label}</div>
+      </a>
+    ))}
+  </section>
+
+  <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <section class="card" aria-labelledby="honey-h">
+      <h2 id="honey-h" class="mb-3 text-lg font-semibold">🍯 ผลผลิตปี {d.year}</h2>
+      {d.honey && d.honey.n > 0 ? (
+        <p class="text-3xl font-bold text-honey-700">{d.honey.ml.toLocaleString('th-TH')} <span class="text-base font-medium">มล.</span>
+          {d.honey.g > 0 && <span class="ml-3 text-xl">+ ชัน {d.honey.g.toLocaleString('th-TH')} กรัม</span>}</p>
+        <p class="hint">จากการเก็บ {d.honey.n} ครั้ง</p>
+      ) : (
+        <p class="text-muted">ยังไม่มีการบันทึกเก็บน้ำหวานในปีนี้ เปิดหน้ารังแล้วกด "เก็บน้ำหวาน" ได้เลย</p>
+      )}
+      <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>
+      <p>ขายแล้ว {count('sold')} รัง รวม <strong>{baht(d.sale?.soldTotal)}</strong>
+        {(d.sale?.avgSold ?? 0) > 0 && <span class="text-muted"> (เฉลี่ย {baht(Math.round(d.sale!.avgSold))}/รัง)</span>}</p>
+    </section>
+
+    <section class="card" aria-labelledby="surv-h">
+      <h2 id="surv-h" class="mb-1 text-lg font-semibold">อัตรารอดตามที่มา</h2>
+      <p class="hint mb-3">นับเฉพาะรังที่ล่มเทียบกับทั้งหมด (ไม่รวมรังที่ขายแล้ว)</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-muted"><tr><th class="py-1 pr-2 font-medium">ที่มา</th><th class="px-2 font-medium">รัง</th><th class="px-2 font-medium">ล่ม</th><th class="pl-2 font-medium">รอด</th></tr></thead>
+          <tbody>
+            {originOrder.map((o) => {
+              const r = d.byOrigin.find((x) => x.origin === o);
+              const t = (r?.total ?? 0) - (r?.sold ?? 0);
+              return (
+                <tr class="border-t border-line">
+                  <td class="py-2 pr-2">{originLabel[o]}</td>
+                  <td class="px-2">{r?.total ?? 0}</td>
+                  <td class="px-2">{r?.collapsed ?? 0}</td>
+                  <td class="pl-2 font-semibold">{t ? `${100 - pct(r?.collapsed ?? 0, t)}%` : '–'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card mt-6" aria-labelledby="recent-h">
+    <h2 id="recent-h" class="mb-3 text-lg font-semibold">เหตุการณ์ล่าสุด</h2>
+    <ul class="divide-y divide-line">
+      {d.recent.map(({ e, code }) => (
+        <li class="flex items-center gap-3 py-2">
+          <span class="text-xl" aria-hidden="true">{eventIcon[e.type]}</span>
+          <div class="min-w-0 flex-1">
+            <a class="font-semibold text-palm-700 hover:underline" href={`/admin/hives/${code}`}>{code}</a>
+            <span class="ml-1">{eventLabel[e.type]}</span>
+            {e.honeyMl ? <span class="ml-1 text-honey-700">{e.honeyMl.toLocaleString('th-TH')} มล.</span> : null}
+          </div>
+          <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
+        </li>
+      ))}
+    </ul>
+  </section>
+</AdminLayout>

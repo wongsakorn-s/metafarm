@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 800" width="1600" height="800" role="img" aria-label="ภาพสวนปาล์ม (รอรูปจริง)">
+  <rect width="1600" height="800" fill="#E8F3EC"/>
+  <g fill="none" stroke="#0B7A3E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" transform="translate(800,376)"><path d="M0 50 C-4 10 -6 -10 0 -34"/><path d="M0 -34 C-30 -50 -50 -40 -62 -22"/><path d="M0 -34 C30 -50 50 -40 62 -22"/><path d="M0 -34 C-12 -60 -28 -66 -44 -62"/><path d="M0 -34 C12 -60 28 -66 44 -62"/></g>
+  <text x="800" y="470" text-anchor="middle" font-family="sans-serif" font-size="50" fill="#0B7A3E" opacity="0.7">ภาพสวนปาล์ม (รอรูปจริง)</text>
+</svg>

@@ -1,0 +1,83 @@
+@import '@fontsource-variable/noto-sans-thai';
+@import 'tailwindcss';
+
+/* สีหลักจากโลโก้ MetaFarm: เขียวปาล์ม + เหลืองน้ำผึ้ง */
+@theme {
+  --font-sans: 'Noto Sans Thai Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-palm-50: #eaf5ee;
+  --color-palm-100: #cfe8d8;
+  --color-palm-500: #1b9150;
+  --color-palm-600: #0b7a3e;
+  --color-palm-700: #096232;
+  --color-palm-900: #053a1e;
+
+  --color-honey-50: #fff8dc;
+  --color-honey-100: #fdefb0;
+  --color-honey-400: #f2c230;
+  --color-honey-500: #e0a800;
+  --color-honey-700: #8a6500;
+
+  --color-ink: #1f2a24;
+  --color-muted: #5b6a61;
+  --color-line: #dfe6e1;
+  --color-surface: #ffffff;
+  --color-canvas: #f6f8f6;
+  --color-danger: #b42318;
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+  /* วงโฟกัสชัดเจน สำหรับคีย์บอร์ด */
+  :focus-visible {
+    outline: 3px solid var(--color-honey-400);
+    outline-offset: 2px;
+  }
+  /* ไม่ให้ iOS ซูมเข้าตอนแตะช่องกรอก */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+/* คลาสสำเร็จรูป: ใน Tailwind 4 ต้องประกาศด้วย @utility จึงจะใช้ซ้อนกันด้วย @apply ได้ */
+@utility card {
+  @apply rounded-2xl border border-line bg-surface p-4 shadow-sm;
+}
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium transition-colors;
+}
+@utility btn-primary {
+  @apply btn bg-palm-600 text-white hover:bg-palm-700;
+}
+@utility btn-honey {
+  @apply btn bg-honey-400 text-ink hover:bg-honey-500;
+}
+@utility btn-ghost {
+  @apply btn border border-line bg-surface text-ink hover:bg-palm-50;
+}
+@utility btn-danger {
+  @apply btn border border-danger/40 bg-surface text-danger hover:bg-red-50;
+}
+@utility field {
+  @apply block w-full min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-ink;
+}
+@utility hint {
+  @apply mt-1 text-sm text-muted;
+}
+@utility error {
+  @apply mt-1 text-sm font-medium text-danger;
+}
+@utility badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+}

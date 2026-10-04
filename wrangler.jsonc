@@ -1,0 +1,30 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"name": "metafarm",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"observability": {
+		"enabled": true
+	},
+	// ตอนนี้ใช้บนเครื่องเท่านั้น (ข้อมูลอยู่ใน .wrangler/state)
+	// database_id จะเปลี่ยนเป็นค่าจริงตอนสร้าง D1 บน Cloudflare ใน Phase 3
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "metafarm-db",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "metafarm-media"
+		}
+	]
+}
