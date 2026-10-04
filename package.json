@@ -19,7 +19,8 @@
                     "db:seed:local":  "wrangler d1 execute metafarm-db --local --file private/import/seed.sql",
                     "import:excel":  "node --experimental-strip-types --no-warnings scripts/import-excel/index.ts",
                     "user:create":  "node --no-warnings scripts/create-owner.ts",
-                    "media:seed:local":  "node --no-warnings scripts/upload-media.ts"
+                    "media:seed:local":  "node --no-warnings scripts/upload-media.ts",
+                    "check:browser":  "node scripts/browser-check.mjs"
                 },
     "dependencies":  {
                          "@astrojs/cloudflare":  "^14.3.3",
@@ -46,6 +47,7 @@
                             "drizzle-kit":  "^0.31.11",
                             "fast-xml-parser":  "^5.11.2",
                             "fflate":  "^0.8.3",
+                            "playwright-core":  "^1.63.0",
                             "typescript":  "^6.0.3",
                             "vitest":  "^5.0.3"
                         }

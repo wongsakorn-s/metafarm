@@ -23,6 +23,8 @@ npm run dev                   # http://localhost:4321  → หลังบ้า
 ```
 
 ตรวจคุณภาพ: `npm run check` · `npm test` · `npm run build`
+ตรวจในเบราว์เซอร์จริง (Edge/Chrome ในเครื่อง, มือถือ + คอม, เก็บภาพไว้ใน `private/screenshots/`): เปิด `npm run dev` ค้างไว้ แล้วรัน `npm run check:browser`
+ล้างรูปทดสอบใน R2 บนเครื่อง: `npm run media:seed:local -- --prune`
 หลังแก้ `wrangler.jsonc` ให้รัน `npm run generate-types`
 
 ## เอกสาร

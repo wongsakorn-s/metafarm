@@ -52,6 +52,8 @@ if (Astro.request.method === 'POST') {
 const { hive, events, media, children, totals } = detail;
 const saved = Astro.url.searchParams.get('saved');
 const photos = media.filter((m) => m.kind === 'passport' && m.r2Key);
+const salePhotos = media.filter((m) => m.kind === 'sale' && m.r2Key);
+const video = media.find((m) => m.kind === 'video');
 const isOpen = (k: string) => openIntent === k;
 const v = (k: string, d = '') => values[k] ?? d;
 const err = (k: string) => errors[k];
@@ -80,6 +82,8 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       ))}
     </div>
     {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}
+    <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/media`}>📷 รูปและวิดีโอ — รูปสมุดพก {photos.length} · รูปขาย {salePhotos.length}/3 · วิดีโอ {video ? 1 : 0}/1</a>
+    {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint">รังนี้ตั้งขายอยู่ ควรเพิ่ม{salePhotos.length < 3 ? ` รูปขายอีก ${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' และ' : ''}{!video ? ' วิดีโอ 1 คลิป' : ''}</p>}
     <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/edit`}>✏️ แก้ไขข้อมูลรัง{noteLines.some((l) => l.startsWith('???')) ? ' (มีข้อมูลที่ยังไม่ทราบ ???)' : ''}</a>
   </section>
 
