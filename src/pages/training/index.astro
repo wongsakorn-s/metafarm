@@ -4,12 +4,14 @@ import SampleBadge from '../../components/SampleBadge.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
 import { listTraining } from '../../lib/content.ts';
 import { formatPrice } from '../../lib/products.ts';
+import { effectiveCourse } from '../../lib/settings.ts';
 import { site } from '../../config/site.ts';
 
 export const prerender = false;
 
-const courses = listTraining();
-Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+const overrides = Astro.locals.settings!.courses;
+const courses = listTraining().map((c) => ({ ...c, ...effectiveCourse(c, overrides[c.slug]) }));
+Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 
 <PublicLayout title="อบรม" description={`หลักสูตรอบรมการเลี้ยงและขยายรังชันโรงขนเงิน การกรองน้ำผึ้งและการแปรรูป จาก ${site.name}`} active="training" lineMessage="สนใจหลักสูตรอบรม">

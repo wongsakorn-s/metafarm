@@ -39,13 +39,24 @@ const resolved = (topic: string, k: HiveKnowledge): boolean => {
   }
 };
 
-/** ลบบรรทัด ??? ที่เติมข้อมูลครบแล้ว คืน null ถ้าไม่เหลืออะไร */
+/** เจ้าของฟาร์มยืนยันแล้วว่า "ไม่ทราบจริง ๆ" — เลิกเตือน (ไม่นับเป็นข้อมูลไม่ครบ) แต่ยังเก็บบันทึกไว้ */
+export const CONFIRMED_UNKNOWN_PREFIX = 'ไม่ทราบ:';
+
+/** เปลี่ยนบรรทัด "??? หัวข้อ" เป็น "ไม่ทราบ: หัวข้อ" (ถ้าไม่มีบรรทัดนั้นก็ไม่ทำอะไร) */
+export function confirmUnknown(notes: string | null | undefined, topic: string): string | null {
+  const lines = (notes ?? '').split('\n').map((l) => (l.trim() === `${UNKNOWN_PREFIX} ${topic}` ? `${CONFIRMED_UNKNOWN_PREFIX} ${topic}` : l));
+  const out = lines.join('\n').trim();
+  return out === '' ? null : out;
+}
+
+/** ลบบรรทัด ??? (และ "ไม่ทราบ:") ที่เติมข้อมูลครบแล้ว คืน null ถ้าไม่เหลืออะไร */
 export function resolveUnknownNotes(notes: string | null | undefined, k: HiveKnowledge): string | null {
   const kept = (notes ?? '')
     .split('\n')
     .filter((line) => {
       const t = line.trim();
-      return !(t.startsWith(UNKNOWN_PREFIX) && resolved(t.slice(UNKNOWN_PREFIX.length).trim(), k));
+      const prefix = t.startsWith(UNKNOWN_PREFIX) ? UNKNOWN_PREFIX : t.startsWith(CONFIRMED_UNKNOWN_PREFIX) ? CONFIRMED_UNKNOWN_PREFIX : null;
+      return !(prefix && resolved(t.slice(prefix.length).trim(), k));
     })
     .join('\n')
     .trim();

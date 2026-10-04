@@ -135,13 +135,15 @@ export interface PublicProduct {
   name: string;
   category: 'hive_box' | 'honey' | 'other';
   description: string | null;
+  /** รูปสินค้าจริง (ถ้าเจ้าของฟาร์มอัปโหลดแล้ว) ไม่งั้นเป็น null */
+  imageKey: string | null;
   variants: PublicVariant[];
 }
 
 /** สินค้าที่เปิดแสดง (published) พร้อมตัวเลือกขนาด/ราคา */
 export async function getPublicProducts(db: Db, slug?: string): Promise<PublicProduct[]> {
   const prods = await db
-    .select({ id: products.id, slug: products.slug, name: products.name, category: products.category, description: products.description })
+    .select({ id: products.id, slug: products.slug, name: products.name, category: products.category, description: products.description, imageKey: products.imageKey })
     .from(products)
     .where(and(eq(products.published, true), slug ? eq(products.slug, slug) : undefined))
     .orderBy(asc(products.sortOrder), asc(products.id));
@@ -309,6 +311,11 @@ export async function searchHiveCodes(db: Db, q: string, limit = 12): Promise<st
  * และรูปขาย (sale) เฉพาะรังที่ตั้งขายอยู่และยังไม่ขาย — รูปอื่น/คีย์ที่เดาเอาเองจะไม่ผ่าน
  */
 export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
+  // รูปสินค้า: เปิดเฉพาะสินค้าที่แสดงบนเว็บ (published) และเป็นรูปปัจจุบันของสินค้านั้น
+  if (key.startsWith('products/')) {
+    const p = await db.select({ one: sql<number>`1` }).from(products).where(and(eq(products.imageKey, key), eq(products.published, true))).limit(1);
+    return p.length > 0;
+  }
   const row = await db
     .select({ one: sql<number>`1` })
     .from(hiveMedia)

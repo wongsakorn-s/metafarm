@@ -2,6 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, userFromToken } from './server/auth.ts';
 import { securityHeaders } from './lib/security-headers.ts';
 import { getDb } from './server/db.ts';
+import { getSettings } from './server/settings.ts';
 
 const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
 
@@ -17,6 +18,11 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname + ctx.url.search)}`);
     }
     ctx.locals.user = user;
+  }
+
+  // โหลดการตั้งค่าเว็บ (ช่องทางติดต่อ ฯลฯ) ให้หน้าสาธารณะ — ข้ามไฟล์ (มีนามสกุล), รูป, และหลังบ้านที่ไม่ใช้
+  if (!needsAuth && !pathname.startsWith('/img/') && !pathname.startsWith('/admin') && !/\.[a-z0-9]+$/i.test(pathname)) {
+    ctx.locals.settings = await getSettings(getDb());
   }
 
   const res = await next();

@@ -5,7 +5,8 @@ import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts } from '../../server/public.ts';
 import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel } from '../../lib/products.ts';
-import { lineChatUrl, site } from '../../config/site.ts';
+import { site } from '../../config/site.ts';
+import { lineChatUrl } from '../../lib/settings.ts';
 import { placeholder } from '../../lib/placeholders.ts';
 
 export const prerender = false;
@@ -15,7 +16,7 @@ const product = (await getPublicProducts(getDb(), slug))[0];
 if (!product) Astro.response.status = 404;
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
-const image = product?.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
+const image = product?.imageKey ? `/img/${product.imageKey}` : product?.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
 const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) : 0;
 ---
 
@@ -37,7 +38,7 @@ const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) 
 
         <ul class="mt-5 space-y-3">
           {product.variants.map((v) => {
-            const line = lineChatUrl(orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb }));
+            const line = lineChatUrl(Astro.locals.settings!.contact, orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb }));
             const stock = stockLabel(v.inStock);
             return (
               <li class="card">

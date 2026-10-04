@@ -163,6 +163,8 @@ export const products = sqliteTable(
     category: text('category', { enum: ['hive_box', 'honey', 'other'] }).notNull(),
     description: text('description'),
     published: integer('published', { mode: 'boolean' }).notNull().default(false),
+    /** รูปสินค้าใน R2 (เจ้าของฟาร์มอัปโหลดจากหลังบ้าน) — ว่าง = เว็บแสดงรูปชั่วคราว */
+    imageKey: text('image_key'),
     sortOrder: integer('sort_order').notNull().default(0),
     ...timestamps,
   },
@@ -212,6 +214,13 @@ export const sessions = sqliteTable(
   },
   (t) => [uniqueIndex('sessions_token_uq').on(t.tokenHash)],
 );
+
+/** การตั้งค่าที่เจ้าของฟาร์มแก้เองจากหลังบ้าน (ช่องทางติดต่อ, หลักสูตรอบรม) — ดู src/lib/settings.ts */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+});
 
 /** บันทึกการล็อกอินผิด เพื่อจำกัดจำนวนครั้ง (เก็บเฉพาะ hash ของ email+IP) */
 export const loginAttempts = sqliteTable(

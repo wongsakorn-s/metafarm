@@ -1,0 +1,102 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import SampleBadge from '../../components/SampleBadge.astro';
+import { getDb } from '../../server/db.ts';
+import { getSettings, saveContact, saveCourse } from '../../server/settings.ts';
+import { listTraining } from '../../lib/content.ts';
+import { contactSchema, courseSchema, effectiveCourse, lineChatUrl, telHref } from '../../lib/settings.ts';
+import { fieldErrors, type FieldErrors } from '../../lib/validation.ts';
+import { formatPrice } from '../../lib/products.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const user = Astro.locals.user!;
+let errors: FieldErrors = {};
+let errorWhere = '';
+let values: Record<string, string> = {};
+const saved = Astro.url.searchParams.get('saved');
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const intent = String(form.get('intent') ?? '');
+  if (intent === 'contact') {
+    const p = contactSchema.safeParse(values);
+    if (p.success) { await saveContact(db, user, p.data); return Astro.redirect('/admin/settings?saved=contact', 303); }
+    errors = fieldErrors(p.error); errorWhere = 'contact';
+  } else if (intent === 'course') {
+    const p = courseSchema.safeParse(values);
+    if (p.success) { await saveCourse(db, user, p.data); return Astro.redirect(`/admin/settings?saved=course#c-${p.data.slug}`, 303); }
+    errors = fieldErrors(p.error); errorWhere = `course:${values.slug}`;
+  }
+}
+
+const settings = await getSettings(db);
+const c = settings.contact;
+const courses = listTraining().map((x) => ({ ...x, eff: effectiveCourse(x, settings.courses[x.slug]) }));
+// ค่าที่แสดงในฟอร์ม: ค่าที่เพิ่งส่งมา (กรณีมี error) ไม่งั้นค่าปัจจุบัน
+const cv = (k: 'lineId' | 'phone' | 'facebookUrl' | 'mapUrl') => (errorWhere === 'contact' ? (values[k] ?? '') : c[k]);
+const confirmedChecked = errorWhere === 'contact' ? values.confirmed === 'on' : c.confirmed;
+const err = (k: string, where: string) => (errorWhere === where ? errors[k] : undefined);
+const line = lineChatUrl(c, 'ทดสอบข้อความจากหลังบ้าน');
+---
+
+<AdminLayout title="ตั้งค่า" active="settings">
+  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ บันทึกแล้ว — เว็บใช้ค่าใหม่ทันที แต่ลูกค้าบางคนอาจยังเห็นค่าเก่าอีกไม่เกิน ~5 นาที (แคชของเว็บ) · แก้ไขได้ทุกเมื่อ</p>}
+
+  <form method="post" class="card mb-8 max-w-2xl space-y-4" id="contact">
+    <input type="hidden" name="intent" value="contact" />
+    <div>
+      <h2 class="text-lg font-semibold">ช่องทางติดต่อ</h2>
+      <p class="hint">ใช้บนทุกหน้าเว็บ (ปุ่มทักไลน์ ส่วนท้ายหน้า หน้าติดต่อเรา) · <strong>เว้นว่าง = ซ่อนช่องทางนั้น</strong></p>
+    </div>
+    {!c.confirmed && <p class="rounded-xl bg-honey-50 p-3 text-sm"><strong>ตอนนี้เป็นข้อมูลตัวอย่าง</strong> เว็บจึงแสดงแถบเหลือง "ข้อมูลตัวอย่าง" ให้ลูกค้าเห็น กรอกข้อมูลจริงแล้วติ๊ก "ยืนยัน" ด้านล่างเพื่อเอาแถบออก</p>}
+
+    <div><label class="label" for="lineId">LINE ID หรือ LINE Official Account</label><input class="field" id="lineId" name="lineId" value={cv('lineId')} placeholder="เช่น @metafarm" autocomplete="off" />{err('lineId', 'contact') && <p class="error">{err('lineId', 'contact')}</p>}<p class="hint">LINE OA ขึ้นต้นด้วย @ (ปุ่มจะใส่ข้อความ "สนใจรัง A25 ราคา …" ให้ลูกค้าอัตโนมัติ) ถ้าเป็น ID ส่วนตัวจะเปิดโปรไฟล์ให้</p></div>
+    <div><label class="label" for="phone">เบอร์โทรศัพท์</label><input class="field" id="phone" name="phone" type="tel" value={cv('phone')} placeholder="เช่น 081-234-5678" />{err('phone', 'contact') && <p class="error">{err('phone', 'contact')}</p>}</div>
+    <div><label class="label" for="facebookUrl">ลิงก์ Facebook เพจ</label><input class="field" id="facebookUrl" name="facebookUrl" type="url" value={cv('facebookUrl')} placeholder="https://www.facebook.com/…" />{err('facebookUrl', 'contact') && <p class="error">{err('facebookUrl', 'contact')}</p>}</div>
+    <div><label class="label" for="mapUrl">ลิงก์แผนที่ฟาร์ม (Google Maps)</label><input class="field" id="mapUrl" name="mapUrl" type="url" value={cv('mapUrl')} placeholder="https://maps.app.goo.gl/…" />{err('mapUrl', 'contact') && <p class="error">{err('mapUrl', 'contact')}</p>}<p class="hint">เปิด Google Maps ที่ตำแหน่งฟาร์ม → กด "แชร์" → "คัดลอกลิงก์" แล้ววางที่นี่</p></div>
+
+    <label class="flex min-h-11 items-start gap-2 rounded-xl border border-line p-3">
+      <input class="mt-1 size-5 accent-palm-600" type="checkbox" name="confirmed" checked={confirmedChecked} />
+      <span><strong>ยืนยันว่าเป็นข้อมูลจริงแล้ว</strong><span class="block text-sm text-muted">ติ๊กแล้วแถบ "ข้อมูลตัวอย่าง" บนเว็บจะหายไป (ต้องมี LINE หรือเบอร์โทรอย่างน้อยหนึ่งช่อง)</span></span>
+    </label>
+    {err('confirmed', 'contact') && <p class="error">{err('confirmed', 'contact')}</p>}
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button class="btn-primary" type="submit">บันทึกช่องทางติดต่อ</button>
+      {line && <a class="text-sm underline" href={line} target="_blank" rel="noopener noreferrer">ทดสอบลิงก์ LINE ที่บันทึกไว้</a>}
+      {telHref(c.phone) && <a class="text-sm underline" href={telHref(c.phone)!}>ทดสอบเบอร์โทร</a>}
+      <a class="text-sm underline" href="/contact" target="_blank" rel="noopener">ดูหน้า "ติดต่อเรา" บนเว็บ</a>
+    </div>
+  </form>
+
+  <section id="courses" aria-labelledby="courses-h" class="max-w-2xl">
+    <h2 id="courses-h" class="text-lg font-semibold">หลักสูตรอบรม: ราคาและระยะเวลา</h2>
+    <p class="hint mb-3">แก้ราคา/ระยะเวลาที่แสดงบนเว็บ (เนื้อหาหลักสูตรอยู่ในไฟล์ <code>content/training/</code>) · ติ๊ก "ยืนยัน" เมื่อเป็นค่าจริงแล้ว ป้าย "ราคาตัวอย่าง" จะหายไป</p>
+    <ul class="space-y-4">
+      {courses.map((x) => {
+        const w = `course:${x.slug}`;
+        const mine = errorWhere === w;
+        return (
+          <li class="card" id={`c-${x.slug}`}>
+            <form method="post" class="space-y-3">
+              <input type="hidden" name="intent" value="course" /><input type="hidden" name="slug" value={x.slug} />
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="font-semibold">{x.title}</h3>
+                <p class="text-sm text-muted">บนเว็บตอนนี้: {formatPrice(x.eff.priceThb)} · {x.eff.duration} {x.eff.priceIsSample && <SampleBadge />}</p>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div><label class="label" for={`p-${x.slug}`}>ค่าอบรม (บาท)</label><input class="field" id={`p-${x.slug}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={mine ? (values.priceThb ?? '') : x.eff.priceThb} />{err('priceThb', w) && <p class="error">{err('priceThb', w)}</p>}</div>
+                <div><label class="label" for={`d-${x.slug}`}>ระยะเวลา</label><input class="field" id={`d-${x.slug}`} name="duration" required maxlength="40" value={mine ? (values.duration ?? '') : x.eff.duration} placeholder="เช่น 1 วัน" />{err('duration', w) && <p class="error">{err('duration', w)}</p>}</div>
+              </div>
+              <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="confirmed" checked={mine ? values.confirmed === 'on' : !x.eff.priceIsSample} /> ยืนยันว่าเป็นค่าจริงแล้ว</label>
+              <button class="btn-primary" type="submit">บันทึก</button>
+            </form>
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+</AdminLayout>

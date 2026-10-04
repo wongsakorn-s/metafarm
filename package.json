@@ -27,7 +27,8 @@
                     "check:lighthouse":  "node scripts/lighthouse.mjs",
                     "predeploy":  "node --no-warnings scripts/predeploy-check.mjs",
                     "db:migrate:remote":  "wrangler d1 migrations apply metafarm-db --remote",
-                    "media:upload:remote":  "node scripts/upload-media-remote.mjs"
+                    "media:upload:remote":  "node scripts/upload-media-remote.mjs",
+                    "snapshot:export":  "node --no-warnings scripts/export-snapshot.ts"
                 },
     "dependencies":  {
                          "@astrojs/cloudflare":  "^14.3.3",

@@ -44,7 +44,7 @@ const range = (p: (typeof products)[number]) => {
       {products.map((p, i) => (
         <li>
           <a href={`/products/${p.slug}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">
-            <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+            <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
             <div class="p-4">
               <h3 class="text-lg font-bold">{p.name}</h3>
               <p class="text-xl font-bold text-palm-700">{range(p)}</p>

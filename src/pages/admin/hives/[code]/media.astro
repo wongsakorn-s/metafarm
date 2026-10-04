@@ -22,7 +22,10 @@ let notice = Astro.url.searchParams.get('msg') ?? '';
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const intent = String(form.get('intent') ?? '');
-  const back = (msg: string) => Astro.redirect(`/admin/hives/${code}/media?msg=${encodeURIComponent(msg)}`, 303);
+  // กลับไปหน้าที่ส่งมา (เช่น คิวถ่ายรูป) ได้เฉพาะหน้าในหลังบ้าน — กัน open redirect
+  const rawBack = String(form.get('back') ?? '');
+  const backTo = /^\/admin\/[A-Za-z0-9/_-]*$/.test(rawBack) && !rawBack.includes('//') ? rawBack : `/admin/hives/${code}/media`;
+  const back = (msg: string) => Astro.redirect(`${backTo}?msg=${encodeURIComponent(msg)}`, 303);
 
   if (intent === 'upload') {
     const kind = form.get('kind');

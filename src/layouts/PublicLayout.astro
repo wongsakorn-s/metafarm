@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
-import { isSet, lineChatUrl, site } from '../config/site.ts';
+import { site } from '../config/site.ts';
+import { lineChatUrl, telHref } from '../lib/settings.ts';
 
 interface Props {
   title: string;
@@ -14,8 +15,9 @@ const { title, description = site.description, lineMessage, active, noindex = fa
 
 const fullTitle = title === site.name ? `${site.name} · ${site.tagline}` : `${title} · ${site.name}`;
 const ogImage = new URL('/brand/og.png', Astro.url).href;
-const line = lineChatUrl(lineMessage);
-const c = site.contact;
+const c = Astro.locals.settings!.contact;
+const line = lineChatUrl(c, lineMessage);
+const tel = telHref(c.phone);
 
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก' },
@@ -50,7 +52,7 @@ const nav = [
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body class="flex min-h-dvh flex-col">
-    {site.contactIsSample && (
+    {!c.confirmed && (
       <p class="bg-honey-400 px-4 py-1.5 text-center text-sm font-medium text-ink" role="note">
         ⚠️ ช่องทางติดต่อบนเว็บนี้เป็น<strong>ข้อมูลตัวอย่าง</strong> (เว็บกำลังจัดทำ)
       </p>
@@ -84,9 +86,9 @@ const nav = [
           <h2 class="mb-2 font-semibold">ติดต่อเรา</h2>
           <ul class="space-y-1 text-sm">
             {line && <li><a class="text-palm-700 underline" href={line} rel="noopener">LINE: {c.lineId}</a></li>}
-            {isSet(c.phone) && <li><a class="text-palm-700 underline" href={`tel:${c.phone.replace(/[^0-9+]/g, '')}`}>โทร {c.phone}</a></li>}
-            {isSet(c.facebookUrl) && <li><a class="text-palm-700 underline" href={c.facebookUrl} rel="noopener noreferrer">Facebook</a></li>}
-            {isSet(c.mapUrl) && <li><a class="text-palm-700 underline" href={c.mapUrl} rel="noopener noreferrer">แผนที่ฟาร์ม</a></li>}
+            {tel && <li><a class="text-palm-700 underline" href={tel}>โทร {c.phone}</a></li>}
+            {c.facebookUrl && <li><a class="text-palm-700 underline" href={c.facebookUrl} rel="noopener noreferrer">Facebook</a></li>}
+            {c.mapUrl && <li><a class="text-palm-700 underline" href={c.mapUrl} rel="noopener noreferrer">แผนที่ฟาร์ม</a></li>}
           </ul>
         </div>
       </div>

@@ -27,7 +27,9 @@ npm run dev                   # http://localhost:4321  → หลังบ้า
 ตรวจในเบราว์เซอร์จริง (Edge/Chrome ในเครื่อง, มือถือ + คอม, เก็บภาพไว้ใน `private/screenshots/`): เปิด `npm run dev` ค้างไว้ แล้วรัน `npm run check:browser`
 ตรวจข้อมูลลับไม่หลุดในหน้าสาธารณะ (ต้องเปิด `npm run dev` ไว้): `npm run check:leaks`
 สร้างโลโก้/ไอคอนขนาดเว็บจาก `design/logo/`: `npm run brand:build`
-ตรวจความพร้อมขึ้นออนไลน์: `npm run predeploy` · คะแนน Lighthouse (ต้อง build + `npx astro preview --port 4500` ก่อน): `npm run check:lighthouse`
+ส่งออกข้อมูลปัจจุบัน (ฐานข้อมูล + รูป) เพื่อนำขึ้นระบบจริง: `npm run snapshot:export` (ดู docs/10-deploy-runbook.md ข้อ 2.6)
+เจ้าของฟาร์มดูความพร้อมของข้อมูลที่หลังบ้าน เมนู ✅ เตรียมเปิด
+ตรวจความพร้อมขึ้นออนไลน์ (ผู้ดูแลระบบ): `npm run predeploy` · คะแนน Lighthouse (ต้อง build + `npx astro preview --port 4500` ก่อน): `npm run check:lighthouse`
 ล้างรูปทดสอบใน R2 บนเครื่อง: `npm run media:seed:local -- --prune`
 หลังแก้ `wrangler.jsonc` ให้รัน `npm run generate-types`
 

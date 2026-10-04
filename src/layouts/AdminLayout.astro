@@ -4,16 +4,22 @@ import { site } from '../config/site.ts';
 
 interface Props {
   title: string;
-  active?: 'dashboard' | 'hives' | 'new' | 'products' | 'account';
+  active?: 'dashboard' | 'hives' | 'new' | 'products' | 'readiness' | 'settings' | 'account';
 }
 const { title, active } = Astro.props;
 const user = Astro.locals.user;
 
+// เมนูหลัก (แถบล่างบนมือถือ + แถบข้างบนคอม)
 const nav = [
   { key: 'dashboard', href: '/admin', icon: '📊', label: 'ภาพรวม' },
   { key: 'hives', href: '/admin/hives', icon: '🐝', label: 'รัง' },
-  { key: 'new', href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรัง' },
   { key: 'products', href: '/admin/products', icon: '🛒', label: 'สินค้า' },
+  { key: 'readiness', href: '/admin/readiness', icon: '✅', label: 'เตรียมเปิด' },
+] as const;
+// เมนูรอง (แถบข้างบนคอม; บนมือถือเข้าจากปุ่มในหน้านั้น ๆ)
+const more = [
+  { key: 'new', href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรัง' },
+  { key: 'settings', href: '/admin/settings', icon: '⚙️', label: 'ตั้งค่า' },
 ] as const;
 ---
 
@@ -38,6 +44,13 @@ const nav = [
             <span aria-hidden="true">{n.icon}</span>{n.label}
           </a>
         ))}
+              <hr class="my-2 border-line" />
+        {more.map((n) => (
+          <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
+            class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
+            <span aria-hidden="true">{n.icon}</span>{n.label}
+          </a>
+        ))}
       </nav>
       <form method="post" action="/admin/logout" class="mt-auto">
         <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 block truncate text-sm text-muted underline">🔑 {user?.name} · บัญชี</a>
@@ -47,7 +60,7 @@ const nav = [
 
     <header class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
       <a href="/admin" class="font-bold text-palm-700">🐝 {site.name}</a>
-      <div class="flex items-center gap-4"><a href="/admin/account" class="text-sm text-muted underline">🔑 บัญชี</a><form method="post" action="/admin/logout"><button class="text-sm text-muted underline" type="submit">ออกจากระบบ</button></form></div>
+      <div class="flex items-center gap-4"><a href="/admin/settings" class="text-sm text-muted underline">⚙️ ตั้งค่า</a><a href="/admin/account" class="text-sm text-muted underline">🔑 บัญชี</a><form method="post" action="/admin/logout"><button class="text-sm text-muted underline" type="submit">ออกจากระบบ</button></form></div>
     </header>
 
     <main class="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">

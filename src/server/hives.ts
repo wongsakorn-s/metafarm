@@ -3,8 +3,9 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers } from '../db/schema.ts';
 import type { z } from 'zod';
-import type { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
-import { resolveUnknownNotes } from '../lib/unknown-notes.ts';
+import { todayBangkok } from '../lib/validation.ts';
+import type { broodSplitSchema, editHiveSchema, fillSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
+import { confirmUnknown, resolveUnknownNotes } from '../lib/unknown-notes.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -267,6 +268,75 @@ export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.out
     db.update(hives).set({ forSale: d.forSale, salePrice: d.forSale ? d.salePrice : hive.salePrice, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.sale', hive.id, { forSale: d.forSale, salePrice: d.salePrice }),
   ]);
+  return { ok: true };
+}
+
+// ---------- งานเตรียมข้อมูลก่อนเปิดเว็บ ----------
+
+/** รังที่ยังไม่มีรูปสมุดพก (ค่าเริ่มต้น: เฉพาะรังที่ยังอยู่) เรียงตามเลขรัง */
+export async function listHivesWithoutPhoto(db: Db, includeAll = false) {
+  return db
+    .select({ code: hives.code, status: hives.status, origin: hives.origin, originPlace: hives.originPlace, acquiredOn: hives.acquiredOn, acquiredOnPrecision: hives.acquiredOnPrecision, forSale: hives.forSale })
+    .from(hives)
+    .where(and(includeAll ? undefined : eq(hives.status, 'active'), sql`not exists (select 1 from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' and m.r2_key is not null)`))
+    .orderBy(asc(hives.id));
+}
+
+/** รังที่ยังมีข้อมูล ??? ค้างอยู่ พร้อมสิ่งที่ต้องใช้ตัดสินว่าหัวข้อไหนเติมแล้ว */
+export async function listIncompleteHives(db: Db) {
+  const queenSrc = alias(hives, 'q');
+  const broodSrc = alias(hives, 'b');
+  return db
+    .select({ code: hives.code, status: hives.status, origin: hives.origin, originPlace: hives.originPlace, acquiredOn: hives.acquiredOn, queenBornOn: hives.queenBornOn, notes: hives.notes, queenSource: queenSrc.code, broodSource: broodSrc.code })
+    .from(hives)
+    .leftJoin(queenSrc, eq(queenSrc.id, hives.queenSourceHiveId))
+    .leftJoin(broodSrc, eq(broodSrc.id, hives.broodSourceHiveId))
+    .where(hasUnknownNote)
+    .orderBy(asc(hives.id));
+}
+
+/** เติมเฉพาะข้อมูลที่รู้ (ช่องที่ไม่ส่งมาไม่ถูกแตะ) แล้วลบบรรทัด ??? ที่เติมแล้ว */
+export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof fillSchema>): Promise<Result> {
+  if (!d.queenBornOn && !d.acquiredOn && !d.queenSourceCode && !d.broodSourceCode && !d.status) return { ok: false, error: 'ยังไม่ได้กรอกข้อมูล' };
+
+  const find = async (code?: string) => {
+    if (!code) return { id: undefined as number | null | undefined };
+    if (code === hive.code) return { id: null, error: 'รังแม่ต้องไม่ใช่รังเดียวกัน' };
+    const s = await db.query.hives.findFirst({ where: eq(hives.code, code), columns: { id: true } });
+    return s ? { id: s.id } : { id: null, error: `ไม่พบรัง ${code}` };
+  };
+  const q = await find(d.queenSourceCode);
+  if ('error' in q && q.error) return { ok: false, error: q.error };
+  const b = await find(d.broodSourceCode);
+  if ('error' in b && b.error) return { ok: false, error: b.error };
+
+  // สถานะ: ใช้ขั้นตอนเดียวกับการเปลี่ยนสถานะปกติ (บันทึกเหตุการณ์ + เคลียร์ ??? สถานะรัง)
+  if (d.status && d.status !== hive.status) {
+    const r = await changeStatus(db, user, hive, { status: d.status, occurredOn: todayBangkok() } as z.output<typeof statusSchema>);
+    if (!r.ok) return r;
+    hive = (await db.query.hives.findFirst({ where: eq(hives.id, hive.id) }))!;
+  }
+
+  const next = {
+    queenBornOn: d.queenBornOn ?? hive.queenBornOn,
+    acquiredOn: d.acquiredOn ?? hive.acquiredOn,
+    acquiredOnPrecision: d.acquiredOn ? ('day' as const) : hive.acquiredOnPrecision,
+    queenSourceHiveId: q.id ?? hive.queenSourceHiveId,
+    broodSourceHiveId: b.id ?? hive.broodSourceHiveId,
+  };
+  const notes = resolveUnknownNotes(hive.notes, { status: hive.status, queenBornOn: next.queenBornOn, acquiredOn: next.acquiredOn, hasQueenSource: next.queenSourceHiveId != null, hasBroodSource: next.broodSourceHiveId != null });
+  await db.batch([
+    db.update(hives).set({ ...next, notes, ...touch }).where(eq(hives.id, hive.id)),
+    audit(db, user, 'hive.fill', hive.id, { fields: Object.keys(d).filter((k) => (d as Record<string, unknown>)[k] != null) }),
+  ]);
+  return { ok: true };
+}
+
+/** "ไม่ทราบจริง ๆ": เลิกเตือนหัวข้อนี้ (เติมข้อมูลทีหลังได้เสมอ) */
+export async function markUnknown(db: Db, user: SessionUser, hive: Hive, topic: string): Promise<Result> {
+  const notes = confirmUnknown(hive.notes, topic);
+  if (notes === hive.notes) return { ok: false, error: 'ไม่พบหัวข้อนี้ในรังนี้' };
+  await db.batch([db.update(hives).set({ notes, ...touch }).where(eq(hives.id, hive.id)), audit(db, user, 'hive.confirm_unknown', hive.id, { topic })]);
   return { ok: true };
 }
 

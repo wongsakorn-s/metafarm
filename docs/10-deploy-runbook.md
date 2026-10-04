@@ -7,8 +7,10 @@
 
 คำสั่งนี้ตรวจว่าอะไรยังไม่พร้อม แยกเป็น **ต้องแก้ก่อน (❌)** และ **ควรแก้ (⚠️)** ตอนนี้ที่ต้องแก้คือ
 
-1. `src/config/site.ts` → ใส่ LINE / เบอร์โทร / Facebook / ลิงก์แผนที่ฟาร์ม **จริง** แล้วตั้ง `contactIsSample: false`
+1. **ช่องทางติดต่อจริง** — เจ้าของฟาร์มกรอกเองที่หลังบ้าน เมนู ⚙️ ตั้งค่า (LINE / เบอร์ / Facebook / แผนที่) แล้วติ๊ก "ยืนยัน" (ไม่ต้องแก้โค้ดแล้ว และแก้ทีหลังได้เสมอ) — ค่าอยู่ในฐานข้อมูล จึงต้องส่งไปกับข้อมูล (ข้อ 2.6)
 2. `wrangler.jsonc` → ใส่ `database_id` จริงของ D1 (ข้อ 2.3)
+
+เจ้าของฟาร์มดูความคืบหน้าของข้อมูลทั้งหมดได้เองที่หลังบ้าน เมนู ✅ เตรียมเปิด (รูปรัง ข้อมูลที่ไม่ครบ ราคา รูปสินค้า)
 
 ## 1. ⚠️ เรื่องที่ต้องรู้ก่อนสมัคร (อาจกระทบ "ไม่เสียเงิน")
 
@@ -26,20 +28,34 @@
 4. สร้างที่เก็บรูป: `npx wrangler r2 bucket create metafarm-media` และที่เก็บสำรอง `npx wrangler r2 bucket create metafarm-backups`
    - ให้ลบสำรองเก่าเองหลัง 30 วัน: `npx wrangler r2 bucket lifecycle add metafarm-backups --name expire-30d --prefix d1/ --expire-days 30` (ตรวจ syntax ด้วย `--help` ก่อน)
 5. สร้างตารางในฐานข้อมูลจริง: `npm run db:migrate:remote`
-6. นำข้อมูลเข้า (**ทำครั้งเดียวก่อนใช้งานจริงเท่านั้น**):
+6. นำข้อมูลเข้า (**ทำครั้งเดียวก่อนใช้งานจริงเท่านั้น**)
+
+   > **เลือกที่เดียวเป็น "ที่กรอกข้อมูลหลัก"** เพื่อไม่ให้ข้อมูลสองที่ทับกัน: (ก) กรอกในเครื่องก่อนแล้วส่งขึ้นไป หรือ (ข) นำข้อมูลเริ่มต้นขึ้นก่อนแล้วกรอกบนระบบจริงเลย — ตัวเลือก (ข) ปลอดภัยกว่าถ้าเจ้าของฟาร์มจะกรอกต่อเนื่อง เพราะไม่ต้องส่งออกซ้ำ
+
+   **ทาง (ก) แนะนำถ้าเจ้าของกรอกในเครื่องไว้แล้ว** (ตั้งค่าติดต่อ ราคา ถ่ายรูป เติมข้อมูลรัง) — ส่งออก "ข้อมูลปัจจุบัน" ไม่ใช่ไฟล์ Excel เดิม:
+   ```powershell
+   npm run snapshot:export    # → private/export/snapshot.sql (รัง ประวัติ รูป สินค้า การตั้งค่า) + private/export/media/ (รูป)
+   # ⚠️ snapshot.sql "ล้างข้อมูลเนื้อหาในฐานข้อมูลปลายทางก่อนนำเข้า" (ไม่แตะผู้ใช้) — ใช้ครั้งแรกก่อนเริ่มใช้งานจริงเท่านั้น
+   npx wrangler d1 execute metafarm-db --remote --file private/export/snapshot.sql
+   npm run media:upload:remote -- --tree private/export/media            # ดูรายการก่อน (ยังไม่ส่งอะไร)
+   npm run media:upload:remote -- --tree private/export/media --yes      # อัปโหลดรูปจริง
+   ```
+   ทดสอบแล้วว่านำเข้าลงฐานข้อมูลเปล่าได้ข้อมูลเหมือนเดิมทุกตัวอักษร (เทียบทุกตาราง รวมความเชื่อมโยงรังแม่/รังลูก) แต่ไม่ได้ลองกับ Cloudflare จริง
+
+   **ทาง (ข) เริ่มจากข้อมูล Excel เดิม** (ไม่ได้เอาสิ่งที่กรอกในเครื่องไป):
    ```powershell
    # ⚠️ seed.sql "ล้างข้อมูลรังทั้งหมดก่อนนำเข้า" ห้ามรันซ้ำหลังเริ่มใช้งานจริง ไม่งั้นข้อมูลที่บันทึกใหม่หาย
    npx wrangler d1 execute metafarm-db --remote --file private/import/seed.sql
-
    npm run products:seed:local -- --sql > private/products.sql
    npx wrangler d1 execute metafarm-db --remote --file private/products.sql
+   npm run media:upload:remote -- --yes   # รูป 231 ไฟล์จาก Excel
+   ```
 
+   **ทั้งสองทาง — สร้างผู้ใช้เจ้าของบนระบบจริง** (ไม่ได้ส่งออกไปกับ snapshot):
+   ```powershell
    npm run user:create -- --email อีเมลเจ้าของ@ตัวอย่าง.com --name "ชื่อ" --generate --print-sql > private/owner.sql
    npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
-   # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → เข้าระบบแล้วไปเมนู "🔑 บัญชี" เปลี่ยนรหัสทันที จากนั้นลบไฟล์ทั้งสาม
-
-   npm run media:upload:remote            # ดูรายการก่อน (ยังไม่ส่งอะไร)
-   npm run media:upload:remote -- --yes   # อัปโหลดรูป 231 ไฟล์จริง
+   # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → เข้าระบบแล้วไปเมนู "🔑 บัญชี" เปลี่ยนรหัสทันที จากนั้นลบ owner.sql / prod-owner.txt / private/export
    ```
 7. Deploy ครั้งแรก: `npm run build` แล้ว `npx wrangler deploy` → ได้ลิงก์ `https://metafarm.<ชื่อบัญชี>.workers.dev`
 8. ตั้ง GitHub Actions (ครั้งต่อไปจะ deploy ผ่านปุ่มใน GitHub):

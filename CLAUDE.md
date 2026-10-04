@@ -21,6 +21,9 @@ Website + back office for a stingless bee (ชันโรงขนเงิน)
 - `sitemap.xml`/`robots.txt` are dynamic routes (use the request origin). Training price/duration and course outlines are samples until the owner confirms.
 - Deploy prep: `docs/10-deploy-runbook.md`; `npm run predeploy` lists blockers (sample contact info, placeholder D1 id). CSP/HSTS apply only to production builds (`src/lib/security-headers.ts`) — verify changes against `astro preview`, not the dev server. Nothing has been run against real Cloudflare; never run `--remote` wrangler commands, `media:upload:remote -- --yes`, or deploy workflows unless the user asks.
 - Password change lives at `/admin/account`; PBKDF2 iteration count is stored inside each hash (lowering `ITERATIONS` keeps old hashes valid).
+- Owner-editable settings (contact channels, course price/duration) live in the `settings` table (`src/lib/settings.ts` validation, `src/server/settings.ts`), loaded per request by the middleware into `Astro.locals.settings`; public pages must read contact info from there, never from `site.ts`. Hrefs from settings are validated (https + facebook/google-maps hosts only).
+- Pre-launch data work (owner): `/admin/readiness` (checklist), `/admin/photos`, `/admin/todo`, `/admin/settings`. "ไม่ทราบ: topic" notes = owner confirmed unknown. To move local data to production use `npm run snapshot:export`, NOT `seed.sql` (which would discard local edits).
+- PowerShell gotchas in test scripts: `$home`, `$pid`, `$host`, `$args` are reserved and a function named `H` collides with the `h` alias (Get-History) — a comparison helper silently returned empty on both sides and "passed"; always print the values you compare.
 - Do not run `astro build` / `astro check` while a dev server is running: it invalidates Vite's dep cache and the running server then 500s (e.g. "file does not exist ... deps_ssr/zod.js"). Stop the dev server first, or restart it afterwards (`astro dev --force`).
 
 ## Development

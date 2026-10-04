@@ -1,17 +1,19 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
-import { isSet, lineChatUrl, site } from '../config/site.ts';
+import { site } from '../config/site.ts';
+import { lineChatUrl, telHref } from '../lib/settings.ts';
 
 export const prerender = false;
 
-const c = site.contact;
-const line = lineChatUrl('สอบถามข้อมูล');
+const c = Astro.locals.settings!.contact;
+const line = lineChatUrl(c, 'สอบถามข้อมูล');
+const tel = telHref(c.phone);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const channels = [
   line && { icon: '💬', label: 'LINE', value: c.lineId, href: line, note: 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย' },
-  isSet(c.phone) && { icon: '📞', label: 'โทรศัพท์', value: c.phone, href: `tel:${c.phone.replace(/[^0-9+]/g, '')}`, note: '' },
-  isSet(c.facebookUrl) && { icon: '👍', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
+  tel && { icon: '📞', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
+  c.facebookUrl && { icon: '👍', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
 ].filter(Boolean) as { icon: string; label: string; value: string; href: string; note: string }[];
 ---
 
@@ -34,7 +36,7 @@ const channels = [
     <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
     <p class="mt-1">{site.name} · {site.tagline}</p>
     <p>{site.address}</p>
-    {isSet(c.mapUrl) && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer">🗺️ เปิดแผนที่</a>}
+    {c.mapUrl && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer">🗺️ เปิดแผนที่</a>}
     <p class="hint mt-3">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
   </section>
 </PublicLayout>

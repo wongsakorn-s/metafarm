@@ -51,7 +51,7 @@ for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desk
   await page.fill('#email', email);
   await page.fill('#password', password);
   await Promise.all([page.waitForURL('**/admin'), page.click('button[type=submit]')]);
-  for (const [p, n] of [['/admin', 'dashboard'], ['/admin/hives', 'hives'], ['/admin/hives/A25', 'hive-A25'], ['/admin/hives/A25/edit', 'edit-A25'], ['/admin/hives/A25/media', 'media-A25'], ['/admin/hives/new', 'new-hive'], ['/admin/hives?incomplete=1', 'incomplete'], ['/admin/products', 'products']])
+  for (const [p, n] of [['/admin', 'dashboard'], ['/admin/hives', 'hives'], ['/admin/hives/A25', 'hive-A25'], ['/admin/hives/A25/edit', 'edit-A25'], ['/admin/hives/A25/media', 'media-A25'], ['/admin/hives/new', 'new-hive'], ['/admin/hives?incomplete=1', 'incomplete'], ['/admin/products', 'products'], ['/admin/readiness', 'readiness'], ['/admin/settings', 'settings'], ['/admin/photos', 'photos'], ['/admin/todo', 'todo'], ['/admin/account', 'account']])
     await visit(page, p, `${label}-${n}`);
   await ctx.close();
 }

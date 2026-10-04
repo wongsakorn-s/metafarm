@@ -72,6 +72,15 @@ export const newHiveSchema = z.object({
   idem,
 });
 
+/** กรอกข้อมูลที่ยังไม่ครบ (???) — ทุกช่องไม่บังคับ ส่งมาเฉพาะที่รู้ */
+export const fillSchema = z.object({
+  queenBornOn: opt(date),
+  acquiredOn: opt(date),
+  queenSourceCode: opt(hiveCode),
+  broodSourceCode: opt(hiveCode),
+  status: z.preprocess(blank, z.enum(['active', 'sold', 'collapsed']).optional()),
+});
+
 /** แก้ราคา/สต็อกของตัวเลือกสินค้า */
 export const variantSchema = z.object({
   variantId: z.coerce.number().int().positive(),

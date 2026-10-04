@@ -2,12 +2,13 @@
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { getDb } from '../server/db.ts';
 import { getFarmStats } from '../server/public.ts';
-import { lineChatUrl, site } from '../config/site.ts';
+import { site } from '../config/site.ts';
+import { lineChatUrl } from '../lib/settings.ts';
 
 export const prerender = false;
 
 const stats = await getFarmStats(getDb());
-const line = lineChatUrl('สนใจสอบถามรังและผลิตภัณฑ์ชันโรง');
+const line = lineChatUrl(Astro.locals.settings!.contact, 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง');
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const highlights = [

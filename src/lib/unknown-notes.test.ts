@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveUnknownNotes, unknownTopics, type HiveKnowledge } from './unknown-notes.ts';
+import { confirmUnknown, resolveUnknownNotes, unknownTopics, type HiveKnowledge } from './unknown-notes.ts';
 
 const base: HiveKnowledge = { status: 'active', queenBornOn: null, acquiredOn: null, hasQueenSource: false, hasBroodSource: false };
 
@@ -7,6 +7,24 @@ describe('unknownTopics', () => {
   it('ดึงเฉพาะบรรทัด ???', () => {
     expect(unknownTopics('ขยายรัง : 8 มิย. 2567\n??? วันเกิดนางพญา\n??? สถานะรัง')).toEqual(['วันเกิดนางพญา', 'สถานะรัง']);
     expect(unknownTopics(null)).toEqual([]);
+  });
+});
+
+describe('confirmUnknown ("ไม่ทราบจริง ๆ")', () => {
+  it('เปลี่ยน ??? เป็น "ไม่ทราบ:" เฉพาะหัวข้อที่ระบุ และไม่ถูกนับเป็นข้อมูลไม่ครบอีก', () => {
+    const n = confirmUnknown('หมายเหตุ\n??? วันเกิดนางพญา\n??? สถานะรัง', 'วันเกิดนางพญา');
+    expect(n).toBe('หมายเหตุ\nไม่ทราบ: วันเกิดนางพญา\n??? สถานะรัง');
+    expect(unknownTopics(n)).toEqual(['สถานะรัง']);
+  });
+  it('หัวข้อที่ไม่มี → ไม่เปลี่ยนอะไร', () => {
+    expect(confirmUnknown('ข้อความ', 'วันเกิดนางพญา')).toBe('ข้อความ');
+    expect(confirmUnknown(null, 'x')).toBeNull();
+  });
+  it('เมื่อรู้ข้อมูลภายหลัง บรรทัด "ไม่ทราบ:" ถูกลบเองเหมือน ???', () => {
+    const n = confirmUnknown('??? รังแม่ (ไข่อ่อน)', 'รังแม่ (ไข่อ่อน)');
+    expect(n).toBe('ไม่ทราบ: รังแม่ (ไข่อ่อน)');
+    expect(resolveUnknownNotes(n, { ...base, hasBroodSource: true })).toBeNull();
+    expect(resolveUnknownNotes(n, base)).toBe('ไม่ทราบ: รังแม่ (ไข่อ่อน)'); // ยังไม่รู้ → คงไว้
   });
 });
 

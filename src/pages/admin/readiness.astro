@@ -1,0 +1,41 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { getReadiness } from '../../server/readiness.ts';
+import { getSettings } from '../../server/settings.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const r = await getReadiness(db, await getSettings(db));
+---
+
+<AdminLayout title="เตรียมเปิดเว็บ" active="readiness">
+  <section class="card mb-5" aria-labelledby="prog-h">
+    <h2 id="prog-h" class="text-lg font-semibold">ความพร้อม {r.done}/{r.total} รายการ</h2>
+    <div class="mt-2 h-3 overflow-hidden rounded-full bg-palm-50" role="progressbar" aria-valuenow={r.percent} aria-valuemin="0" aria-valuemax="100" aria-label="ความพร้อมก่อนเปิดเว็บ">
+      <div class="h-full rounded-full bg-palm-600" style={`width: ${r.percent}%`}></div>
+    </div>
+    <p class="mt-2 text-sm text-muted">
+      {r.mustLeft > 0 ? <>ยังเหลือ <strong class="text-danger">{r.mustLeft} รายการสำคัญ</strong> ที่ควรเสร็จก่อนเปิดเว็บให้คนทั่วไปเห็น</> : <strong class="text-palm-700">รายการสำคัญเสร็จแล้ว</strong>}
+      · ทุกอย่างในหน้านี้ <strong>แก้ไขทีหลังได้เสมอ</strong> ไม่ต้องเสร็จทั้งหมดในครั้งเดียว
+    </p>
+  </section>
+
+  <ul class="space-y-3">
+    {r.items.map((it) => (
+      <li class:list={['card flex flex-wrap items-center gap-3', it.done && 'bg-palm-50/60']}>
+        <span class="text-2xl" aria-hidden="true">{it.done ? '✅' : it.level === 'must' ? '❗' : '⏳'}</span>
+        <div class="min-w-0 flex-1 basis-60">
+          <h3 class="font-semibold">{it.title} {it.level === 'must' && !it.done && <span class="badge bg-red-100 text-danger">สำคัญ</span>}</h3>
+          <p class="text-sm text-muted">{it.detail}</p>
+        </div>
+        <a class:list={[it.done ? 'btn-ghost' : 'btn-primary']} href={it.href}>{it.done ? 'ดู/แก้ไข' : it.cta}</a>
+      </li>
+    ))}
+  </ul>
+
+  <p class="mt-6 text-sm text-muted">
+    ส่วนที่ทำโดยผู้ดูแลระบบ (ไม่ใช่เจ้าของฟาร์ม): สมัคร Cloudflare และนำเว็บขึ้นออนไลน์ — ดูคู่มือ <code>docs/10-deploy-runbook.md</code>
+  </p>
+</AdminLayout>

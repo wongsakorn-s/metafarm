@@ -11,15 +11,32 @@ import { promisify } from 'node:util';
 
 const run = promisify(execFile);
 const { values } = parseArgs({
-  options: { yes: { type: 'boolean', default: false }, bucket: { type: 'string', default: 'metafarm-media' }, dir: { type: 'string', default: 'private/import/photos' }, concurrency: { type: 'string', default: '4' } },
+  options: {
+    yes: { type: 'boolean', default: false },
+    bucket: { type: 'string', default: 'metafarm-media' },
+    dir: { type: 'string', default: 'private/import/photos' },
+    // --tree: โฟลเดอร์ที่ได้จาก `npm run snapshot:export` (private/export/media) ใช้พาธเป็น key ตรง ๆ (hives/A1/…, products/…)
+    tree: { type: 'string' },
+    concurrency: { type: 'string', default: '4' },
+  },
 });
 const TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 const jobs = [];
-for (const file of readdirSync(values.dir)) {
-  const type = TYPES[extname(file).toLowerCase()];
-  const m = /^(A\d+)-\d+\./.exec(file);
-  if (type && m) jobs.push({ key: `hives/${m[1]}/${file}`, path: join(values.dir, file), type });
+if (values.tree) {
+  const walk = (dir, prefix) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(join(dir, e.name), `${prefix}${e.name}/`);
+      else if (TYPES[extname(e.name).toLowerCase()]) jobs.push({ key: `${prefix}${e.name}`, path: join(dir, e.name), type: TYPES[extname(e.name).toLowerCase()] });
+    }
+  };
+  walk(values.tree, '');
+} else {
+  for (const file of readdirSync(values.dir)) {
+    const type = TYPES[extname(file).toLowerCase()];
+    const m = /^(A\d+)-\d+\./.exec(file);
+    if (type && m) jobs.push({ key: `hives/${m[1]}/${file}`, path: join(values.dir, file), type });
+  }
 }
 console.log(`${jobs.length} ไฟล์ → bucket "${values.bucket}" (R2 จริง)`);
 if (!values.yes) {

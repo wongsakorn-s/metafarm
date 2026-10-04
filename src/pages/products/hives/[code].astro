@@ -5,7 +5,8 @@ import { getDb } from '../../../server/db.ts';
 import { getSaleHive } from '../../../server/public.ts';
 import { formatPrice, orderMessage } from '../../../lib/products.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
-import { lineChatUrl, site } from '../../../config/site.ts';
+import { site } from '../../../config/site.ts';
+import { lineChatUrl } from '../../../lib/settings.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 
 export const prerender = false;
@@ -15,7 +16,7 @@ const hive = /^A\d{1,5}$/.test(code) ? await getSaleHive(getDb(), code) : null;
 if (!hive) Astro.response.status = 404;
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
-const line = hive ? lineChatUrl(orderMessage('', { code: hive.code, price: hive.priceThb })) : null;
+const line = hive ? lineChatUrl(Astro.locals.settings!.contact, orderMessage('', { code: hive.code, price: hive.priceThb })) : null;
 const originText = !hive ? '' : hive.origin === 'queen_bred' ? `เพาะนางพญาเองที่ ${site.name}` : hive.origin === 'purchased' ? (hive.province ? `ซื้อมาจากจังหวัด${hive.province}` : 'ซื้อมา') : hive.origin === 'split' ? `ขยายรังเองที่ ${site.name}` : hive.origin === 'natural' ? 'ขยายเองตามธรรมชาติ' : '';
 const photos = hive ? [...hive.salePhotos, ...hive.passportPhotos] : [];
 ---

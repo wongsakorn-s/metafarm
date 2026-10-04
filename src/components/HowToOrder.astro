@@ -1,9 +1,9 @@
 ---
-import { lineChatUrl } from '../config/site.ts';
+import { lineChatUrl } from '../lib/settings.ts';
 
 interface Props { message?: string }
 const { message = 'สนใจสั่งซื้อสินค้า' } = Astro.props;
-const line = lineChatUrl(message);
+const line = lineChatUrl(Astro.locals.settings!.contact, message);
 const steps = [
   ['1', 'ทักไลน์', 'บอกสินค้าที่สนใจ ระบบจะใส่ข้อความให้ในแชตอัตโนมัติ'],
   ['2', 'ยืนยันรายละเอียด', 'แจ้งราคา สต็อก และวิธีรับ-ส่ง (รังเป็นสิ่งมีชีวิต สอบถามวิธีรับส่งที่เหมาะสมทางไลน์)'],
