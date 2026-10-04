@@ -58,7 +58,7 @@ const err = (k: string) => errors[k];
 const idem = () => crypto.randomUUID();
 const noteLines = (hive.notes ?? '').split('\n').filter(Boolean);
 const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–');
-const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', created: 'สร้างรังใหม่แล้ว' };
+const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
 ---
 
 <AdminLayout title={`รัง ${hive.code}`} active="hives">
@@ -80,6 +80,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       ))}
     </div>
     {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}
+    <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/edit`}>✏️ แก้ไขข้อมูลรัง{noteLines.some((l) => l.startsWith('???')) ? ' (มีข้อมูลที่ยังไม่ทราบ ???)' : ''}</a>
   </section>
 
   <!-- ปุ่มบันทึกเร็ว -->

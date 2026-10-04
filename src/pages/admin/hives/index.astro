@@ -14,6 +14,7 @@ const filter = {
   status: ['active', 'sold', 'collapsed', 'unknown'].includes(sp.get('status') ?? '') ? sp.get('status')! : '',
   origin: ['purchased', 'queen_bred', 'split', 'natural'].includes(sp.get('origin') ?? '') ? sp.get('origin')! : '',
   forSale: sp.get('forSale') === '1',
+  incomplete: sp.get('incomplete') === '1',
   page: Math.max(1, Number(sp.get('page')) || 1),
 };
 const { rows, total, page, pages } = await listHives(getDb(), filter);
@@ -47,11 +48,12 @@ const link = (p: number) => {
     </div>
     <div class="flex items-end gap-3">
       <label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="forSale" value="1" checked={filter.forSale} class="size-5 accent-palm-600" /> ตั้งขาย</label>
+      <label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="incomplete" value="1" checked={filter.incomplete} class="size-5 accent-palm-600" /> ไม่ครบ ???</label>
       <button class="btn-primary" type="submit">ค้นหา</button>
     </div>
   </form>
 
-  <p class="mb-3 text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {(filter.q || filter.status || filter.origin || filter.forSale) && <a class="ml-2 underline" href="/admin/hives">ล้างตัวกรอง</a>}</p>
+  <p class="mb-3 text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {(filter.q || filter.status || filter.origin || filter.forSale || filter.incomplete) && <a class="ml-2 underline" href="/admin/hives">ล้างตัวกรอง</a>}</p>
 
   {rows.length === 0 ? (
     <div class="card text-center text-muted">ไม่พบรังที่ตรงกับเงื่อนไข</div>

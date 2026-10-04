@@ -1,0 +1,155 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { getDb } from '../../../../server/db.ts';
+import { getHiveDetail, updateHive } from '../../../../server/hives.ts';
+import { boxLabel, originLabel } from '../../../../lib/labels.ts';
+import { unknownTopics } from '../../../../lib/unknown-notes.ts';
+import { editHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../../lib/validation.ts';
+import { formatThaiDate } from '../../../../lib/thai-date.ts';
+
+export const prerender = false;
+
+const code = (Astro.params.code ?? '').toUpperCase();
+if (!/^A\d{1,5}$/.test(code)) return new Response(null, { status: 404 });
+
+const db = getDb();
+const detail = await getHiveDetail(db, code);
+if (!detail) return new Response('ไม่พบรังนี้', { status: 404 });
+const { hive } = detail;
+const today = todayBangkok();
+
+let errors: FieldErrors = {};
+let values: Record<string, string> | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const p = parseForm(editHiveSchema, form);
+  if (!p.ok) errors = p.errors;
+  else {
+    const r = await updateHive(db, Astro.locals.user!, hive, p.data);
+    if (r.ok) return Astro.redirect(`/admin/hives/${code}?saved=edited`, 303);
+    errors = { _: r.error };
+  }
+}
+
+// ค่าเริ่มต้นของฟอร์ม: ค่าที่ส่งมาเมื่อมี error ไม่งั้นค่าปัจจุบันของรัง
+const cur: Record<string, string> = {
+  origin: hive.origin,
+  originPlace: hive.originPlace ?? '',
+  acquiredOn: hive.acquiredOn ?? '',
+  queenBornOn: hive.queenBornOn ?? '',
+  boxType: hive.boxType,
+  queenSourceCode: detail.queenSource ?? '',
+  broodSourceCode: detail.broodSource ?? '',
+  purchasePrice: hive.purchasePrice != null ? String(hive.purchasePrice) : '',
+  collapseReason: hive.collapseReason ?? '',
+  publicNote: hive.publicNote ?? '',
+  notes: hive.notes ?? '',
+};
+const v = (k: string) => (values ? (values[k] ?? '') : cur[k]!);
+const err = (k: string) => errors[k];
+
+// ช่องที่ยังเป็น ??? ให้ไฮไลต์
+const topics = unknownTopics(hive.notes);
+const needs = new Set<string>();
+for (const t of topics) {
+  if (t === 'วันเกิดนางพญา') needs.add('queenBornOn');
+  if (t === 'วันที่ซื้อ') needs.add('acquiredOn');
+  if (t.includes('ไข่นาง')) needs.add('queenSourceCode');
+  if (t.includes('ไข่อ่อน')) needs.add('broodSourceCode');
+}
+const hl = (k: string) => (needs.has(k) ? 'ring-2 ring-honey-400' : '');
+const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day';
+---
+
+<AdminLayout title={`แก้ไขรัง ${hive.code}`} active="hives">
+  <p class="-mt-3 mb-4"><a class="text-sm text-muted underline" href={`/admin/hives/${hive.code}`}>← กลับหน้ารัง {hive.code}</a></p>
+
+  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+
+  {topics.length > 0 && (
+    <section class="mb-4 rounded-2xl border border-honey-400 bg-honey-50 p-4" aria-label="ข้อมูลที่ยังไม่ครบ">
+      <h2 class="font-semibold text-honey-700">ข้อมูลที่ยังไม่ทราบ (???)</h2>
+      <ul class="mt-1 list-inside list-disc text-sm">{topics.map((t) => <li>{t}{t === 'สถานะรัง' && <> — ตั้งที่ <a class="underline" href={`/admin/hives/${hive.code}`}>หน้ารัง › เปลี่ยนสถานะ</a></>}</li>)}</ul>
+      <p class="hint">กรอกช่องที่ไฮไลต์สีเหลืองด้านล่าง เมื่อบันทึกแล้วรายการ ??? จะหายไปเอง</p>
+    </section>
+  )}
+
+  <form method="post" class="card max-w-xl space-y-4">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="label" for="origin">ที่มา</label>
+        <select class="field" id="origin" name="origin" required>
+          {(['purchased', 'queen_bred', 'split', 'natural', 'unknown'] as const).map((o) => <option value={o} selected={v('origin') === o}>{originLabel[o]}</option>)}
+        </select>
+        {err('origin') && <p class="error">{err('origin')}</p>}
+      </div>
+      <div>
+        <label class="label" for="box">กล่องรัง</label>
+        <select class="field" id="box" name="boxType" required>
+          {(['teak_2room', 'log', 'other', 'unknown'] as const).map((b) => <option value={b} selected={v('boxType') === b}>{boxLabel[b]}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="label" for="acq">วันที่ได้มา / ขยาย</label>
+        <input class:list={['field', hl('acquiredOn')]} id="acq" name="acquiredOn" type="date" max={today} value={v('acquiredOn')} />
+        {err('acquiredOn') && <p class="error">{err('acquiredOn')}</p>}
+        {monthOnly && <p class="hint">เดิมระบุแค่ {formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision!)} ถ้าไม่แก้ จะคงไว้แบบเดิม</p>}
+      </div>
+      <div>
+        <label class="label" for="qb">วันเกิดนางพญา {needs.has('queenBornOn') && <span class="text-honey-700">???</span>}</label>
+        <input class:list={['field', hl('queenBornOn')]} id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />
+        {err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}
+      </div>
+    </div>
+
+    <fieldset class="rounded-xl border border-line p-3">
+      <legend class="px-1 text-sm font-medium">รังแม่</legend>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label" for="qs">ไข่นางจากรัง {needs.has('queenSourceCode') && <span class="text-honey-700">???</span>}</label>
+          <input class:list={['field', hl('queenSourceCode')]} id="qs" name="queenSourceCode" placeholder="เช่น A55" value={v('queenSourceCode')} />
+          {err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}
+        </div>
+        <div>
+          <label class="label" for="bs">ไข่อ่อนจากรัง {needs.has('broodSourceCode') && <span class="text-honey-700">???</span>}</label>
+          <input class:list={['field', hl('broodSourceCode')]} id="bs" name="broodSourceCode" placeholder="เช่น A89" value={v('broodSourceCode')} />
+          {err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}
+        </div>
+      </div>
+      <p class="hint">แก้ตรงนี้ไม่สร้างประวัติ "แยกรัง" ในรังแม่ให้ (ต่างจากตอนเพิ่มรังใหม่) ถ้าต้องการให้บันทึกในรังแม่ด้วยตัวเอง</p>
+    </fieldset>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="label" for="place">สถานที่ซื้อ</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
+      <div><label class="label" for="price">ราคาซื้อ (บาท) 🔒</label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>
+    </div>
+
+    {hive.status === 'collapsed' && (
+      <div><label class="label" for="cr">สาเหตุที่ล่ม 🔒</label><input class="field" id="cr" name="collapseReason" maxlength="300" value={v('collapseReason')} /></div>
+    )}
+
+    <div>
+      <label class="label" for="pub">ข้อความในสมุดพก (แสดงสาธารณะ)</label>
+      <input class="field" id="pub" name="publicNote" maxlength="500" value={v('publicNote')} />
+      {err('publicNote') && <p class="error">{err('publicNote')}</p>}
+      <p class="hint">เว้นว่างได้ — ข้อความนี้จะเห็นโดยลูกค้า อย่าใส่ข้อมูลส่วนตัว</p>
+    </div>
+
+    <div>
+      <label class="label" for="notes">หมายเหตุภายใน 🔒</label>
+      <textarea class="field" id="notes" name="notes" rows="5" maxlength="2000">{v('notes')}</textarea>
+      {err('notes') && <p class="error">{err('notes')}</p>}
+      <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือข้อมูลที่ยังไม่ทราบ ระบบจะลบให้เองเมื่อเติมข้อมูลนั้นแล้ว ลบเองก็ได้</p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <a class="btn-ghost" href={`/admin/hives/${hive.code}`}>ยกเลิก</a>
+      <button class="btn-primary" type="submit">บันทึกการแก้ไข</button>
+    </div>
+  </form>
+</AdminLayout>

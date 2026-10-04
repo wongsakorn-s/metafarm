@@ -3,7 +3,8 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers } from '../db/schema.ts';
 import type { z } from 'zod';
-import type { broodSplitSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
+import type { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
+import { resolveUnknownNotes } from '../lib/unknown-notes.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -24,8 +25,12 @@ export interface ListFilter {
   status?: string;
   origin?: string;
   forSale?: boolean;
+  /** รังที่ยังมีข้อมูล ??? ค้างอยู่ */
+  incomplete?: boolean;
   page?: number;
 }
+
+const hasUnknownNote = sql`${hives.notes} LIKE '%???%'`;
 
 export async function listHives(db: Db, f: ListFilter) {
   const q = f.q?.replace(/[%_\\]/g, '').trim();
@@ -34,6 +39,7 @@ export async function listHives(db: Db, f: ListFilter) {
     f.status ? eq(hives.status, f.status as Hive['status']) : undefined,
     f.origin ? eq(hives.origin, f.origin as Hive['origin']) : undefined,
     f.forSale ? eq(hives.forSale, true) : undefined,
+    f.incomplete ? hasUnknownNote : undefined,
   ];
   const where = and(...conds);
   const page = Math.max(1, f.page ?? 1);
@@ -110,7 +116,7 @@ export async function getHiveDetail(db: Db, code: string) {
 
 export async function getDashboard(db: Db) {
   const year = String(new Date().getFullYear());
-  const [byStatus, byOrigin, [sale], recent, [honey]] = await Promise.all([
+  const [byStatus, byOrigin, [sale], recent, [honey], [incomplete]] = await Promise.all([
     db.select({ status: hives.status, n: sql<number>`count(*)` }).from(hives).groupBy(hives.status),
     db
       .select({
@@ -133,8 +139,9 @@ export async function getDashboard(db: Db) {
       .select({ ml: sql<number>`coalesce(sum(honey_ml),0)`, g: sql<number>`coalesce(sum(propolis_g),0)`, n: sql<number>`count(*)` })
       .from(hiveEvents)
       .where(and(eq(hiveEvents.type, 'honey_harvest'), sql`${hiveEvents.occurredOn} >= ${year + '-01-01'}`)),
+    db.select({ n: sql<number>`count(*)` }).from(hives).where(hasUnknownNote),
   ]);
-  return { byStatus, byOrigin, sale, recent, honey, year };
+  return { byStatus, byOrigin, sale, recent, honey, year, incomplete: incomplete?.n ?? 0 };
 }
 
 // ---------- บันทึกข้อมูล ----------
@@ -196,10 +203,60 @@ export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.o
         soldOn: sold ? d.occurredOn : null,
         soldPrice: sold ? (d.soldPrice ?? hive.salePrice ?? null) : null,
         forSale: d.status === 'active' ? hive.forSale : false,
+        notes: resolveUnknownNotes(hive.notes, { status: d.status, queenBornOn: hive.queenBornOn, acquiredOn: hive.acquiredOn, hasQueenSource: hive.queenSourceHiveId != null, hasBroodSource: hive.broodSourceHiveId != null }),
         ...touch,
       })
       .where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.status', hive.id, { from: hive.status, to: d.status }),
+  ]);
+  return { ok: true };
+}
+
+/** แก้ไขข้อมูลรัง (ไม่รวมสถานะ/การขาย ซึ่งมีฟอร์มแยก) */
+export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof editHiveSchema>): Promise<Result> {
+  const source = async (code: string | undefined, label: string): Promise<{ id: number | null; error?: string }> => {
+    if (!code) return { id: null };
+    if (code === hive.code) return { id: null, error: `${label}ต้องไม่ใช่รังเดียวกัน` };
+    const s = await db.query.hives.findFirst({ where: eq(hives.code, code), columns: { id: true } });
+    return s ? { id: s.id } : { id: null, error: `ไม่พบ${label} ${code}` };
+  };
+  const queen = await source(d.queenSourceCode, 'รังแม่ (ไข่นาง)');
+  if (queen.error) return { ok: false, error: queen.error };
+  const brood = await source(d.broodSourceCode, 'รังแม่ (ไข่อ่อน)');
+  if (brood.error) return { ok: false, error: brood.error };
+
+  const acquiredOn = d.acquiredOn ?? null;
+  const notes = resolveUnknownNotes(d.notes, {
+    status: hive.status,
+    queenBornOn: d.queenBornOn ?? null,
+    acquiredOn,
+    hasQueenSource: queen.id != null,
+    hasBroodSource: brood.id != null,
+  });
+
+  const next = {
+    origin: d.origin,
+    originPlace: d.originPlace ?? null,
+    acquiredOn,
+    // วันที่เดิมที่ระบุแค่เดือน/ปี ถ้าไม่แก้ ให้คงความแม่นยำเดิมไว้
+    acquiredOnPrecision: !acquiredOn ? null : acquiredOn === hive.acquiredOn ? hive.acquiredOnPrecision : ('day' as const),
+    queenBornOn: d.queenBornOn ?? null,
+    boxType: d.boxType,
+    queenSourceHiveId: queen.id,
+    broodSourceHiveId: brood.id,
+    purchasePrice: d.purchasePrice ?? null,
+    collapseReason: hive.status === 'collapsed' ? (d.collapseReason ?? null) : hive.collapseReason,
+    publicNote: d.publicNote ?? null,
+    notes,
+  };
+  // บันทึกว่าแก้ช่องไหน (ไม่เก็บเนื้อหาหมายเหตุภายในลง audit)
+  const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== hive[k]);
+  if (changed.length === 0) return { ok: true };
+  const diff = Object.fromEntries(changed.filter((k) => k !== 'notes').map((k) => [k, { from: hive[k], to: next[k] }]));
+
+  await db.batch([
+    db.update(hives).set({ ...next, ...touch }).where(eq(hives.id, hive.id)),
+    audit(db, user, 'hive.update', hive.id, { fields: changed, ...diff }),
   ]);
   return { ok: true };
 }

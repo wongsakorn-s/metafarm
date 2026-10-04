@@ -32,6 +32,13 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
     ))}
   </section>
 
+  {d.incomplete > 0 && (
+    <a href="/admin/hives?incomplete=1" class="mt-4 flex items-center gap-3 rounded-2xl border border-honey-400 bg-honey-50 p-4 transition hover:bg-honey-100">
+      <span class="text-2xl" aria-hidden="true">❓</span>
+      <span><strong>{d.incomplete} รัง</strong> มีข้อมูลที่ยังไม่ทราบ (???) <span class="text-muted">— แตะเพื่อดูรายการและเติมข้อมูล</span></span>
+    </a>
+  )}
+
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">
       <h2 id="honey-h" class="mb-3 text-lg font-semibold">🍯 ผลผลิตปี {d.year}</h2>

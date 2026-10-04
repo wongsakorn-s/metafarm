@@ -13,6 +13,8 @@ Website + back office for a stingless bee (ชันโรงขนเงิน)
 - Local login: `npm run user:create -- --email owner@metafarm.local --generate` (password written to `private/dev-owner.txt`).
 - PowerShell 5.1 gotchas when scripting: save scripts with a UTF-8 BOM, and `-WebSession` keeps `-Headers` from earlier calls (use a fresh session to test missing-Origin/CSRF).
 
+- Do not run `astro build` / `astro check` while a dev server is running: it invalidates Vite's dep cache and the running server then 500s (e.g. "file does not exist ... deps_ssr/zod.js"). Stop the dev server first, or restart it afterwards (`astro dev --force`).
+
 ## Development
 
 When starting the dev server, use background mode:

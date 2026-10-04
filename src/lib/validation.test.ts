@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { broodSplitSchema, honeyHarvestSchema, newHiveSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok } from './validation.ts';
+import { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok } from './validation.ts';
 
 const form = (o: Record<string, string>) => Object.assign(new FormData(), {}) && Object.entries(o).reduce((f, [k, v]) => (f.append(k, v), f), new FormData());
 const today = todayBangkok();
@@ -32,6 +32,23 @@ describe('queenCell / brood split', () => {
   });
   it('จำนวนไข่นางพญาต้อง ≥ 1', () => {
     expect(parseForm(queenCellSchema, form({ occurredOn: today, queenCells: '0' })).ok).toBe(false);
+  });
+});
+
+describe('editHiveSchema', () => {
+  const ok = { origin: 'queen_bred', boxType: 'teak_2room' };
+  it('ช่องว่างกลายเป็น undefined (= ล้างค่า) และตัวเลขแปลงถูก', () => {
+    const r = parseForm(editHiveSchema, form({ ...ok, queenBornOn: '', purchasePrice: '700', queenSourceCode: ' a55 ', notes: '' }));
+    expect(r).toMatchObject({ ok: true, data: { queenBornOn: undefined, purchasePrice: 700, queenSourceCode: 'A55', notes: undefined } });
+  });
+  it('รหัสรังผิดรูปแบบ วันที่อนาคต ราคาติดลบ ถูกปฏิเสธ', () => {
+    expect(parseForm(editHiveSchema, form({ ...ok, queenSourceCode: 'X1' })).ok).toBe(false);
+    expect(parseForm(editHiveSchema, form({ ...ok, queenBornOn: '2999-01-01' })).ok).toBe(false);
+    expect(parseForm(editHiveSchema, form({ ...ok, purchasePrice: '-1' })).ok).toBe(false);
+    expect(parseForm(editHiveSchema, form({ ...ok, origin: 'alien' })).ok).toBe(false);
+  });
+  it('ยังเลือกที่มา unknown ได้ (รังที่ยังไม่ทราบที่มา)', () => {
+    expect(parseForm(editHiveSchema, form({ origin: 'unknown', boxType: 'unknown' })).ok).toBe(true);
   });
 });
 

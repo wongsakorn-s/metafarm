@@ -72,6 +72,21 @@ export const newHiveSchema = z.object({
   idem,
 });
 
+/** แก้ไขข้อมูลรัง: ช่องที่เว้นว่าง = ล้างค่า (ฟอร์มส่งทุกช่องเสมอ) */
+export const editHiveSchema = z.object({
+  origin: z.enum(HIVE_ORIGINS),
+  originPlace: opt(z.string().max(100)),
+  acquiredOn: opt(date),
+  queenBornOn: opt(date),
+  boxType: z.enum(BOX_TYPES),
+  queenSourceCode: opt(hiveCode),
+  broodSourceCode: opt(hiveCode),
+  purchasePrice: opt(int(1_000_000)),
+  collapseReason: opt(z.string().max(300)),
+  publicNote: opt(z.string().max(500, 'ยาวเกิน 500 ตัวอักษร')),
+  notes: opt(z.string().max(2000, 'ยาวเกิน 2,000 ตัวอักษร')),
+});
+
 export type FieldErrors = Record<string, string>;
 
 /** แปลงผล Zod เป็นข้อความต่อช่อง (ใช้แสดงใต้ฟอร์ม) */
