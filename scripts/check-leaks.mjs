@@ -53,6 +53,10 @@ const pages = [
   ['/products', 'สินค้า:รวม', 'product'], ['/products/hives', 'สินค้า:รังสมบูรณ์', 'product'],
   ['/products/hive-box', 'สินค้า:รังเปล่า', 'product'], ['/products/stingless-honey', 'สินค้า:น้ำผึ้ง', 'product'],
   ['/products/hives/A99999', '404', 'product'], ['/products/no-such-product', '404', 'product'],
+  // หน้าเนื้อหา: น้ำผึ้ง/อบรม แสดงราคาได้ · งานวิจัย/ชันโรง/ติดต่อ/ความเป็นส่วนตัว ห้ามมีคำว่าราคา-บาท (กันดูเหมือนโฆษณาสรรพคุณ)
+  ['/honey', 'เนื้อหา:น้ำผึ้ง', 'product'], ['/training', 'เนื้อหา:อบรม', 'product'], ['/training/hive-splitting', 'เนื้อหา:อบรมแยกรัง', 'product'],
+  ['/training/honey-processing', 'เนื้อหา:อบรมน้ำผึ้ง', 'product'], ['/training/no-such-course', '404', 'product'],
+  ['/stingless-bee', 'เนื้อหา:ชันโรงขนเงิน'], ['/learn/research', 'เนื้อหา:งานวิจัย'], ['/contact', 'เนื้อหา:ติดต่อ'], ['/privacy', 'เนื้อหา:ความเป็นส่วนตัว'],
   ...saleHives.map((h) => [`/products/hives/${h.code}`, `สินค้า:รัง ${h.code}`, 'product', h]),
   // รังที่ไม่ได้ขาย (ยังไม่ตั้งขาย/ขายแล้ว) ต้องเปิดหน้าสินค้าไม่ได้
   ...hives.filter((h) => !saleHives.includes(h)).slice(0, 20).map((h) => [`/products/hives/${h.code}`, '404', 'product']),
@@ -80,6 +84,19 @@ for (const [path, label, kind, saleHive] of pages) {
     if (saleHive) for (const [n, why] of [[saleHive.purchase_price, 'ราคาซื้อ'], [saleHive.sold_price, 'ราคาที่ขายจริง']])
       if (n > 0 && n !== saleHive.sale_price) for (const s of fmt(n)) if (new RegExp(`(?:^|[^\\d,.])${s}\\s*บาท`).test(text)) report(path, `พบ${why} ${s} บาท ของรัง ${saleHive.code}`);
   }
+}
+
+// ไฟล์สำหรับ search engine: sitemap ต้องมีเฉพาะ URL สาธารณะ (ไม่มี /admin /media) และ robots ต้องปิด /admin
+{
+  const sm = await (await fetch(BASE + '/sitemap.xml')).text();
+  const rb = await (await fetch(BASE + '/robots.txt')).text();
+  scanned += 2;
+  if (!sm.includes('<urlset') || /\/admin|\/media\//.test(sm)) report('/sitemap.xml', 'sitemap ว่างหรือมี URL หลังบ้าน');
+  for (const h of hives) if (!sm.includes(`/passport/${h.code}<`)) { report('/sitemap.xml', `ไม่มี /passport/${h.code}`); break; }
+  for (const [secret, why] of secrets) if (sm.includes(secret)) report('/sitemap.xml', `พบข้อมูลลับ "${secret}" (${why})`);
+  if (!/Disallow: \/admin/.test(rb) || !/Sitemap: /.test(rb)) report('/robots.txt', 'robots.txt ไม่ปิด /admin หรือไม่ชี้ sitemap');
+  // รังที่ไม่ได้เปิดขายต้องไม่อยู่ใน sitemap ส่วนสินค้า
+  for (const h of hives.filter((x) => !saleHives.includes(x)).slice(0, 30)) if (sm.includes(`/products/hives/${h.code}<`)) { report('/sitemap.xml', `รัง ${h.code} ไม่ได้เปิดขายแต่อยู่ใน sitemap สินค้า`); break; }
 }
 
 // รูปสาธารณะ: คีย์ที่ไม่มีในฐานข้อมูล/เดาเอง ต้องเปิดไม่ได้

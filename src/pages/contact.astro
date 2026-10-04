@@ -1,0 +1,40 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { isSet, lineChatUrl, site } from '../config/site.ts';
+
+export const prerender = false;
+
+const c = site.contact;
+const line = lineChatUrl('สอบถามข้อมูล');
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+const channels = [
+  line && { icon: '💬', label: 'LINE', value: c.lineId, href: line, note: 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย' },
+  isSet(c.phone) && { icon: '📞', label: 'โทรศัพท์', value: c.phone, href: `tel:${c.phone.replace(/[^0-9+]/g, '')}`, note: '' },
+  isSet(c.facebookUrl) && { icon: '👍', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
+].filter(Boolean) as { icon: string; label: string; value: string; href: string; note: string }[];
+---
+
+<PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact">
+  <h1 class="text-3xl font-bold md:text-4xl">ติดต่อเรา</h1>
+  <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ได้ตามช่องทางด้านล่าง</p>
+
+  <ul class="mt-6 grid gap-4 sm:grid-cols-2">
+    {channels.map((ch) => (
+      <li>
+        <a href={ch.href} rel="noopener" class="card flex items-center gap-4 transition hover:border-palm-500">
+          <span class="text-3xl" aria-hidden="true">{ch.icon}</span>
+          <span><span class="block text-sm text-muted">{ch.label}</span><span class="block text-lg font-semibold">{ch.value}</span>{ch.note && <span class="block text-sm text-muted">{ch.note}</span>}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  <section class="mt-8 card max-w-xl" aria-labelledby="addr-h">
+    <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
+    <p class="mt-1">{site.name} · {site.tagline}</p>
+    <p>{site.address}</p>
+    {isSet(c.mapUrl) && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer">🗺️ เปิดแผนที่</a>}
+    <p class="hint mt-3">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
+  </section>
+</PublicLayout>

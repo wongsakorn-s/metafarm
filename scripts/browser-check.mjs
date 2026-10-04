@@ -39,6 +39,9 @@ for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desk
   for (const [p, n, st] of [['/', 'home'], ['/passport', 'passport-search'], ['/passport/A25', 'passport-A25'], ['/passport/A19', 'passport-A19-sold'], ['/passport/A99999', 'passport-404', 404],
     ['/products', 'products'], ['/products/hives', 'products-hives'], ['/products/hive-box', 'product-hive-box'], ['/products/stingless-honey', 'product-honey'], ['/products/hives/A99999', 'product-hive-404', 404]])
     await visit(page, p, `${label}-public-${n}`, st);
+  for (const [p, n, st] of [['/stingless-bee', 'stingless-bee'], ['/honey', 'honey'], ['/learn/research', 'research'], ['/training', 'training'], ['/training/hive-splitting', 'training-hive-splitting'],
+    ['/training/honey-processing', 'training-honey-processing'], ['/training/nope', 'training-404', 404], ['/contact', 'contact'], ['/privacy', 'privacy']])
+    await visit(page, p, `${label}-public-${n}`, st);
   // รังที่เปิดขายอยู่ (ถ้ามี): หาลิงก์แรกจากหน้ารายการแล้วเปิดหน้ารายละเอียด
   await page.goto(BASE + '/products/hives', { waitUntil: 'networkidle' });
   const saleLink = await page.evaluate(() => document.querySelector('a[href^="/products/hives/A"]')?.getAttribute('href'));

@@ -7,7 +7,7 @@ interface Props {
   description?: string;
   /** ข้อความที่จะใส่ในแชต LINE เมื่อกดปุ่มลอย (เช่น "สนใจรัง A25") */
   lineMessage?: string;
-  active?: 'home' | 'products' | 'passport';
+  active?: 'home' | 'stingless-bee' | 'honey' | 'products' | 'training' | 'passport' | 'contact';
   noindex?: boolean;
 }
 const { title, description = site.description, lineMessage, active, noindex = false } = Astro.props;
@@ -19,8 +19,12 @@ const c = site.contact;
 
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก' },
+  { key: 'stingless-bee', href: '/stingless-bee', label: 'ชันโรงขนเงิน' },
+  { key: 'honey', href: '/honey', label: 'น้ำผึ้ง' },
   { key: 'products', href: '/products', label: 'สินค้า' },
-  { key: 'passport', href: '/passport', label: 'สมุดพกชันโรง' },
+  { key: 'training', href: '/training', label: 'อบรม' },
+  { key: 'passport', href: '/passport', label: 'สมุดพก' },
+  { key: 'contact', href: '/contact', label: 'ติดต่อเรา' },
 ] as const;
 ---
 
@@ -41,7 +45,8 @@ const nav = [
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
-    <meta property="og:url" content={Astro.url.href} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.url.origin).href} />
+    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.url.origin).href} />
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body class="flex min-h-dvh flex-col">
@@ -56,10 +61,10 @@ const nav = [
         <a href="/" class="flex items-center" aria-label={`${site.name} หน้าแรก`}>
           <img src="/brand/logo.webp" alt={site.name} width="140" height="38" class="h-9 w-auto" />
         </a>
-        <nav aria-label="เมนูหลัก" class="flex gap-1">
+        <nav aria-label="เมนูหลัก" class="-mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 pb-1 md:mx-0 md:w-auto md:px-0 md:pb-0">
           {nav.map((n) => (
             <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
-              class:list={['flex min-h-11 items-center rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>{n.label}</a>
+              class:list={['flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>{n.label}</a>
           ))}
         </nav>
       </div>
@@ -85,7 +90,7 @@ const nav = [
           </ul>
         </div>
       </div>
-      <p class="border-t border-line py-3 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์</p>
+      <p class="border-t border-line py-3 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์ · <a class="underline" href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
     </footer>
 
     {line && (

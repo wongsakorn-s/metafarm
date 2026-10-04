@@ -1,0 +1,36 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import SampleBadge from '../../components/SampleBadge.astro';
+import HowToOrder from '../../components/HowToOrder.astro';
+import { listTraining } from '../../lib/content.ts';
+import { formatPrice } from '../../lib/products.ts';
+import { site } from '../../config/site.ts';
+
+export const prerender = false;
+
+const courses = listTraining();
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+---
+
+<PublicLayout title="อบรม" description={`หลักสูตรอบรมการเลี้ยงและขยายรังชันโรงขนเงิน การกรองน้ำผึ้งและการแปรรูป จาก ${site.name}`} active="training" lineMessage="สนใจหลักสูตรอบรม">
+  <h1 class="text-3xl font-bold md:text-4xl">อบรม</h1>
+  <p class="mt-2 max-w-2xl text-lg text-muted">เรียนรู้จากประสบการณ์ที่ {site.name} เลี้ยงชันโรงขนเงินในสวนปาล์มมาตั้งแต่ปี พ.ศ. {site.foundedYearBE}</p>
+
+  <ul class="mt-6 grid gap-4 md:grid-cols-2">
+    {courses.map((c) => (
+      <li>
+        <a href={`/training/${c.slug}`} class="card flex h-full flex-col transition hover:border-palm-500">
+          <h2 class="text-xl font-bold">{c.title}</h2>
+          <p class="mt-1 flex-1 text-muted">{c.summary}</p>
+          <p class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <span class="badge bg-palm-100 text-palm-900">{c.duration}</span>
+            <span class="font-semibold text-palm-700">{formatPrice(c.priceThb)}</span>
+            {c.priceIsSample && <SampleBadge />}
+          </p>
+        </a>
+      </li>
+    ))}
+  </ul>
+  <p class="mt-4 text-sm text-muted">วันและรอบอบรมแจ้งทางไลน์ ยังไม่มีระบบรับสมัครออนไลน์</p>
+  <div class="mt-10"><HowToOrder message="สนใจหลักสูตรอบรม" /></div>
+</PublicLayout>

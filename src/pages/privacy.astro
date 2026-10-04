@@ -1,0 +1,16 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { getPage } from '../lib/content.ts';
+import { formatThaiDate } from '../lib/thai-date.ts';
+
+export const prerender = false;
+
+const { Content, frontmatter: fm } = getPage('privacy')!;
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600');
+---
+
+<PublicLayout title={fm.title} description={fm.description}>
+  <h1 class="text-3xl font-bold">{fm.title}</h1>
+  {fm.updatedOn && <p class="mt-1 text-sm text-muted">ปรับปรุงล่าสุด {formatThaiDate(String(fm.updatedOn).slice(0, 10))}</p>}
+  <div class="prose-mf mt-6"><Content /></div>
+</PublicLayout>

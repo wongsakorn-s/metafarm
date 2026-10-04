@@ -1,0 +1,35 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import SampleBadge from '../components/SampleBadge.astro';
+import { getPage } from '../lib/content.ts';
+import { getDb } from '../server/db.ts';
+import { getPublicProducts } from '../server/public.ts';
+import { formatPrice, sizeLabel } from '../lib/products.ts';
+
+export const prerender = false;
+
+const { Content, frontmatter: fm } = getPage('honey')!;
+const product = (await getPublicProducts(getDb(), 'stingless-honey'))[0];
+Astro.response.headers.set('Cache-Control', 'public, max-age=120');
+---
+
+<PublicLayout title={fm.title} description={fm.description} active="honey" lineMessage="สนใจน้ำผึ้งชันโรงขนเงิน">
+  <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
+  <div class="prose-mf mt-6"><Content /></div>
+
+  {product && (
+    <section class="mt-10" aria-labelledby="buy-h">
+      <h2 id="buy-h" class="text-2xl font-bold">{product.name}</h2>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2">
+        {product.variants.map((v) => (
+          <li class="card">
+            <p class="font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
+            <p class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)} {v.priceIsSample && <SampleBadge />}</p>
+          </li>
+        ))}
+      </ul>
+      <a class="btn-primary mt-4" href="/products/stingless-honey">ดูรายละเอียดและสั่งซื้อ →</a>
+    </section>
+  )}
+  <p class="mt-8"><a class="text-palm-700 underline" href="/learn/research">📖 น้ำผึ้งชันโรงในงานวิจัย</a></p>
+</PublicLayout>

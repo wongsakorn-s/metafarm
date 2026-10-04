@@ -274,6 +274,16 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
   };
 }
 
+/** รายการ URL สาธารณะที่ให้ search engine เก็บได้ (sitemap) — คืนเฉพาะรหัสรัง/slug ไม่มีข้อมูลอื่น */
+export async function getSitemapData(db: Db) {
+  const [allHives, sale, prods] = await Promise.all([
+    db.select({ code: hives.code }).from(hives).orderBy(asc(hives.id)),
+    getSaleHives(db),
+    getPublicProducts(db),
+  ]);
+  return { hiveCodes: allHives.map((h) => h.code), saleCodes: sale.map((h) => h.code), productSlugs: prods.map((p) => p.slug) };
+}
+
 /** ตัวเลขภาพรวมฟาร์มสำหรับหน้าแรก (ไม่มีข้อมูลการเงิน) */
 export async function getFarmStats(db: Db) {
   const [r] = await db
