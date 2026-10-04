@@ -1,0 +1,97 @@
+---
+import '../styles/global.css';
+import { isSet, lineChatUrl, site } from '../config/site.ts';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** ข้อความที่จะใส่ในแชต LINE เมื่อกดปุ่มลอย (เช่น "สนใจรัง A25") */
+  lineMessage?: string;
+  active?: 'home' | 'passport';
+  noindex?: boolean;
+}
+const { title, description = site.description, lineMessage, active, noindex = false } = Astro.props;
+
+const fullTitle = title === site.name ? `${site.name} · ${site.tagline}` : `${title} · ${site.name}`;
+const ogImage = new URL('/brand/og.png', Astro.url).href;
+const line = lineChatUrl(lineMessage);
+const c = site.contact;
+
+const nav = [
+  { key: 'home', href: '/', label: 'หน้าแรก' },
+  { key: 'passport', href: '/passport', label: 'สมุดพกชันโรง' },
+] as const;
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="theme-color" content="#0b7a3e" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="th_TH" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body class="flex min-h-dvh flex-col">
+    {site.contactIsSample && (
+      <p class="bg-honey-400 px-4 py-1.5 text-center text-sm font-medium text-ink" role="note">
+        ⚠️ ช่องทางติดต่อบนเว็บนี้เป็น<strong>ข้อมูลตัวอย่าง</strong> (เว็บกำลังจัดทำ)
+      </p>
+    )}
+
+    <header class="border-b border-line bg-surface">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
+        <a href="/" class="flex items-center" aria-label={`${site.name} หน้าแรก`}>
+          <img src="/brand/logo.webp" alt={site.name} width="140" height="38" class="h-9 w-auto" />
+        </a>
+        <nav aria-label="เมนูหลัก" class="flex gap-1">
+          {nav.map((n) => (
+            <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
+              class:list={['flex min-h-11 items-center rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>{n.label}</a>
+          ))}
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:py-10"><slot /></main>
+
+    <footer class="border-t border-line bg-surface">
+      <div class="mx-auto grid max-w-5xl gap-6 px-4 py-8 md:grid-cols-2">
+        <div>
+          <img src="/brand/logo-round.webp" alt="" width="72" height="67" class="mb-3 size-[72px] object-contain" loading="lazy" />
+          <p class="font-semibold">{site.name} <span class="font-normal text-muted">· {site.tagline}</span></p>
+          <p class="text-sm text-muted">{site.address}</p>
+          <p class="mt-2 text-sm text-muted">เลี้ยงชันโรงขนเงินในรังไม้สักที่ออกแบบเองตั้งแต่ปี พ.ศ. {site.foundedYearBE}</p>
+        </div>
+        <div>
+          <h2 class="mb-2 font-semibold">ติดต่อเรา</h2>
+          <ul class="space-y-1 text-sm">
+            {line && <li><a class="text-palm-700 underline" href={line} rel="noopener">LINE: {c.lineId}</a></li>}
+            {isSet(c.phone) && <li><a class="text-palm-700 underline" href={`tel:${c.phone.replace(/[^0-9+]/g, '')}`}>โทร {c.phone}</a></li>}
+            {isSet(c.facebookUrl) && <li><a class="text-palm-700 underline" href={c.facebookUrl} rel="noopener noreferrer">Facebook</a></li>}
+            {isSet(c.mapUrl) && <li><a class="text-palm-700 underline" href={c.mapUrl} rel="noopener noreferrer">แผนที่ฟาร์ม</a></li>}
+          </ul>
+        </div>
+      </div>
+      <p class="border-t border-line py-3 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์</p>
+    </footer>
+
+    {line && (
+      <a href={line} rel="noopener" aria-label="ทักไลน์สอบถาม"
+        class="fixed bottom-4 right-4 z-20 inline-flex min-h-12 items-center gap-2 rounded-full bg-[#06c755] px-5 font-semibold text-white shadow-lg transition hover:brightness-95">
+        <span aria-hidden="true">💬</span> ทักไลน์
+      </a>
+    )}
+  </body>
+</html>

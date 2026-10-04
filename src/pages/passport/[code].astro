@@ -1,0 +1,119 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { getPublicHive } from '../../server/public.ts';
+import { formatThaiDate } from '../../lib/thai-date.ts';
+import { placeholder } from '../../lib/placeholders.ts';
+import { site } from '../../config/site.ts';
+
+export const prerender = false;
+
+const code = (Astro.params.code ?? '').toUpperCase();
+const hive = /^A\d{1,5}$/.test(code) ? await getPublicHive(getDb(), code) : null;
+
+if (!hive) {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+} else {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+}
+
+const originText = (() => {
+  if (!hive) return '';
+  switch (hive.origin) {
+    case 'purchased': return hive.province ? `ซื้อมาจากจังหวัด${hive.province}` : 'ซื้อมาจากผู้เลี้ยงภายนอก';
+    case 'queen_bred': return `เพาะนางพญาเองที่ ${site.name}`;
+    case 'split': return `ขยายรังเองที่ ${site.name} (แยกจากรังแม่)`;
+    case 'natural': return 'ขยายเองตามธรรมชาติ';
+    default: return '';
+  }
+})();
+
+const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['ปิดรัง', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
+
+const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'], queen_cell_taken: ['👑', 'เก็บไข่นางพญา'], brood_split: ['🪺', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['📝', ''] } as const;
+---
+
+{!hive ? (
+  <PublicLayout title="ไม่พบสมุดพก" active="passport" noindex>
+    <section class="mx-auto max-w-md py-10 text-center">
+      <div class="text-5xl" aria-hidden="true">🔎</div>
+      <h1 class="mt-3 text-2xl font-bold">ไม่พบสมุดพกรัง {code || ''}</h1>
+      <p class="mt-2 text-muted">ตรวจสอบรหัสรังที่ติดอยู่ที่ตัวรัง (เช่น A25) แล้วลองใหม่</p>
+      <a class="btn-primary mt-5" href="/passport">ค้นหารหัสรัง</a>
+    </section>
+  </PublicLayout>
+) : (
+  <PublicLayout
+    title={`สมุดพกรัง ${hive.code}`}
+    description={`ประวัติรังชันโรงขนเงิน ${hive.code} ของ ${site.name}: ${originText}${hive.acquiredOn ? ` · ได้มา ${formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}` : ''}`}
+    lineMessage={`สอบถามเกี่ยวกับรัง ${hive.code}`}
+    active="passport"
+  >
+    <article>
+      <p class="mb-2 text-sm text-muted"><a class="underline" href="/passport">← สมุดพกชันโรง</a></p>
+      <header class="mb-5 flex flex-wrap items-center gap-3">
+        <h1 class="text-3xl font-bold">รัง {hive.code}</h1>
+        {statusBadge && <span class:list={['badge text-sm', statusBadge[1]]}>{statusBadge[0]}</span>}
+      </header>
+
+      <section aria-label="รูปรัง" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {hive.photos.length ? hive.photos.map((p, i) => (
+          <img src={`/img/${p.key}`} alt={p.alt ?? `รูปรัง ${hive.code} (${i + 1})`} loading={i < 2 ? 'eager' : 'lazy'} class="aspect-[3/4] w-full rounded-2xl bg-palm-50 object-cover" />
+        )) : (
+          <div class="col-span-2 sm:col-span-4">
+            <img src={placeholder.hive} alt="" class="w-full max-w-sm rounded-2xl" />
+            <p class="hint">ยังไม่มีรูปของรังนี้</p>
+          </div>
+        )}
+      </section>
+
+      <div class="grid gap-5 md:grid-cols-2">
+        <section class="card" aria-labelledby="facts-h">
+          <h2 id="facts-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+            <dt class="text-muted">สายพันธุ์</dt><dd>{hive.species}</dd>
+            {originText && <><dt class="text-muted">ที่มา</dt><dd>{originText}</dd></>}
+            {hive.acquiredOn && <><dt class="text-muted">{hive.origin === 'purchased' ? 'ได้มาเมื่อ' : 'เริ่มรังเมื่อ'}</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd></>}
+            {hive.queenBornOn && <><dt class="text-muted">นางพญาเกิด</dt><dd>{formatThaiDate(hive.queenBornOn)}</dd></>}
+          </dl>
+          {hive.publicNote && <p class="mt-3 rounded-xl bg-honey-50 p-3 text-sm">{hive.publicNote}</p>}
+        </section>
+
+        <section class="card" aria-labelledby="line-h">
+          <h2 id="line-h" class="mb-3 text-lg font-semibold">สายพันธุ์รัง</h2>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+            <dt class="text-muted">ไข่นางพญาจาก</dt><dd>{hive.queenSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.queenSource}`}>รัง {hive.queenSource}</a> : <span class="text-muted">–</span>}</dd>
+            <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{hive.broodSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.broodSource}`}>รัง {hive.broodSource}</a> : <span class="text-muted">–</span>}</dd>
+            <dt class="text-muted">รังลูก ({hive.children.length})</dt>
+            <dd>{hive.children.length ? (
+              <ul class="flex flex-wrap gap-2">
+                {hive.children.map((c) => <li><a class="inline-flex min-h-9 items-center rounded-lg bg-palm-50 px-2.5 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
+              </ul>
+            ) : <span class="text-muted">–</span>}</dd>
+          </dl>
+        </section>
+      </div>
+
+      <section class="card mt-5" aria-labelledby="tl-h">
+        <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติของรัง ({hive.events.length})</h2>
+        {hive.events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติที่บันทึกไว้</p> : (
+          <ol class="divide-y divide-line">
+            {hive.events.map((e) => (
+              <li class="flex gap-3 py-3">
+                <span class="text-xl" aria-hidden="true">{eventLabel[e.type][0]}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="font-medium">{e.type === 'note' ? e.text : eventLabel[e.type][1]}
+                    {e.targetCode && <span> → <a class="text-palm-700 underline" href={`/passport/${e.targetCode}`}>รัง {e.targetCode}</a></span>}</p>
+                </div>
+                <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.precision)}</time>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <p class="mt-4 text-xs text-muted">ข้อมูลปรับปรุงล่าสุด {formatThaiDate(hive.updatedAt.slice(0, 10))} · บันทึกโดย {site.name}</p>
+    </article>
+  </PublicLayout>
+)}

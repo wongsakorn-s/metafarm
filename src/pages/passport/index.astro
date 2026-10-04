@@ -1,0 +1,54 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { getFarmStats, searchHiveCodes } from '../../server/public.ts';
+import { site } from '../../config/site.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const raw = (Astro.url.searchParams.get('code') ?? '').trim();
+// พิมพ์ "25" / "a25" / "A 25" ก็หาเจอ
+const normalized = raw.toUpperCase().replace(/\s+/g, '').replace(/^(\d+)$/, 'A$1');
+
+let matches: string[] = [];
+if (normalized) {
+  if (/^A\d{1,5}$/.test(normalized)) {
+    const exact = await searchHiveCodes(db, normalized, 12);
+    if (exact.includes(normalized)) return Astro.redirect(`/passport/${normalized}`, 302);
+    matches = exact;
+  } else matches = await searchHiveCodes(db, normalized, 12);
+}
+const stats = await getFarmStats(db);
+Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+---
+
+<PublicLayout title="สมุดพกชันโรง" description={`ตรวจสอบประวัติรังชันโรงขนเงินของ ${site.name} ด้วยรหัสรัง: ที่มา สายพันธุ์รังแม่ และประวัติการดูแล`} active="passport">
+  <section class="mx-auto max-w-xl text-center">
+    <h1 class="text-3xl font-bold text-palm-700">📒 สมุดพกชันโรง</h1>
+    <p class="mt-2 text-muted">ทุกรังของ {site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที</p>
+
+    <form method="get" class="card mt-6 text-left" role="search">
+      <label class="label" for="code">รหัสรัง</label>
+      <div class="flex gap-2">
+        <input class="field" id="code" name="code" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="เช่น A25" value={raw} required autofocus />
+        <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
+      </div>
+      {normalized && matches.length === 0 && <p class="error" role="alert">ไม่พบรหัส "{raw}" ลองตรวจตัวอักษรที่ติดอยู่ที่รังอีกครั้ง</p>}
+      {matches.length > 0 && (
+        <div class="mt-3">
+          <p class="hint mb-2">รหัสที่ใกล้เคียง:</p>
+          <ul class="flex flex-wrap gap-2">
+            {matches.map((m) => <li><a class="inline-flex min-h-11 items-center rounded-xl bg-palm-50 px-3 font-semibold text-palm-700 hover:bg-palm-100" href={`/passport/${m}`}>{m}</a></li>)}
+          </ul>
+        </div>
+      )}
+    </form>
+
+    <dl class="mt-8 grid grid-cols-3 gap-3 text-center">
+      <div class="card"><dd class="text-2xl font-bold text-palm-700">{stats.total.toLocaleString('th-TH')}</dd><dt class="text-sm text-muted">รังในทะเบียน</dt></div>
+      <div class="card"><dd class="text-2xl font-bold text-palm-700">{stats.active.toLocaleString('th-TH')}</dd><dt class="text-sm text-muted">ยังเลี้ยงอยู่</dt></div>
+      <div class="card"><dd class="text-2xl font-bold text-palm-700">{stats.queenBred.toLocaleString('th-TH')}</dd><dt class="text-sm text-muted">เพาะนางพญาเอง</dt></div>
+    </dl>
+  </section>
+</PublicLayout>

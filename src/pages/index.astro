@@ -1,24 +1,66 @@
 ---
-import '../styles/global.css';
-import { site } from '../config/site.ts';
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { getDb } from '../server/db.ts';
+import { getFarmStats } from '../server/public.ts';
+import { lineChatUrl, site } from '../config/site.ts';
+
+export const prerender = false;
+
+const stats = await getFarmStats(getDb());
+const line = lineChatUrl('สนใจสอบถามรังและผลิตภัณฑ์ชันโรง');
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+
+const highlights = [
+  { icon: '🪵', title: 'รังไม้สักออกแบบเอง', text: 'รัง 2 ห้องแนวนอน ทำจากไม้สักทั้งหลัง เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
+  { icon: '👑', title: 'เพาะนางพญาเอง', text: `ขยายรังจากรังแม่พันธุ์ของฟาร์มเอง ปัจจุบันมีรังที่เพาะเอง ${stats.queenBred.toLocaleString('th-TH')} รัง` },
+  { icon: '📒', title: 'ทุกรังมีสมุดพก', text: 'ตรวจสอบที่มา วันเกิดนางพญา สายพันธุ์รังแม่ และประวัติการดูแลได้ด้วยรหัสรัง' },
+];
 ---
 
-<!doctype html>
-<html lang="th">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{site.name} · {site.tagline}</title>
-    <meta name="description" content={site.description} />
-  </head>
-  <body class="grid min-h-dvh place-items-center px-4 text-center">
-    <main>
-      <div class="text-6xl" aria-hidden="true">🐝</div>
-      <h1 class="mt-3 text-4xl font-bold text-palm-700">{site.name}</h1>
-      <p class="mt-1 text-lg text-muted">{site.tagline}</p>
-      <p class="mx-auto mt-4 max-w-md">{site.description}</p>
-      <p class="mt-6 text-sm text-muted">เว็บไซต์กำลังจัดทำ · {site.address}</p>
-    </main>
-  </body>
-</html>
+<PublicLayout title={site.name} active="home">
+  <section class="grid items-center gap-8 md:grid-cols-[1.2fr_1fr]">
+    <div>
+      <p class="font-medium text-palm-700">{site.tagline}</p>
+      <h1 class="mt-1 text-4xl font-bold leading-tight md:text-5xl">ชันโรงขนเงิน<br />เลี้ยงในสวนปาล์ม จ.ระยอง</h1>
+      <p class="mt-4 max-w-xl text-lg text-muted">
+        {site.name} เป็นสวนปาล์มน้ำมัน 50 ไร่ ที่ {site.address} เริ่มเลี้ยงผึ้งชันโรงตั้งแต่ปี พ.ศ. {site.foundedYearBE}
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a class="btn-primary" href="/passport">📒 ตรวจสอบสมุดพกรัง</a>
+        {line && <a class="btn-ghost" href={line} rel="noopener">💬 ทักไลน์สอบถาม</a>}
+      </div>
+    </div>
+    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto w-64 md:w-full md:max-w-sm" />
+  </section>
+
+  <section class="mt-12" aria-labelledby="story-h">
+    <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>
+    <div class="mt-3 max-w-3xl space-y-3 text-lg">
+      <p>เราเริ่มจากการทดลองเลี้ยงชันโรงหลายสายพันธุ์ ทั้งขนเงิน ถ้วยดำ จิ่วดุ ปากแตร อิตาม่า และบิงฮามี่</p>
+      <p>แต่ภูมิอากาศที่ระยองค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
+      <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
+    </div>
+  </section>
+
+  <section class="mt-12" aria-label="จุดเด่น">
+    <ul class="grid gap-4 md:grid-cols-3">
+      {highlights.map((h) => (
+        <li class="card">
+          <div class="text-3xl" aria-hidden="true">{h.icon}</div>
+          <h3 class="mt-2 text-lg font-semibold">{h.title}</h3>
+          <p class="mt-1 text-muted">{h.text}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="mt-12 rounded-3xl bg-palm-50 p-6 md:p-8" aria-labelledby="pp-h">
+    <div class="grid items-center gap-6 md:grid-cols-[1fr_auto]">
+      <div>
+        <h2 id="pp-h" class="text-2xl font-bold text-palm-900">📒 สมุดพกชันโรง {site.name}</h2>
+        <p class="mt-2 max-w-2xl">ทะเบียน {stats.total.toLocaleString('th-TH')} รัง เลี้ยงอยู่ {stats.active.toLocaleString('th-TH')} รัง ทุกรังบันทึกที่มา สายพันธุ์รังแม่ และประวัติการขยายรัง เปิดดูได้ฟรีด้วยรหัสรัง</p>
+      </div>
+      <a class="btn-primary" href="/passport">เปิดสมุดพก</a>
+    </div>
+  </section>
+</PublicLayout>

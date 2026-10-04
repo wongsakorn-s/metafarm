@@ -15,12 +15,14 @@ const password = creds[1].split(/:\s*/)[1].trim();
 const browser = await chromium.launch({ channel: process.env.BROWSER ?? 'msedge', headless: true });
 const problems = [];
 
-async function visit(page, path, name) {
+async function visit(page, path, name, expect = 200) {
   const errors = [];
   const onErr = (e) => errors.push(`pageerror: ${e.message}`);
-  const onCon = (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`);
+  // หน้าที่ตั้งใจให้ได้ 404: เบราว์เซอร์จะบันทึก "Failed to load resource" ของตัวหน้าเอง ถือเป็นเรื่องปกติ
+  const onCon = (m) => m.type() === 'error' && !(expect !== 200 && /Failed to load resource/.test(m.text())) && errors.push(`console: ${m.text()}`);
   page.on('pageerror', onErr); page.on('console', onCon);
   const res = await page.goto(BASE + path, { waitUntil: 'networkidle' });
+  if (res?.status() !== expect) errors.push(`สถานะ ${res?.status()} (คาดว่า ${expect})`);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   const broken = await page.evaluate(() => [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src));
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
@@ -33,6 +35,9 @@ async function visit(page, path, name) {
 for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 800 }]]) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'th-TH' });
   const page = await ctx.newPage();
+  // หน้าสาธารณะ (ยังไม่ล็อกอิน) — A19 = รังที่ขายแล้ว, A99999 = ไม่มีรหัสนี้ (ต้องได้ 404 สวย ๆ)
+  for (const [p, n, st] of [['/', 'home'], ['/passport', 'passport-search'], ['/passport/A25', 'passport-A25'], ['/passport/A19', 'passport-A19-sold'], ['/passport/A99999', 'passport-404', 404]])
+    await visit(page, p, `${label}-public-${n}`, st);
   await visit(page, '/admin/login', `${label}-login`);
   await page.fill('#email', email);
   await page.fill('#password', password);
