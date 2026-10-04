@@ -56,7 +56,7 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
 ---
 
 <AdminLayout title={`รูปและวิดีโอ ${hive.code}`} active="hives">
-  <p class="-mt-3 mb-4"><a class="text-sm text-muted underline" href={`/admin/hives/${hive.code}`}>← กลับหน้ารัง {hive.code}</a></p>
+  <p class="-mt-3 mb-4"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href={`/admin/hives/${hive.code}`}>← กลับหน้ารัง {hive.code}</a></p>
 
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
@@ -126,6 +126,7 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
 
 <script>
   import { resizeImage } from '../../../../scripts/resize-image';
+  import { describeUploadError, postUpload } from '../../../../scripts/upload';
 
   // ยืนยันก่อนลบ
   document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) =>
@@ -157,11 +158,10 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
       small.forEach((f) => fd.append('file', f, f.name));
       const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, f) => n + f.size, 0);
       say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
-      const res = await fetch(form.action || location.href, { method: 'POST', body: fd });
-      if (!res.ok && !res.redirected) throw new Error(`เซิร์ฟเวอร์ตอบ ${res.status}`);
+      const res = await postUpload(form.action || location.href, fd);
       location.href = res.url;
     } catch (err) {
-      say(`อัปโหลดไม่สำเร็จ: ${err instanceof Error ? err.message : 'ไม่ทราบสาเหตุ'} — ลองใหม่อีกครั้ง`, true);
+      say(describeUploadError(err), true);
       btn && (btn.disabled = false);
     }
   });

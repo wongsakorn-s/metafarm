@@ -28,7 +28,8 @@
                     "predeploy":  "node --no-warnings scripts/predeploy-check.mjs",
                     "db:migrate:remote":  "wrangler d1 migrations apply metafarm-db --remote",
                     "media:upload:remote":  "node scripts/upload-media-remote.mjs",
-                    "snapshot:export":  "node --no-warnings scripts/export-snapshot.ts"
+                    "snapshot:export":  "node --no-warnings scripts/export-snapshot.ts",
+                    "check:mobile":  "node scripts/mobile-check.mjs"
                 },
     "dependencies":  {
                          "@astrojs/cloudflare":  "^14.3.3",

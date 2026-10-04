@@ -66,9 +66,9 @@ const line = lineChatUrl(c, 'ทดสอบข้อความจากหล
 
     <div class="flex flex-wrap items-center gap-3">
       <button class="btn-primary" type="submit">บันทึกช่องทางติดต่อ</button>
-      {line && <a class="text-sm underline" href={line} target="_blank" rel="noopener noreferrer">ทดสอบลิงก์ LINE ที่บันทึกไว้</a>}
-      {telHref(c.phone) && <a class="text-sm underline" href={telHref(c.phone)!}>ทดสอบเบอร์โทร</a>}
-      <a class="text-sm underline" href="/contact" target="_blank" rel="noopener">ดูหน้า "ติดต่อเรา" บนเว็บ</a>
+      {line && <a class="inline-flex min-h-11 items-center text-sm underline" href={line} target="_blank" rel="noopener noreferrer">ทดสอบลิงก์ LINE ที่บันทึกไว้</a>}
+      {telHref(c.phone) && <a class="inline-flex min-h-11 items-center text-sm underline" href={telHref(c.phone)!}>ทดสอบเบอร์โทร</a>}
+      <a class="inline-flex min-h-11 items-center text-sm underline" href="/contact" target="_blank" rel="noopener">ดูหน้า "ติดต่อเรา" บนเว็บ</a>
     </div>
   </form>
 

@@ -27,7 +27,7 @@ const line = course ? lineChatUrl(settings.contact, `สนใจหลักส
   </PublicLayout>
 ) : (
   <PublicLayout title={fm.title} description={fm.summary} active="training" lineMessage={`สนใจหลักสูตร${fm.title}`}>
-    <p class="mb-2 text-sm text-muted"><a class="underline" href="/training">← อบรม</a></p>
+    <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/training">← อบรม</a></p>
     <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
     <p class="mt-2 max-w-2xl text-lg text-muted">{fm.summary}</p>
 

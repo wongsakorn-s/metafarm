@@ -60,7 +60,7 @@ const nav = [
 
     <header class="border-b border-line bg-surface">
       <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-        <a href="/" class="flex items-center" aria-label={`${site.name} หน้าแรก`}>
+        <a href="/" class="flex min-h-11 min-w-11 items-center" aria-label={`${site.name} หน้าแรก`}>
           <img src="/brand/logo.webp" alt={site.name} width="140" height="38" class="h-9 w-auto" />
         </a>
         <nav aria-label="เมนูหลัก" class="-mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 pb-1 md:mx-0 md:w-auto md:px-0 md:pb-0">
@@ -84,15 +84,15 @@ const nav = [
         </div>
         <div>
           <h2 class="mb-2 font-semibold">ติดต่อเรา</h2>
-          <ul class="space-y-1 text-sm">
-            {line && <li><a class="text-palm-700 underline" href={line} rel="noopener">LINE: {c.lineId}</a></li>}
-            {tel && <li><a class="text-palm-700 underline" href={tel}>โทร {c.phone}</a></li>}
-            {c.facebookUrl && <li><a class="text-palm-700 underline" href={c.facebookUrl} rel="noopener noreferrer">Facebook</a></li>}
-            {c.mapUrl && <li><a class="text-palm-700 underline" href={c.mapUrl} rel="noopener noreferrer">แผนที่ฟาร์ม</a></li>}
+          <ul class="text-sm">
+            {line && <li><a class="inline-flex min-h-11 items-center text-palm-700 underline" href={line} rel="noopener">LINE: {c.lineId}</a></li>}
+            {tel && <li><a class="inline-flex min-h-11 items-center text-palm-700 underline" href={tel}>โทร {c.phone}</a></li>}
+            {c.facebookUrl && <li><a class="inline-flex min-h-11 items-center text-palm-700 underline" href={c.facebookUrl} rel="noopener noreferrer">Facebook</a></li>}
+            {c.mapUrl && <li><a class="inline-flex min-h-11 items-center text-palm-700 underline" href={c.mapUrl} rel="noopener noreferrer">แผนที่ฟาร์ม</a></li>}
           </ul>
         </div>
       </div>
-      <p class="border-t border-line py-3 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์ · <a class="underline" href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
+      <p class="border-t border-line py-1 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์ · <a class="inline-flex min-h-11 items-center underline" href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
     </footer>
 
     {line && (

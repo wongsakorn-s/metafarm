@@ -51,7 +51,7 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
     active="passport"
   >
     <article>
-      <p class="mb-2 text-sm text-muted"><a class="underline" href="/passport">← สมุดพกชันโรง</a></p>
+      <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/passport">← สมุดพกชันโรง</a></p>
       <header class="mb-5 flex flex-wrap items-center gap-3">
         <h1 class="text-3xl font-bold">รัง {hive.code}</h1>
         {statusBadge && <span class:list={['badge text-sm', statusBadge[1]]}>{statusBadge[0]}</span>}
@@ -88,7 +88,7 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
             <dt class="text-muted">รังลูก ({hive.children.length})</dt>
             <dd>{hive.children.length ? (
               <ul class="flex flex-wrap gap-2">
-                {hive.children.map((c) => <li><a class="inline-flex min-h-9 items-center rounded-lg bg-palm-50 px-2.5 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
+                {hive.children.map((c) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
               </ul>
             ) : <span class="text-muted">–</span>}</dd>
           </dl>

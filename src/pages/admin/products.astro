@@ -121,6 +121,7 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
 
 <script>
   import { resizeImage } from '../../scripts/resize-image';
+  import { describeUploadError, postUpload } from '../../scripts/upload';
 
   document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) =>
     f.addEventListener('submit', (e) => { if (!confirm(f.dataset.confirm ?? 'ยืนยัน?')) e.preventDefault(); }),
@@ -141,11 +142,10 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
         const small = await resizeImage(file);
         const fd = new FormData(form);
         fd.set('file', small, small.name);
-        const res = await fetch(form.action || location.href, { method: 'POST', body: fd });
-        if (!res.ok && !res.redirected) throw new Error(`เซิร์ฟเวอร์ตอบ ${res.status}`);
+        const res = await postUpload(form.action || location.href, fd);
         location.href = res.url;
       } catch (err) {
-        status && (status.textContent = `อัปโหลดไม่สำเร็จ: ${err instanceof Error ? err.message : 'ไม่ทราบสาเหตุ'}`);
+        status && (status.textContent = describeUploadError(err));
         btn && (btn.disabled = false);
       }
     });

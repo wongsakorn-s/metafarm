@@ -25,6 +25,7 @@ npm run dev                   # http://localhost:4321  → หลังบ้า
 
 ตรวจคุณภาพ: `npm run check` · `npm test` · `npm run build`
 ตรวจในเบราว์เซอร์จริง (Edge/Chrome ในเครื่อง, มือถือ + คอม, เก็บภาพไว้ใน `private/screenshots/`): เปิด `npm run dev` ค้างไว้ แล้วรัน `npm run check:browser`
+ทดสอบแบบ **จำลองมือถือ** (โปรไฟล์ Pixel 7 / iPhone 13 / iPhone SE, สัมผัส, จุดแตะ ≥ 44px, ช่องกรอก ≥ 16px, หมุนจอ, เน็ตช้า + CPU ช้า + สัญญาณหลุด + ล็อกอินหมดอายุระหว่างอัปโหลดรูป): `npm run check:mobile` (`MOBILE_FLOWS=0` ข้ามขั้นตอนที่เขียนข้อมูล — ขั้นตอนอัปโหลดเพิ่มรูปทดสอบ 1 รูป ให้ล้างด้วย `npm run db:seed:local && npm run media:seed:local -- --prune`)
 ตรวจข้อมูลลับไม่หลุดในหน้าสาธารณะ (ต้องเปิด `npm run dev` ไว้): `npm run check:leaks`
 สร้างโลโก้/ไอคอนขนาดเว็บจาก `design/logo/`: `npm run brand:build`
 ส่งออกข้อมูลปัจจุบัน (ฐานข้อมูล + รูป) เพื่อนำขึ้นระบบจริง: `npm run snapshot:export` (ดู docs/10-deploy-runbook.md ข้อ 2.6)

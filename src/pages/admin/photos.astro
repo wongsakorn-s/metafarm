@@ -14,7 +14,7 @@ const msg = Astro.url.searchParams.get('msg');
 ---
 
 <AdminLayout title="คิวถ่ายรูปรัง" active="readiness">
-  <p class="-mt-3 mb-4"><a class="text-sm text-muted underline" href="/admin/readiness">← เตรียมเปิดเว็บ</a></p>
+  <p class="-mt-3 mb-4"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href="/admin/readiness">← เตรียมเปิดเว็บ</a></p>
   {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {msg}</p>}
 
   <section class="card mb-4">
@@ -30,7 +30,7 @@ const msg = Astro.url.searchParams.get('msg');
       {rows.map((h) => (
         <li class="card space-y-3" data-code={h.code}>
           <div class="flex flex-wrap items-center gap-2">
-            <a class="text-xl font-bold hover:underline" href={`/admin/hives/${h.code}`}>{h.code}</a>
+            <a class="inline-flex min-h-11 min-w-11 items-center text-xl font-bold hover:underline" href={`/admin/hives/${h.code}`}>{h.code}</a>
             <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
             {h.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย</span>}
           </div>
@@ -55,6 +55,7 @@ const msg = Astro.url.searchParams.get('msg');
 
 <script>
   import { resizeImage } from '../../scripts/resize-image';
+  import { describeUploadError, postUpload } from '../../scripts/upload';
 
   const left = document.getElementById('left');
   const bump = () => { if (left) left.textContent = String(Math.max(0, Number(left.textContent) - 1)); };
@@ -75,8 +76,7 @@ const msg = Astro.url.searchParams.get('msg');
         const fd = new FormData();
         for (const [k, v] of new FormData(form)) if (!(v instanceof File)) fd.append(k, v);
         small.forEach((f) => fd.append('file', f, f.name));
-        const res = await fetch(form.action, { method: 'POST', body: fd });
-        if (!res.ok && !res.redirected) throw new Error(`เซิร์ฟเวอร์ตอบ ${res.status}`);
+        await postUpload(form.action, fd);
         state.className = 'text-sm font-semibold text-palm-700';
         state.textContent = `✅ เพิ่มรูปแล้ว ${small.length} รูป`;
         form.querySelector('.grid')?.remove();
@@ -84,7 +84,7 @@ const msg = Astro.url.searchParams.get('msg');
         bump();
       } catch (err) {
         state.className = 'text-sm font-medium text-danger';
-        state.textContent = `ไม่สำเร็จ: ${err instanceof Error ? err.message : 'ไม่ทราบสาเหตุ'} — ลองใหม่`;
+        state.textContent = describeUploadError(err);
         form.querySelectorAll('label').forEach((l) => l.classList.remove('pointer-events-none', 'opacity-60'));
         inputs.forEach((i) => (i.value = ''));
       }
