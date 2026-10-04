@@ -62,7 +62,7 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
           <img src={`/img/${p.key}`} alt={p.alt ?? `รูปรัง ${hive.code} (${i + 1})`} loading={i < 2 ? 'eager' : 'lazy'} class="aspect-[3/4] w-full rounded-2xl bg-palm-50 object-cover" />
         )) : (
           <div class="col-span-2 sm:col-span-4">
-            <img src={placeholder.hive} alt="" class="w-full max-w-sm rounded-2xl" />
+            <img src={placeholder.hive} alt="" width="800" height="600" class="aspect-[4/3] w-full max-w-sm rounded-2xl" />
             <p class="hint">ยังไม่มีรูปของรังนี้</p>
           </div>
         )}

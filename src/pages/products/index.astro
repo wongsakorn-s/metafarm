@@ -34,17 +34,17 @@ const range = (p: (typeof products)[number]) => {
     {saleHives.length === 0 ? (
       <div class="card mt-4 text-muted">ขณะนี้ยังไม่มีรังที่เปิดขาย ทักไลน์สอบถามคิวรังชุดถัดไปได้</div>
     ) : (
-      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{saleHives.slice(0, 3).map((h) => <li><HiveCard hive={h} /></li>)}</ul>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{saleHives.slice(0, 3).map((h, i) => <li><HiveCard hive={h} eager={i === 0} /></li>)}</ul>
     )}
   </section>
 
   <section class="mt-10" aria-labelledby="more-h">
     <h2 id="more-h" class="text-2xl font-bold">สินค้าอื่น ๆ</h2>
     <ul class="mt-4 grid gap-4 sm:grid-cols-2">
-      {products.map((p) => (
+      {products.map((p, i) => (
         <li>
           <a href={`/products/${p.slug}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">
-            <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+            <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
             <div class="p-4">
               <h3 class="text-lg font-bold">{p.name}</h3>
               <p class="text-xl font-bold text-palm-700">{range(p)}</p>

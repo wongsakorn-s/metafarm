@@ -4,7 +4,7 @@ import { site } from '../config/site.ts';
 
 interface Props {
   title: string;
-  active?: 'dashboard' | 'hives' | 'new' | 'products';
+  active?: 'dashboard' | 'hives' | 'new' | 'products' | 'account';
 }
 const { title, active } = Astro.props;
 const user = Astro.locals.user;
@@ -40,14 +40,14 @@ const nav = [
         ))}
       </nav>
       <form method="post" action="/admin/logout" class="mt-auto">
-        <p class="mb-2 truncate text-sm text-muted">{user?.name}</p>
+        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 block truncate text-sm text-muted underline">🔑 {user?.name} · บัญชี</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
     </aside>
 
     <header class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden">
       <a href="/admin" class="font-bold text-palm-700">🐝 {site.name}</a>
-      <form method="post" action="/admin/logout"><button class="text-sm text-muted underline" type="submit">ออกจากระบบ</button></form>
+      <div class="flex items-center gap-4"><a href="/admin/account" class="text-sm text-muted underline">🔑 บัญชี</a><form method="post" action="/admin/logout"><button class="text-sm text-muted underline" type="submit">ออกจากระบบ</button></form></div>
     </header>
 
     <main class="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">

@@ -8,9 +8,10 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:4321';
 const OUT = 'private/screenshots';
 mkdirSync(OUT, { recursive: true });
 
-const creds = readFileSync('private/dev-owner.txt', 'utf8').split('\n');
-const email = creds[0].split(/:\s*/)[1].trim();
-const password = creds[1].split(/:\s*/)[1].trim();
+// ระบบจริง: ตั้ง ADMIN_EMAIL และ ADMIN_PASSWORD (ไม่ใส่ในบรรทัดคำสั่ง) · ในเครื่อง: อ่านจาก private/dev-owner.txt
+const creds = process.env.ADMIN_EMAIL ? [] : readFileSync('private/dev-owner.txt', 'utf8').split('\n');
+const email = process.env.ADMIN_EMAIL ?? creds[0].split(/:\s*/)[1].trim();
+const password = process.env.ADMIN_PASSWORD ?? creds[1].split(/:\s*/)[1].trim();
 
 const browser = await chromium.launch({ channel: process.env.BROWSER ?? 'msedge', headless: true });
 const problems = [];

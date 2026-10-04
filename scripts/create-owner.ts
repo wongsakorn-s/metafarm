@@ -4,13 +4,17 @@
 //       สุ่มรหัสผ่านให้ แล้วเขียนไว้ที่ private/dev-owner.txt (ไม่ขึ้น git)
 //   METAFARM_PASSWORD='รหัสผ่านของคุณ' npm run user:create -- --email you@example.com --name "ชื่อ"
 //       ใช้รหัสผ่านจากตัวแปรสภาพแวดล้อม (ไม่ใส่ในบรรทัดคำสั่ง เพราะจะค้างใน history)
+//   npm run user:create -- --email you@example.com --generate --print-sql > private/owner.sql
+//       สำหรับ production: ไม่แตะฐานข้อมูลในเครื่อง พิมพ์ SQL (มีเฉพาะ hash ไม่มีรหัสผ่านจริง) ให้นำไปรันกับ D1 จริง:
+//       npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
+//       (รหัสผ่านที่สุ่มจะอยู่ใน private/prod-owner.txt ไม่แสดงบนหน้าจอ)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { getPlatformProxy } from 'wrangler';
 import { hashPassword, passwordProblem } from '../src/lib/auth/password.ts';
 
 const { values } = parseArgs({
-  options: { email: { type: 'string' }, name: { type: 'string', default: 'เจ้าของฟาร์ม' }, generate: { type: 'boolean', default: false }, role: { type: 'string', default: 'owner' } },
+  options: { email: { type: 'string' }, name: { type: 'string', default: 'เจ้าของฟาร์ม' }, generate: { type: 'boolean', default: false }, 'print-sql': { type: 'boolean', default: false }, role: { type: 'string', default: 'owner' } },
 });
 const email = values.email?.trim().toLowerCase();
 if (!email || !/^[^@\s]+@[^@\s]+$/.test(email)) throw new Error('ต้องระบุ --email ที่ถูกต้อง');
@@ -24,6 +28,22 @@ if (values.generate) {
 if (!password) throw new Error('ต้องใส่ --generate หรือตั้ง METAFARM_PASSWORD');
 const problem = passwordProblem(password);
 if (problem) throw new Error(problem);
+
+// โหมด production: พิมพ์ SQL แทนการเขียนฐานข้อมูลในเครื่อง (รหัสผ่านจริงไม่ออกทางหน้าจอหรือไฟล์ SQL)
+if (values['print-sql']) {
+  const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+  const hash = await hashPassword(password);
+  console.log(
+    `INSERT INTO users (email, name, password_hash, role, active) VALUES (${q(email)}, ${q(values.name!)}, ${q(hash)}, ${q(values.role!)}, 1)` +
+      ` ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, role = excluded.role, active = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');`,
+  );
+  if (values.generate) {
+    mkdirSync('private', { recursive: true });
+    writeFileSync('private/prod-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(สำหรับระบบจริง — เก็บให้ปลอดภัย และเปลี่ยนรหัสผ่านหลังเข้าใช้ครั้งแรก)\n`);
+    console.error('รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt (ไม่แสดงบนหน้าจอ)');
+  }
+  process.exit(0);
+}
 
 const { env, dispose } = await getPlatformProxy<{ DB: D1Database }>();
 try {

@@ -27,6 +27,28 @@ const PRODUCTS = [
   },
 ] as const;
 
+// --sql: พิมพ์ SQL (รันซ้ำได้) แทนการเขียนฐานข้อมูลในเครื่อง — สำหรับ production:
+//   npm run products:seed:local -- --sql > private/products.sql
+//   npx wrangler d1 execute metafarm-db --remote --file private/products.sql
+// (ตัวเลือกขนาดตรวจซ้ำด้วย label จึงไม่ซ้ำถ้ารันอีก แต่ถ้าเปลี่ยนชื่อ label แล้วรันใหม่จะเพิ่มตัวเลือกใหม่)
+if (process.argv.includes('--sql')) {
+  const s = (v: string | number | null) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
+  const out: string[] = ['-- สร้างโดย scripts/seed-products.ts --sql (รันซ้ำได้ ไม่ทับสินค้า/ราคาที่มีอยู่)'];
+  for (const p of PRODUCTS) {
+    out.push(
+      `INSERT INTO products (slug, name, category, description, published, sort_order) SELECT ${s(p.slug)}, ${s(p.name)}, ${s(p.category)}, ${s(p.description)}, 1, ${p.sortOrder} WHERE NOT EXISTS (SELECT 1 FROM products WHERE slug = ${s(p.slug)});`,
+    );
+    for (const [i, v] of p.variants.entries()) {
+      const pid = `(SELECT id FROM products WHERE slug = ${s(p.slug)})`;
+      out.push(
+        `INSERT INTO product_variants (product_id, label, size_ml, price_thb, price_confirmed, stock_qty, harvest_year_be, sort_order) SELECT ${pid}, ${s(v.label)}, ${s(v.sizeMl)}, ${v.priceThb}, 0, 0, ${s(v.harvestYearBe)}, ${i} WHERE NOT EXISTS (SELECT 1 FROM product_variants WHERE product_id = ${pid} AND label = ${s(v.label)});`,
+      );
+    }
+  }
+  console.log(out.join('\n'));
+  process.exit(0);
+}
+
 const { env, dispose } = await getPlatformProxy<{ DB: D1Database }>();
 let created = 0, kept = 0;
 try {

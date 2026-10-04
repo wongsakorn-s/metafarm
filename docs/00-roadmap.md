@@ -71,10 +71,10 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 
 ## Phase 3: ขึ้นออนไลน์ (ฟรี)
 
-- [ ] GitHub private repo + CI (lint, typecheck, test, build)
-- [ ] สมัครผู้ให้บริการ (ตาม stack) และสร้าง environment `preview` + `production`
-- [ ] Migrate + import ข้อมูลจริงขึ้น production
-- [ ] Backup อัตโนมัติทุกคืน + ทดลองกู้ข้อมูล 1 ครั้ง
+- [x] เตรียมไว้ในเครื่อง: GitHub Actions `ci.yml` (typecheck, test, build) · `deploy.yml` (กดรันเอง + ต้องอนุมัติ) · `backup.yml` (สำรอง D1 ไป R2 ทุกคืน) — **ยังไม่เคยรันจริง**
+- [ ] สมัคร Cloudflare + สร้าง D1/R2 + ใส่ database_id (ต้องทำเอง — ดู [10-deploy-runbook.md](10-deploy-runbook.md)) · environment `preview`/`production` แยก (ตอนนี้มี production เดียว)
+- [x] สคริปต์สร้าง SQL สำหรับ production: `user:create --print-sql`, `products:seed:local -- --sql`, `media:upload:remote` (dry-run เป็นค่าเริ่มต้น) · [ ] รันจริงบน production
+- [ ] Backup อัตโนมัติทุกคืน (เตรียม workflow แล้ว) + ทดลองกู้ข้อมูล 1 ครั้ง
 - [ ] Monitoring/analytics
 - [ ] เจ้าของฟาร์มใช้งานจริงบนมือถือ
 
@@ -104,3 +104,14 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 | ข้อความสรรพคุณผิดกฎหมายโฆษณาอาหาร | ใช้ร่างงานวิจัย, ตรวจอ้างอิงก่อนเผยแพร่ |
 | การเก็บน้ำหวานเริ่ม 10 ต.ค. ก่อนแอปเสร็จ | จดลง Google Sheet ตามคอลัมน์ที่กำหนด แล้ว import ภายหลัง |
 | ข้อมูลหาย | backup ทุกคืนตั้งแต่ Phase 3 และเก็บ Excel ต้นฉบับไว้ |
+
+## Phase 3: สิ่งที่ทำในเครื่องแล้ว (ก่อนมีบัญชี Cloudflare)
+
+- [x] ตัด KV (`SESSION`) และ Images binding ที่เครื่องมือเตรียมไว้ให้แต่เราไม่ใช้ (`session: false`, `imageService: 'passthrough'`) — เหลือ binding DB, MEDIA, ASSETS
+- [x] `wrangler deploy --dry-run` ผ่าน (ขนาดบีบแล้ว ~0.5 MB เทียบเพดานแผนฟรี 3 MB)
+- [x] **Lighthouse มือถือ (ตัว build จริง) 99 / 100 / 100 / 100** (ประสิทธิภาพ / การเข้าถึง / แนวปฏิบัติ / SEO) ทั้ง 6 หน้าหลัก — แก้ปุ่มไลน์ที่สีตัดกันไม่พอ, รูปชั่วคราวที่ไม่ระบุขนาด (หน้ากระตุก), ฝัง CSS ในหน้า
+- [x] CSP + HSTS + Permissions-Policy เปิดเฉพาะ build จริง — ทดสอบว่าบล็อกสคริปต์/เฟรมของเว็บอื่นได้จริง และ YouTube + ย่อรูปอัปโหลดยังใช้ได้
+- [x] หน้า **เปลี่ยนรหัสผ่าน** `/admin/account` (ใส่รหัสเดิม, จำกัดการลองผิด, เตะอุปกรณ์อื่นออกเมื่อเปลี่ยน)
+- [x] `npm run predeploy` รายการที่ต้องแก้/ควรแก้ก่อนขึ้นจริง
+- [ ] ⚠️ ความเสี่ยง: เพดาน CPU 10 ms/คำขอของแผนฟรี อาจกระทบการล็อกอิน (PBKDF2 ~15 ms บน Node) — ต้องลองบนของจริง ดู runbook ข้อ 5
+- [ ] ⚠️ R2 อาจต้องผูกบัตรเครดิตก่อนเปิดใช้ ตรวจที่ dashboard ก่อนสมัคร (runbook ข้อ 1)

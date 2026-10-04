@@ -42,6 +42,7 @@ async function make(src, { w, h, type = 'image/webp', quality = 0.9, bg = null, 
 
 await make(wide, { w: 640 }, 'public/brand/logo.webp');
 await make(round, { w: 360 }, 'public/brand/logo-round.webp');
+await make(round, { w: 144 }, 'public/brand/logo-round-sm.webp'); // ส่วนท้ายหน้า (แสดง 72px ที่ความละเอียด 2 เท่า)
 await make(round, { w: 64, h: 64, type: 'image/png' }, 'public/favicon.png');
 await make(round, { w: 180, h: 180, type: 'image/png', bg: '#fff8dc', pad: 14 }, 'public/apple-touch-icon.png');
 await make(round, { w: 1200, h: 630, type: 'image/png', bg: '#fff8dc', pad: 40 }, 'public/brand/og.png');

@@ -1,0 +1,32 @@
+name: CI
+
+# ตรวจทุกครั้งที่ push เข้า main และทุก pull request — ไม่ใช้ secret ใด ๆ และไม่แตะ Cloudflare
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Type check (astro check)
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build

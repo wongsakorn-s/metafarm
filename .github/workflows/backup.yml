@@ -1,0 +1,41 @@
+name: Nightly D1 backup
+
+# สำรองฐานข้อมูลจริงทุกคืนเวลา 03:00 (ไทย) ไปไว้ใน R2 bucket "metafarm-backups" (เก็บ 30 วัน — ตั้ง lifecycle ครั้งเดียวตาม runbook)
+# ถ้ายังไม่ได้ตั้ง secret จะข้ามอย่างปลอดภัย (ไม่ล้มเหลว)
+on:
+  schedule:
+    - cron: '0 20 * * *' # 20:00 UTC = 03:00 เวลาไทย
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Skip when Cloudflare secrets are not configured
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN — ข้ามการสำรอง"
+      - uses: actions/checkout@v4
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - uses: actions/setup-node@v4
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - name: Export D1 and upload to R2
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          FILE="metafarm-$(date -u +%F).sql"
+          npx wrangler d1 export metafarm-db --remote --output "$FILE"
+          test -s "$FILE"
+          npx wrangler r2 object put "metafarm-backups/d1/$FILE" --file "$FILE" --content-type application/sql --remote
+          echo "::notice::สำรองแล้ว: d1/$FILE ($(wc -c < "$FILE") bytes)"

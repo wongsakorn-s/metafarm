@@ -1,0 +1,109 @@
+# คู่มือขึ้นระบบจริง (Cloudflare)
+
+> **สถานะ: ยังไม่ได้ทดสอบกับ Cloudflare จริงเลย** ทดสอบแล้วเฉพาะส่วนที่ทำในเครื่องได้: build ผ่าน `wrangler deploy --dry-run`, ตัว build จริงบน `astro preview`, Lighthouse, CSP, สคริปต์สร้าง SQL
+> ขั้นตอนที่ต้องมีบัญชี Cloudflare เขียนจากความรู้ทั่วไปของเครื่องมือ — ถ้าคำสั่งไหนไม่ตรงกับหน้าจอจริง ให้ดู `npx wrangler <คำสั่ง> --help` แล้วบอกผม
+
+## 0. ก่อนเริ่ม: รัน `npm run predeploy`
+
+คำสั่งนี้ตรวจว่าอะไรยังไม่พร้อม แยกเป็น **ต้องแก้ก่อน (❌)** และ **ควรแก้ (⚠️)** ตอนนี้ที่ต้องแก้คือ
+
+1. `src/config/site.ts` → ใส่ LINE / เบอร์โทร / Facebook / ลิงก์แผนที่ฟาร์ม **จริง** แล้วตั้ง `contactIsSample: false`
+2. `wrangler.jsonc` → ใส่ `database_id` จริงของ D1 (ข้อ 2.3)
+
+## 1. ⚠️ เรื่องที่ต้องรู้ก่อนสมัคร (อาจกระทบ "ไม่เสียเงิน")
+
+| เรื่อง | รายละเอียด | ทางออก |
+|---|---|---|
+| **R2 อาจขอบัตรเครดิต** | เท่าที่ทราบ การเปิดใช้ R2 (ที่เก็บรูป) อาจให้ผูกช่องทางชำระเงินก่อน แม้จะใช้ในโควตาฟรี (10 GB) — **ตรวจที่ dashboard ก่อนกดเปิด** | ถ้าไม่อยากผูกบัตร ต้องเปลี่ยนที่เก็บรูป (เช่นเก็บรูปที่ย่อแล้วในฐานข้อมูล D1 — ผมทำให้ได้ แต่ต้องแก้โค้ด) |
+| **เพดาน CPU 10 ms ต่อคำขอ (แผนฟรี)** | การตรวจรหัสผ่าน PBKDF2 100,000 รอบใช้เวลา ~15 ms บนเครื่องผม ถ้า Cloudflare นับรวม **ล็อกอินอาจขึ้น error 1102** (ยังยืนยันไม่ได้ ต้องลองจริง) | ดูหัวข้อ 5 |
+| **ขนาดโปรแกรม** | ~1.6 MB (บีบแล้ว 354 KB) ผ่านเพดานแผนฟรี (3 MB บีบแล้ว) | – |
+
+## 2. ครั้งแรก (ทำครั้งเดียว) — ต้องทำเอง เพราะใช้บัญชีของคุณ
+
+1. สมัคร Cloudflare (ฟรี) และตรวจหน้า R2 ว่าขอบัตรหรือไม่ (ดูข้อ 1)
+2. `npx wrangler login` (เปิดเบราว์เซอร์ให้อนุญาต)
+3. สร้างฐานข้อมูล: `npx wrangler d1 create metafarm-db` → จะได้ `database_id` → ใส่ใน `wrangler.jsonc` แทน `00000000-…`
+4. สร้างที่เก็บรูป: `npx wrangler r2 bucket create metafarm-media` และที่เก็บสำรอง `npx wrangler r2 bucket create metafarm-backups`
+   - ให้ลบสำรองเก่าเองหลัง 30 วัน: `npx wrangler r2 bucket lifecycle add metafarm-backups --name expire-30d --prefix d1/ --expire-days 30` (ตรวจ syntax ด้วย `--help` ก่อน)
+5. สร้างตารางในฐานข้อมูลจริง: `npm run db:migrate:remote`
+6. นำข้อมูลเข้า (**ทำครั้งเดียวก่อนใช้งานจริงเท่านั้น**):
+   ```powershell
+   # ⚠️ seed.sql "ล้างข้อมูลรังทั้งหมดก่อนนำเข้า" ห้ามรันซ้ำหลังเริ่มใช้งานจริง ไม่งั้นข้อมูลที่บันทึกใหม่หาย
+   npx wrangler d1 execute metafarm-db --remote --file private/import/seed.sql
+
+   npm run products:seed:local -- --sql > private/products.sql
+   npx wrangler d1 execute metafarm-db --remote --file private/products.sql
+
+   npm run user:create -- --email อีเมลเจ้าของ@ตัวอย่าง.com --name "ชื่อ" --generate --print-sql > private/owner.sql
+   npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
+   # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → เข้าระบบแล้วไปเมนู "🔑 บัญชี" เปลี่ยนรหัสทันที จากนั้นลบไฟล์ทั้งสาม
+
+   npm run media:upload:remote            # ดูรายการก่อน (ยังไม่ส่งอะไร)
+   npm run media:upload:remote -- --yes   # อัปโหลดรูป 231 ไฟล์จริง
+   ```
+7. Deploy ครั้งแรก: `npm run build` แล้ว `npx wrangler deploy` → ได้ลิงก์ `https://metafarm.<ชื่อบัญชี>.workers.dev`
+8. ตั้ง GitHub Actions (ครั้งต่อไปจะ deploy ผ่านปุ่มใน GitHub):
+   - Cloudflare → My Profile → API Tokens → Create Token ใช้แม่แบบ "Edit Cloudflare Workers" แล้วเพิ่มสิทธิ์ **D1: Edit** และ **Workers R2 Storage: Edit** (ให้เฉพาะบัญชีนี้)
+   - GitHub repo → Settings → Secrets and variables → Actions: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+   - Settings → Environments → `production` → เปิด **Required reviewers** (ให้ต้องกดอนุมัติก่อน deploy)
+
+## 3. ตรวจหลัง deploy (ทำตามนี้ทุกครั้งที่ขึ้นใหม่)
+
+```powershell
+# 1) หัวข้อความปลอดภัย + การบีบอัด (Lighthouse ในเครื่องแจ้งว่ายังไม่บีบอัด — Cloudflare ควรบีบให้เอง)
+curl.exe -sI -H "Accept-Encoding: br, gzip" https://<ลิงก์เว็บ>/ | findstr /i "content-encoding content-security strict-transport x-frame cache-control"
+
+# 2) ไม่มีข้อมูลลับหลุด (ใช้ข้อมูลในเครื่องเป็นตัวเทียบ จึงต้องมีข้อมูลเหมือนที่นำขึ้น)
+$env:BASE_URL = "https://<ลิงก์เว็บ>"; npm run check:leaks
+
+# 3) คะแนน Lighthouse มือถือ (เป้า ≥ 90)
+$env:BASE_URL = "https://<ลิงก์เว็บ>"; npm run check:lighthouse
+
+# 4) ภาพหน้าจอ + ตรวจ error ใน console ทุกหน้า (มือถือ+คอม) — ต้องใส่บัญชีเจ้าของของระบบจริง
+#    (หน้านี้ตรวจแบบอ่านอย่างเดียว ไม่บันทึกข้อมูล แต่ล็อกอินจริง)
+$env:BASE_URL = "https://<ลิงก์เว็บ>"; $env:ADMIN_EMAIL = "<อีเมล>"; $env:ADMIN_PASSWORD = "<รหัสผ่าน>"; npm run check:browser
+$env:ADMIN_PASSWORD = $null
+```
+
+เช็กด้วยมือ: เข้า `/admin` ด้วยบัญชีเจ้าของ → **ล็อกอินได้ไหม (ดูข้อ 5)** → เปลี่ยนรหัสผ่าน → บันทึกการเก็บน้ำหวานทดลอง 1 รายการ → เปิดหน้าสมุดพกของรังนั้น → อัปโหลดรูปจากมือถือ → ดู `/sitemap.xml` (URL ต้องเป็นโดเมนจริง)
+
+## 4. สำรองและกู้ข้อมูล
+
+- **สำรองอัตโนมัติ:** `.github/workflows/backup.yml` ทุกคืน 03:00 → R2 `metafarm-backups/d1/metafarm-YYYY-MM-DD.sql` (ข้ามเองถ้ายังไม่ตั้ง secret) — **กดรันเองครั้งแรกและเปิดไฟล์ดูว่ากู้ได้จริง**
+- **ย้อนเวอร์ชันโปรแกรม:** `npx wrangler rollback`
+- **ย้อนฐานข้อมูล:** D1 Time Travel (`npx wrangler d1 time-travel info metafarm-db` / `restore … --timestamp …`) ระยะเวลาย้อนหลังตามแผนของ Cloudflare
+- **กู้จากไฟล์สำรอง:** ดาวน์โหลดไฟล์ .sql จาก R2 แล้ว `npx wrangler d1 execute metafarm-db --remote --file <ไฟล์>` (ต้องล้างตารางก่อน)
+- กฎ migration: **เพิ่มอย่างเดียว** (เพิ่มตาราง/คอลัมน์) ห้ามลบ/เปลี่ยนชื่อในครั้งเดียวกับการ deploy โค้ด
+
+## 5. ถ้าล็อกอินบนระบบจริงขึ้น error 1102 ("เกินเวลา CPU")
+
+ลองตามลำดับ (เริ่มจากถูกสุด):
+1. **ลดรอบ PBKDF2** ใน `src/lib/auth/password.ts` (`ITERATIONS`) เช่นเหลือ 10,000–20,000 — รหัสผ่านเก่ายังใช้ได้เพราะจำนวนรอบเก็บอยู่ในตัว hash แต่ความทนทานต่อการเดารหัสลดลง ควรชดเชยด้วยรหัสผ่านยาว + Cloudflare Access (ข้อ 3)
+2. **เพิ่ม Cloudflare Access (ฟรีไม่เกิน 50 ผู้ใช้)** คุมหน้า `/admin` อีกชั้น (ส่งรหัสทางอีเมล) แล้วลดความเข้มของรหัสผ่านในแอปได้
+3. **Workers แผนเสียเงิน** ประมาณ 5 ดอลลาร์/เดือน (เพดาน CPU สูงกว่ามาก) — ขัดกับเป้า "ไม่เสียเงิน" จึงเป็นทางเลือกสุดท้าย
+
+## 6. โดเมนจริง (ค่าใช้จ่ายเดียว ~400 บาท/ปี)
+
+ซื้อผ่าน Cloudflare Registrar (ราคาทุน) → Workers → metafarm → Settings → Domains & Routes → Add Custom Domain → จากนั้น `sitemap.xml`/`robots.txt`/canonical ใช้โดเมนใหม่เองอัตโนมัติ ต้องทำต่อ: อัปเดตช่องทางติดต่อ, Google Business Profile, ส่ง sitemap เข้า Google Search Console
+
+## 7. ค่าใช้จ่ายที่คาด (ข้อมูลทั่วไป ตรวจหน้า pricing อีกครั้งก่อนใช้)
+
+| บริการ | โควตาฟรี (โดยประมาณ) | การใช้งานของเรา |
+|---|---|---|
+| Workers | 100,000 คำขอ/วัน | น้อยกว่า 1% |
+| D1 | 5 GB, อ่าน 5 ล้านแถว/วัน | ข้อมูลหลักไม่กี่ MB |
+| R2 | 10 GB | รูปปัจจุบัน ~4 MB (แต่ดูข้อ 1 เรื่องบัตร) |
+| GitHub private repo + Actions | ฟรี | CI ไม่กี่นาทีต่อครั้ง |
+
+## 8. ความปลอดภัย (สรุป)
+
+- API token ให้สิทธิ์เท่าที่จำเป็น เก็บเป็น GitHub secret เท่านั้น ห้ามใส่ในไฟล์ในโปรเจกต์
+- `private/` ไม่ขึ้น git (มีรายชื่อคู่ค้า, รหัสผ่านเริ่มต้น, ไฟล์ SQL ที่มี hash) — ลบ `prod-owner.txt` / `owner.sql` หลังใช้
+- หัวข้อ CSP/HSTS เปิดเฉพาะ build จริง (`src/lib/security-headers.ts`) ทดสอบแล้วว่าบล็อกสคริปต์/เฟรมจากเว็บอื่น แต่วิดีโอ YouTube และการอัปโหลดรูปยังใช้ได้
+- ชันโรงขนเงินและข้อมูลฟาร์มเป็นของสาธารณะอยู่แล้ว แต่ราคาซื้อ คู่ค้า ลูกค้า หมายเหตุภายใน **ต้องไม่หลุด** → รัน `npm run check:leaks` ก่อนทุกครั้งที่แก้โค้ดส่วนสาธารณะ
+
+## 9. ยังไม่ได้ทำ / ไม่ได้ทดสอบ
+
+- ทุกขั้นตอนที่ต้องใช้บัญชี Cloudflare (ข้อ 2–4) · GitHub Actions ทั้งสามไฟล์ยังไม่เคยรันจริง (`ci.yml` น่าจะผ่านเพราะใช้คำสั่งเดียวกับที่รันในเครื่อง)
+- แยก environment `preview`/`production` (ตอนนี้มี production เดียว) — ทำเมื่อมีผู้ร่วมพัฒนา
+- การตรวจ/แจ้งเตือนเมื่อเว็บล่ม (ใช้ Workers Logs ใน dashboard ไปก่อน)

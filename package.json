@@ -23,7 +23,11 @@
                     "check:browser":  "node scripts/browser-check.mjs",
                     "brand:build":  "node scripts/make-brand-assets.mjs",
                     "check:leaks":  "node scripts/check-leaks.mjs",
-                    "products:seed:local":  "node --no-warnings scripts/seed-products.ts"
+                    "products:seed:local":  "node --no-warnings scripts/seed-products.ts",
+                    "check:lighthouse":  "node scripts/lighthouse.mjs",
+                    "predeploy":  "node --no-warnings scripts/predeploy-check.mjs",
+                    "db:migrate:remote":  "wrangler d1 migrations apply metafarm-db --remote",
+                    "media:upload:remote":  "node scripts/upload-media-remote.mjs"
                 },
     "dependencies":  {
                          "@astrojs/cloudflare":  "^14.3.3",

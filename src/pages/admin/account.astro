@@ -1,0 +1,46 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { changePassword, SESSION_COOKIE } from '../../server/auth.ts';
+import { getDb } from '../../server/db.ts';
+
+export const prerender = false;
+
+const user = Astro.locals.user!;
+let error = '';
+const done = Astro.url.searchParams.get('done') === '1';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const ip = Astro.request.headers.get('cf-connecting-ip') ?? Astro.clientAddress ?? 'local';
+  const r = await changePassword(
+    getDb(),
+    user,
+    Astro.cookies.get(SESSION_COOKIE)?.value,
+    { current: String(form.get('current') ?? ''), next: String(form.get('next') ?? ''), confirm: String(form.get('confirm') ?? '') },
+    ip,
+  );
+  if (r.ok) return Astro.redirect('/admin/account?done=1', 303);
+  error = r.error;
+}
+---
+
+<AdminLayout title="บัญชีของฉัน" active="account">
+  <section class="card mb-5 max-w-xl">
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+      <dt class="text-muted">ชื่อ</dt><dd>{user.name}</dd>
+      <dt class="text-muted">อีเมล</dt><dd>{user.email}</dd>
+      <dt class="text-muted">บทบาท</dt><dd>{user.role === 'owner' ? 'เจ้าของ' : 'ทีมงาน'}</dd>
+    </dl>
+  </section>
+
+  {done && <p role="status" class="mb-4 max-w-xl rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ เปลี่ยนรหัสผ่านแล้ว อุปกรณ์อื่นที่ล็อกอินอยู่ถูกออกจากระบบทั้งหมด</p>}
+  {error && <p role="alert" class="mb-4 max-w-xl rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+
+  <form method="post" class="card max-w-xl space-y-4">
+    <h2 class="text-lg font-semibold">เปลี่ยนรหัสผ่าน</h2>
+    <div><label class="label" for="current">รหัสผ่านเดิม</label><input class="field" id="current" name="current" type="password" autocomplete="current-password" required /></div>
+    <div><label class="label" for="next">รหัสผ่านใหม่</label><input class="field" id="next" name="next" type="password" autocomplete="new-password" minlength="10" required /><p class="hint">ยาวอย่างน้อย 10 ตัวอักษร (ประโยคยาว ๆ ที่จำง่ายปลอดภัยกว่ารหัสสั้น ๆ ที่ซับซ้อน)</p></div>
+    <div><label class="label" for="confirm">รหัสผ่านใหม่อีกครั้ง</label><input class="field" id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="10" required /></div>
+    <button class="btn-primary w-full" type="submit">เปลี่ยนรหัสผ่าน</button>
+  </form>
+</AdminLayout>

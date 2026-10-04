@@ -19,6 +19,8 @@ Website + back office for a stingless bee (ชันโรงขนเงิน)
 - Products: for-sale hives are read via `getSaleHives/getSaleHive` (forSale + active + price); hive-box/honey come from `products` tables. Real stock is never exposed (only `inStock`); `price_confirmed = 0` shows a "ราคาตัวอย่าง" badge.
 - Editable prose lives in `content/` as Markdown (`pages/`, `training/`, `learn/`), loaded by `src/lib/content.ts` and styled with `.prose-mf`. Health-related text (`content/learn/research.md`) must stay cited and claim-free: never write that honey treats/prevents disease; `check:leaks` forbids price words on the research/contact pages. Do not put prose in HTML comments in pages (they ship in the page source) — use `{/* */}`.
 - `sitemap.xml`/`robots.txt` are dynamic routes (use the request origin). Training price/duration and course outlines are samples until the owner confirms.
+- Deploy prep: `docs/10-deploy-runbook.md`; `npm run predeploy` lists blockers (sample contact info, placeholder D1 id). CSP/HSTS apply only to production builds (`src/lib/security-headers.ts`) — verify changes against `astro preview`, not the dev server. Nothing has been run against real Cloudflare; never run `--remote` wrangler commands, `media:upload:remote -- --yes`, or deploy workflows unless the user asks.
+- Password change lives at `/admin/account`; PBKDF2 iteration count is stored inside each hash (lowering `ITERATIONS` keeps old hashes valid).
 - Do not run `astro build` / `astro check` while a dev server is running: it invalidates Vite's dep cache and the running server then 500s (e.g. "file does not exist ... deps_ssr/zod.js"). Stop the dev server first, or restart it afterwards (`astro dev --force`).
 
 ## Development

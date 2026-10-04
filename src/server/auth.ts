@@ -1,7 +1,7 @@
 import { and, eq, gt, sql } from 'drizzle-orm';
 import type { AstroCookies } from 'astro';
-import { loginAttempts, sessions, users } from '../db/schema.ts';
-import { newToken, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
+import { auditLogs, loginAttempts, sessions, users } from '../db/schema.ts';
+import { newToken, passwordProblem, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
 import type { Db } from './db.ts';
 
 export const SESSION_COOKIE = 'mf_session';
@@ -50,6 +50,47 @@ export async function login(db: Db, emailRaw: string, password: string, ip: stri
     expiresAt: isoIn(SESSION_DAYS * 86_400_000),
   });
   return { ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
+}
+
+export type ChangePasswordResult = { ok: true; otherSessionsEnded: boolean } | { ok: false; error: string };
+
+/**
+ * เปลี่ยนรหัสผ่านของตัวเอง: ต้องใส่รหัสผ่านเดิมให้ถูก (กันคนที่เปิดเครื่องค้างไว้มาเปลี่ยน)
+ * ลองรหัสเดิมผิดซ้ำมีจำกัดเหมือนตอนล็อกอิน และเมื่อเปลี่ยนสำเร็จจะ "ออกจากระบบ" ทุกอุปกรณ์อื่น (เก็บเฉพาะ session ปัจจุบัน)
+ */
+export async function changePassword(
+  db: Db,
+  user: SessionUser,
+  currentToken: string | undefined,
+  input: { current: string; next: string; confirm: string },
+  ip: string,
+): Promise<ChangePasswordResult> {
+  const problem = passwordProblem(input.next);
+  if (problem) return { ok: false, error: problem };
+  if (input.next !== input.confirm) return { ok: false, error: 'รหัสผ่านใหม่สองช่องไม่ตรงกัน' };
+  if (input.next === input.current) return { ok: false, error: 'รหัสผ่านใหม่ต้องต่างจากรหัสผ่านเดิม' };
+
+  const key = await sha256Hex(`pwchange|${user.id}|${ip}`);
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(loginAttempts)
+    .where(and(eq(loginAttempts.keyHash, key), gt(loginAttempts.at, isoIn(-WINDOW_MIN * 60_000))));
+  if (n >= MAX_FAILURES) return { ok: false, error: 'ใส่รหัสผ่านเดิมผิดหลายครั้งเกินไป กรุณารอ 15 นาที' };
+
+  const row = await db.query.users.findFirst({ where: eq(users.id, user.id), columns: { passwordHash: true, active: true } });
+  if (!row?.active || !(await verifyPassword(input.current, row.passwordHash))) {
+    await db.insert(loginAttempts).values({ keyHash: key });
+    return { ok: false, error: 'รหัสผ่านเดิมไม่ถูกต้อง' };
+  }
+
+  const keepHash = currentToken ? await sha256Hex(currentToken) : '';
+  await db.batch([
+    db.update(users).set({ passwordHash: await hashPassword(input.next), updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` }).where(eq(users.id, user.id)),
+    db.delete(sessions).where(and(eq(sessions.userId, user.id), sql`${sessions.tokenHash} != ${keepHash}`)),
+    db.delete(loginAttempts).where(eq(loginAttempts.keyHash, key)),
+    db.insert(auditLogs).values({ userId: user.id, action: 'user.password_change', entity: 'user', entityId: user.id }),
+  ]);
+  return { ok: true, otherSessionsEnded: true };
 }
 
 export async function userFromToken(db: Db, token: string | undefined): Promise<SessionUser | null> {

@@ -5,7 +5,7 @@
 1. **เว็บสาธารณะ:** ชันโรงขนเงิน, น้ำผึ้งชันโรง, สินค้า (รังสมบูรณ์ / รังเปล่า / น้ำผึ้ง), อบรม, สมุดพกชันโรง และติดต่อเรา
 2. **หลังบ้าน:** ทะเบียนรัง 147 รัง, บันทึกเหตุการณ์ (เก็บน้ำหวาน, ไข่นางพญา, แยกรัง), ตั้งขายรัง และออเดอร์
 
-> สถานะ: **Phase 1 เสร็จ + Phase 2 เริ่มแล้ว (local)**: หลังบ้านครบ (ล็อกอิน, รัง, แก้ไข, รูป/วิดีโอ) และเว็บสาธารณะมี หน้าแรก + สมุดพกชันโรง + สินค้า + ชันโรงขนเงิน + น้ำผึ้ง + งานวิจัย + อบรม + ติดต่อเรา + ความเป็นส่วนตัว แล้ว (เมนูครบตามที่เจ้าของฟาร์มร่างไว้) เหลือ Lighthouse/เนื้อหาจริง และการขึ้นออนไลน์ (Phase 3)
+> สถานะ: **Phase 1–2 เสร็จ (local) · Phase 3 เตรียมในเครื่องแล้ว รอบัญชี Cloudflare**: หลังบ้านครบ (ล็อกอิน, รัง, แก้ไข, รูป/วิดีโอ) และเว็บสาธารณะมี หน้าแรก + สมุดพกชันโรง + สินค้า + ชันโรงขนเงิน + น้ำผึ้ง + งานวิจัย + อบรม + ติดต่อเรา + ความเป็นส่วนตัว แล้ว (เมนูครบตามที่เจ้าของฟาร์มร่างไว้) เหลือ Lighthouse/เนื้อหาจริง และการขึ้นออนไลน์ (Phase 3)
 > Stack: Astro 7 + React + Tailwind 4 · Cloudflare Workers · D1 + Drizzle · R2
 
 ## รันบนเครื่อง
@@ -27,6 +27,7 @@ npm run dev                   # http://localhost:4321  → หลังบ้า
 ตรวจในเบราว์เซอร์จริง (Edge/Chrome ในเครื่อง, มือถือ + คอม, เก็บภาพไว้ใน `private/screenshots/`): เปิด `npm run dev` ค้างไว้ แล้วรัน `npm run check:browser`
 ตรวจข้อมูลลับไม่หลุดในหน้าสาธารณะ (ต้องเปิด `npm run dev` ไว้): `npm run check:leaks`
 สร้างโลโก้/ไอคอนขนาดเว็บจาก `design/logo/`: `npm run brand:build`
+ตรวจความพร้อมขึ้นออนไลน์: `npm run predeploy` · คะแนน Lighthouse (ต้อง build + `npx astro preview --port 4500` ก่อน): `npm run check:lighthouse`
 ล้างรูปทดสอบใน R2 บนเครื่อง: `npm run media:seed:local -- --prune`
 หลังแก้ `wrangler.jsonc` ให้รัน `npm run generate-types`
 
@@ -44,6 +45,7 @@ npm run dev                   # http://localhost:4321  → หลังบ้า
 | [docs/07-decisions.md](docs/07-decisions.md) | บันทึกการตัดสินใจ + วิเคราะห์ข้อมูล |
 | [docs/08-stack-comparison.md](docs/08-stack-comparison.md) | เปรียบเทียบ stack และวิธี deploy |
 | [docs/09-research-notes.md](docs/09-research-notes.md) | ผลตรวจเนื้อหางานวิจัย (ภายใน) |
+| [docs/10-deploy-runbook.md](docs/10-deploy-runbook.md) | คู่มือขึ้นระบบจริง (Cloudflare) + ข้อควรระวัง |
 
 ## โครงโฟลเดอร์
 

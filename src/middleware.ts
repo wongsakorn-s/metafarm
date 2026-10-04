@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { SESSION_COOKIE, userFromToken } from './server/auth.ts';
+import { securityHeaders } from './lib/security-headers.ts';
 import { getDb } from './server/db.ts';
 
 const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
@@ -24,8 +25,6 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     res.headers.set('Cache-Control', 'private, no-store');
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
-  res.headers.set('X-Content-Type-Options', 'nosniff');
-  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.headers.set('X-Frame-Options', 'DENY');
+  for (const [k, v] of Object.entries(securityHeaders({ prod: import.meta.env.PROD, https: ctx.url.protocol === 'https:' }))) res.headers.set(k, v);
   return res;
 });
