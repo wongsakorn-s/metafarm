@@ -1,0 +1,85 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { listProductsAdmin, setProductPublished, updateVariant } from '../../server/products.ts';
+import { categoryLabel, formatPrice, sizeLabel } from '../../lib/products.ts';
+import { parseForm, publishSchema, variantSchema } from '../../lib/validation.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const user = Astro.locals.user!;
+let error = '';
+let errorVariant = 0;
+let errorFields: Record<string, string> = {};
+const saved = Astro.url.searchParams.get('saved');
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const intent = String(form.get('intent') ?? '');
+  if (intent === 'variant') {
+    const p = parseForm(variantSchema, form);
+    if (!p.ok) { errorFields = p.errors; errorVariant = Number(form.get('variantId')); error = 'กรอกข้อมูลไม่ถูกต้อง'; }
+    else {
+      const r = await updateVariant(db, user, p.data);
+      if (r.ok) return Astro.redirect('/admin/products?saved=variant', 303);
+      error = r.error;
+    }
+  } else if (intent === 'publish') {
+    const p = parseForm(publishSchema, form);
+    if (!p.ok) error = 'ข้อมูลไม่ถูกต้อง';
+    else {
+      const r = await setProductPublished(db, user, p.data);
+      if (r.ok) return Astro.redirect('/admin/products?saved=publish', 303);
+      error = r.error;
+    }
+  } else error = 'คำสั่งไม่ถูกต้อง';
+}
+
+const items = await listProductsAdmin(db);
+---
+
+<AdminLayout title="สินค้า" active="products">
+  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {saved === 'variant' ? 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)' : 'บันทึกการแสดง/ซ่อนสินค้าแล้ว'}</p>}
+  {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+
+  <p class="mb-4 rounded-xl bg-honey-50 p-3 text-sm">
+    ราคาที่ยังเป็น <strong>ตัวอย่าง</strong> จะมีป้าย "ราคาตัวอย่าง" บนเว็บ — เมื่อกด <strong>บันทึก</strong> ที่ตัวเลือกใด ระบบถือว่าคุณยืนยันราคานั้นแล้วและป้ายจะหายไป
+    · <strong>รังสมบูรณ์</strong> ไม่ได้จัดการที่นี่ แต่ตั้งขายที่หน้ารังแต่ละรัง (<a class="underline" href="/admin/hives?forSale=1">ดูรังที่ตั้งขาย</a>)
+  </p>
+
+  <div class="space-y-5">
+    {items.map((p) => (
+      <section class="card" aria-labelledby={`p-${p.id}`}>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 id={`p-${p.id}`} class="text-lg font-semibold">{p.name}</h2>
+            <p class="text-sm text-muted">{categoryLabel[p.category]} · <a class="underline" href={`/products/${p.slug}`} target="_blank" rel="noopener">ดูบนเว็บ</a></p>
+          </div>
+          <form method="post" class="flex items-center gap-2">
+            <input type="hidden" name="intent" value="publish" /><input type="hidden" name="productId" value={p.id} />
+            {p.published ? <><span class="badge bg-palm-100 text-palm-900">แสดงบนเว็บ</span><button class="btn-ghost" type="submit">ซ่อน</button></> : <><span class="badge bg-slate-200 text-slate-700">ซ่อนอยู่</span><input type="hidden" name="published" value="on" /><button class="btn-primary" type="submit">แสดง</button></>}
+          </form>
+        </div>
+
+        <ul class="mt-4 space-y-3">
+          {p.variants.map((v) => (
+            <li class="rounded-xl border border-line p-3">
+              <form method="post" class="grid items-end gap-3 sm:grid-cols-[1fr_9rem_9rem_auto]">
+                <input type="hidden" name="intent" value="variant" /><input type="hidden" name="variantId" value={v.id} />
+                <div>
+                  <p class="font-medium">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
+                  <p class="text-sm text-muted">{v.priceConfirmed ? `ราคาปัจจุบัน ${formatPrice(v.priceThb)} (ยืนยันแล้ว)` : <span class="font-medium text-honey-700">ราคาตัวอย่าง {formatPrice(v.priceThb)} — ยังไม่ได้ยืนยัน</span>}</p>
+                </div>
+                <div><label class="label" for={`pr-${v.id}`}>ราคา (บาท)</label><input class="field" id={`pr-${v.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={errorVariant === v.id ? '' : v.priceThb} />{errorVariant === v.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
+                <div><label class="label" for={`st-${v.id}`}>สต็อก (ชิ้น)</label><input class="field" id={`st-${v.id}`} name="stockQty" type="number" inputmode="numeric" min="0" required value={v.stockQty} />{errorVariant === v.id && errorFields.stockQty && <p class="error">{errorFields.stockQty}</p>}</div>
+                <button class="btn-primary" type="submit">บันทึก</button>
+              </form>
+              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกทางไลน์" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น)</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</AdminLayout>

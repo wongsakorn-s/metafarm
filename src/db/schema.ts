@@ -177,6 +177,8 @@ export const productVariants = sqliteTable('product_variants', {
   label: text('label').notNull(),
   sizeMl: integer('size_ml'),
   priceThb: integer('price_thb').notNull(),
+  /** false = ราคาตัวอย่าง (เว็บจะแสดงป้าย "ราคาตัวอย่าง") — กลายเป็น true เมื่อเจ้าของฟาร์มบันทึกราคาในหลังบ้าน */
+  priceConfirmed: integer('price_confirmed', { mode: 'boolean' }).notNull().default(false),
   stockQty: integer('stock_qty').notNull().default(0),
   harvestYearBe: integer('harvest_year_be'),
   sortOrder: integer('sort_order').notNull().default(0),

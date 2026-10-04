@@ -1,0 +1,64 @@
+---
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import HowToOrder from '../../components/HowToOrder.astro';
+import SampleBadge from '../../components/SampleBadge.astro';
+import { getDb } from '../../server/db.ts';
+import { getPublicProducts } from '../../server/public.ts';
+import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel } from '../../lib/products.ts';
+import { lineChatUrl, site } from '../../config/site.ts';
+import { placeholder } from '../../lib/placeholders.ts';
+
+export const prerender = false;
+
+const slug = Astro.params.slug ?? '';
+const product = (await getPublicProducts(getDb(), slug))[0];
+if (!product) Astro.response.status = 404;
+Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+
+const image = product?.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
+const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) : 0;
+---
+
+{!product ? (
+  <PublicLayout title="ไม่พบสินค้า" active="products" noindex>
+    <section class="mx-auto max-w-md py-10 text-center">
+      <h1 class="text-2xl font-bold">ไม่พบสินค้านี้</h1>
+      <a class="btn-primary mt-5" href="/products">ดูสินค้าทั้งหมด</a>
+    </section>
+  </PublicLayout>
+) : (
+  <PublicLayout title={product.name} description={`${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products">
+    <p class="mb-2 text-sm text-muted"><a class="underline" href="/products">← สินค้า</a></p>
+    <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
+      <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+      <section>
+        <h1 class="text-3xl font-bold">{product.name}</h1>
+        {product.description && <p class="mt-2 text-lg text-muted">{product.description}</p>}
+
+        <ul class="mt-5 space-y-3">
+          {product.variants.map((v) => {
+            const line = lineChatUrl(orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb }));
+            const stock = stockLabel(v.inStock);
+            return (
+              <li class="card">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 class="text-lg font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</h2>
+                  <p class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)}</p>
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                  <span class:list={['badge', stock.tone]}>{stock.text}</span>
+                  {v.priceIsSample && <SampleBadge />}
+                  {v.sizeMl && <span class="text-muted">≈ {pricePer100ml(v.priceThb, v.sizeMl).toLocaleString('th-TH')} บาท / 100 มล.</span>}
+                  {v.harvestYearBe && <span class="text-muted">เก็บเกี่ยวปี {v.harvestYearBe}</span>}
+                </div>
+                {line && <a class="btn-primary mt-3 w-full sm:w-auto" href={line} rel="noopener">💬 สั่งทางไลน์</a>}
+              </li>
+            );
+          })}
+        </ul>
+        <p class="mt-4 text-sm text-muted">สินค้าของ {site.name} · สอบถามสต็อกและวิธีรับสินค้าทางไลน์ก่อนสั่ง</p>
+      </section>
+    </div>
+    <div class="mt-10"><HowToOrder message={orderMessage(product.name)} /></div>
+  </PublicLayout>
+)}

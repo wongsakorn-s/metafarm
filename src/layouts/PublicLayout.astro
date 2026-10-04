@@ -7,7 +7,7 @@ interface Props {
   description?: string;
   /** ข้อความที่จะใส่ในแชต LINE เมื่อกดปุ่มลอย (เช่น "สนใจรัง A25") */
   lineMessage?: string;
-  active?: 'home' | 'passport';
+  active?: 'home' | 'products' | 'passport';
   noindex?: boolean;
 }
 const { title, description = site.description, lineMessage, active, noindex = false } = Astro.props;
@@ -19,6 +19,7 @@ const c = site.contact;
 
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก' },
+  { key: 'products', href: '/products', label: 'สินค้า' },
   { key: 'passport', href: '/passport', label: 'สมุดพกชันโรง' },
 ] as const;
 ---

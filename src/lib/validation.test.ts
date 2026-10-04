@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok } from './validation.ts';
+import { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, parseForm, queenCellSchema, publishSchema, saleSchema, statusSchema, todayBangkok, variantSchema } from './validation.ts';
 
 const form = (o: Record<string, string>) => Object.assign(new FormData(), {}) && Object.entries(o).reduce((f, [k, v]) => (f.append(k, v), f), new FormData());
 const today = todayBangkok();
@@ -49,6 +49,21 @@ describe('editHiveSchema', () => {
   });
   it('ยังเลือกที่มา unknown ได้ (รังที่ยังไม่ทราบที่มา)', () => {
     expect(parseForm(editHiveSchema, form({ origin: 'unknown', boxType: 'unknown' })).ok).toBe(true);
+  });
+});
+
+describe('variantSchema / publishSchema', () => {
+  it('ราคา/สต็อกเป็นจำนวนเต็ม ราคาต้อง ≥ 1 สต็อกเป็น 0 ได้', () => {
+    expect(parseForm(variantSchema, form({ variantId: '3', priceThb: '690', stockQty: '0' }))).toMatchObject({ ok: true, data: { variantId: 3, priceThb: 690, stockQty: 0 } });
+    expect(parseForm(variantSchema, form({ variantId: '3', priceThb: '0', stockQty: '1' })).ok).toBe(false);
+    expect(parseForm(variantSchema, form({ variantId: '3', priceThb: '-5', stockQty: '1' })).ok).toBe(false);
+    expect(parseForm(variantSchema, form({ variantId: '3', priceThb: '12.5', stockQty: '1' })).ok).toBe(false);
+    expect(parseForm(variantSchema, form({ variantId: '3', priceThb: '', stockQty: '1' })).ok).toBe(false);
+    expect(parseForm(variantSchema, form({ variantId: 'x', priceThb: '5', stockQty: '1' })).ok).toBe(false);
+  });
+  it('publish: checkbox', () => {
+    expect(parseForm(publishSchema, form({ productId: '1', published: 'on' }))).toMatchObject({ ok: true, data: { published: true } });
+    expect(parseForm(publishSchema, form({ productId: '1' }))).toMatchObject({ ok: true, data: { published: false } });
   });
 });
 

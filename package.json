@@ -22,7 +22,8 @@
                     "media:seed:local":  "node --no-warnings scripts/upload-media.ts",
                     "check:browser":  "node scripts/browser-check.mjs",
                     "brand:build":  "node scripts/make-brand-assets.mjs",
-                    "check:leaks":  "node scripts/check-leaks.mjs"
+                    "check:leaks":  "node scripts/check-leaks.mjs",
+                    "products:seed:local":  "node --no-warnings scripts/seed-products.ts"
                 },
     "dependencies":  {
                          "@astrojs/cloudflare":  "^14.3.3",

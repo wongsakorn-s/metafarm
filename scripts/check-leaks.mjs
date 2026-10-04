@@ -9,7 +9,8 @@ const BASE = process.env.BASE_URL ?? 'http://localhost:4321';
 const { env, dispose } = await getPlatformProxy();
 const all = async (sql) => (await env.DB.prepare(sql).all()).results;
 
-const hives = await all('SELECT code, origin_place, notes, collapse_reason, purchase_price, sold_price, sale_price FROM hives ORDER BY id');
+const hives = await all('SELECT code, origin_place, notes, collapse_reason, purchase_price, sold_price, sale_price, for_sale, status FROM hives ORDER BY id');
+const variants = await all('SELECT v.stock_qty, p.slug FROM product_variants v JOIN products p ON p.id = v.product_id');
 const suppliers = await all('SELECT name, phone, notes FROM suppliers');
 const customers = await all('SELECT name, phone FROM customers');
 await dispose();
@@ -43,11 +44,24 @@ if (generic.length) console.log(`ตัดวลีทั่วไปออก�
 // คำที่ห้ามปรากฏ: ราคา/เงิน และชื่อฟิลด์ภายใน
 const forbiddenWords = ['บาท', 'ราคา', 'คู่ค้า', '???', 'purchase', 'supplier', 'for_sale', 'forSale', 'sold_price', 'sale_price', 'salePrice', 'passwordHash', 'password_hash'];
 
-const pages = [['/', 'หน้าแรก'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'], ...hives.map((h) => [`/passport/${h.code}`, h.code])];
+// หน้าสินค้าแสดงราคา/คำว่า "บาท" ได้ตามปกติ จึงไม่ใช้คำต้องห้ามกลุ่มราคา แต่ยังตรวจข้อมูลลับอื่น ๆ + ตัวเลขเฉพาะด้านล่าง
+const PRICE_WORDS = new Set(['บาท', 'ราคา']);
+const saleHives = hives.filter((h) => h.for_sale && h.status === 'active' && h.sale_price > 0);
+const pages = [
+  ['/', 'หน้าแรก'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'],
+  ...hives.map((h) => [`/passport/${h.code}`, h.code]),
+  ['/products', 'สินค้า:รวม', 'product'], ['/products/hives', 'สินค้า:รังสมบูรณ์', 'product'],
+  ['/products/hive-box', 'สินค้า:รังเปล่า', 'product'], ['/products/stingless-honey', 'สินค้า:น้ำผึ้ง', 'product'],
+  ['/products/hives/A99999', '404', 'product'], ['/products/no-such-product', '404', 'product'],
+  ...saleHives.map((h) => [`/products/hives/${h.code}`, `สินค้า:รัง ${h.code}`, 'product', h]),
+  // รังที่ไม่ได้ขาย (ยังไม่ตั้งขาย/ขายแล้ว) ต้องเปิดหน้าสินค้าไม่ได้
+  ...hives.filter((h) => !saleHives.includes(h)).slice(0, 20).map((h) => [`/products/hives/${h.code}`, '404', 'product']),
+];
 let bad = 0, scanned = 0;
 const report = (page, msg) => { bad++; console.log(`FAIL ${page}  ${msg}`); };
+const fmt = (n) => [String(n), Number(n).toLocaleString('th-TH'), Number(n).toLocaleString('en-US')];
 
-for (const [path, label] of pages) {
+for (const [path, label, kind, saleHive] of pages) {
   const res = await fetch(BASE + path, { redirect: 'manual' });
   const html = await res.text();
   scanned++;
@@ -56,7 +70,16 @@ for (const [path, label] of pages) {
   const text = norm(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' '));
   const haystack = html + ' ' + text;
   for (const [secret, why] of secrets) if (haystack.includes(secret)) report(path, `พบข้อมูลลับ "${secret}" (${why})`);
-  for (const w of forbiddenWords) if (haystack.includes(w)) report(path, `พบคำต้องห้าม "${w}"`);
+  for (const w of forbiddenWords) if (!(kind === 'product' && PRICE_WORDS.has(w)) && haystack.includes(w)) report(path, `พบคำต้องห้าม "${w}"`);
+
+  if (kind === 'product') {
+    // 1) จำนวนสต็อกจริงห้ามโผล่ (เว็บบอกแค่ มี/ไม่มี)
+    for (const v of variants) if (v.stock_qty >= 2)
+      for (const s of fmt(v.stock_qty)) if (new RegExp(`(?:^|[^\\d,.])${s}\\s*(?:ชิ้น|รัง|ขวด)|(?:เหลือ|คงเหลือ|สต็อก|stock)\\s*:?\\s*${s}(?![\\d,])`, 'i').test(text)) report(path, `พบจำนวนสต็อกจริง ${s} (${v.slug})`);
+    // 2) ราคาซื้อ/ราคาที่ขายจริงของรังนี้ ห้ามโผล่ (ราคาที่ตั้งขายแสดงได้)
+    if (saleHive) for (const [n, why] of [[saleHive.purchase_price, 'ราคาซื้อ'], [saleHive.sold_price, 'ราคาที่ขายจริง']])
+      if (n > 0 && n !== saleHive.sale_price) for (const s of fmt(n)) if (new RegExp(`(?:^|[^\\d,.])${s}\\s*บาท`).test(text)) report(path, `พบ${why} ${s} บาท ของรัง ${saleHive.code}`);
+  }
 }
 
 // รูปสาธารณะ: คีย์ที่ไม่มีในฐานข้อมูล/เดาเอง ต้องเปิดไม่ได้
@@ -66,6 +89,6 @@ for (const [path, want] of [['/img/hives/A1/not-a-real-file.jpg', 404], ['/img/h
   scanned++;
 }
 
-console.log(`\nสแกน ${scanned} หน้า/ไฟล์ · ข้อความลับที่ใช้ตรวจ ${secrets.size} รายการ + คำต้องห้าม ${forbiddenWords.length} คำ`);
+console.log(`\nสแกน ${scanned} หน้า/ไฟล์ (รังที่เปิดขายอยู่ ${saleHives.length} รัง) · ข้อความลับที่ใช้ตรวจ ${secrets.size} รายการ + คำต้องห้าม ${forbiddenWords.length} คำ`);
 console.log(bad ? `❌ พบปัญหา ${bad} จุด` : '✅ ไม่พบข้อมูลลับหลุดในหน้าสาธารณะ');
 process.exit(bad ? 1 : 0);

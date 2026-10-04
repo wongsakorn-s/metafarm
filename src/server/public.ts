@@ -5,7 +5,7 @@
 // ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
-import { hiveEvents, hiveMedia, hives, species } from '../db/schema.ts';
+import { hiveEvents, hiveMedia, hives, productVariants, products, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
 
@@ -114,6 +114,163 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
     photos: photos.filter((p): p is { key: string; alt: string | null } => !!p.key),
     children,
     events: events as PublicEvent[],
+  };
+}
+
+// ---------- สินค้า ----------
+
+export interface PublicVariant {
+  id: number;
+  label: string;
+  sizeMl: number | null;
+  priceThb: number;
+  /** ราคายังเป็นตัวอย่าง (เจ้าของฟาร์มยังไม่ได้ยืนยันในหลังบ้าน) */
+  priceIsSample: boolean;
+  /** มี/ไม่มี เท่านั้น — ไม่เปิดเผยจำนวนสต็อกจริง */
+  inStock: boolean;
+  harvestYearBe: number | null;
+}
+export interface PublicProduct {
+  slug: string;
+  name: string;
+  category: 'hive_box' | 'honey' | 'other';
+  description: string | null;
+  variants: PublicVariant[];
+}
+
+/** สินค้าที่เปิดแสดง (published) พร้อมตัวเลือกขนาด/ราคา */
+export async function getPublicProducts(db: Db, slug?: string): Promise<PublicProduct[]> {
+  const prods = await db
+    .select({ id: products.id, slug: products.slug, name: products.name, category: products.category, description: products.description })
+    .from(products)
+    .where(and(eq(products.published, true), slug ? eq(products.slug, slug) : undefined))
+    .orderBy(asc(products.sortOrder), asc(products.id));
+  if (prods.length === 0) return [];
+  const variants = await db
+    .select({
+      productId: productVariants.productId,
+      id: productVariants.id,
+      label: productVariants.label,
+      sizeMl: productVariants.sizeMl,
+      priceThb: productVariants.priceThb,
+      priceConfirmed: productVariants.priceConfirmed,
+      inStock: sql<boolean>`${productVariants.stockQty} > 0`,
+      harvestYearBe: productVariants.harvestYearBe,
+    })
+    .from(productVariants)
+    .where(inArray(productVariants.productId, prods.map((p) => p.id)))
+    .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
+  return prods.map(({ id, ...p }) => ({
+    ...p,
+    variants: variants
+      .filter((v) => v.productId === id)
+      .map((v) => ({ id: v.id, label: v.label, sizeMl: v.sizeMl, priceThb: v.priceThb, priceIsSample: !v.priceConfirmed, inStock: !!v.inStock, harvestYearBe: v.harvestYearBe })),
+  }));
+}
+
+export interface SaleHiveCard {
+  code: string;
+  priceThb: number;
+  species: string;
+  origin: PublicHive['origin'];
+  province: string | null;
+  acquiredOn: string | null;
+  acquiredOnPrecision: PublicHive['acquiredOnPrecision'];
+  queenBornOn: string | null;
+  /** รูปหน้าปก: รูปขายรูปแรก ถ้าไม่มีใช้รูปสมุดพกรูปแรก */
+  coverKey: string | null;
+}
+export interface SaleHiveDetail extends SaleHiveCard {
+  salePhotos: { key: string; alt: string | null }[];
+  passportPhotos: { key: string; alt: string | null }[];
+  videoId: string | null;
+  queenSource: string | null;
+  broodSource: string | null;
+  publicNote: string | null;
+}
+
+// รังที่เปิดขาย = ตั้งขาย + ยังอยู่ + มีราคา เท่านั้น
+const forSaleNow = and(eq(hives.forSale, true), eq(hives.status, 'active'), sql`${hives.salePrice} > 0`);
+
+export async function getSaleHives(db: Db): Promise<SaleHiveCard[]> {
+  const rows = await db
+    .select({
+      code: hives.code,
+      priceThb: hives.salePrice,
+      species: species.nameTh,
+      origin: hives.origin,
+      originPlace: hives.originPlace,
+      acquiredOn: hives.acquiredOn,
+      acquiredOnPrecision: hives.acquiredOnPrecision,
+      queenBornOn: hives.queenBornOn,
+      coverKey: sql<string | null>`coalesce(
+        (select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'sale' and m.r2_key is not null order by m.sort_order, m.id limit 1),
+        (select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' and m.r2_key is not null order by m.sort_order, m.id limit 1))`,
+    })
+    .from(hives)
+    .innerJoin(species, eq(species.id, hives.speciesId))
+    .where(forSaleNow)
+    .orderBy(asc(hives.salePrice), asc(hives.id));
+  return rows.map(({ originPlace, priceThb, ...r }) => ({
+    ...r,
+    priceThb: priceThb ?? 0,
+    province: r.origin === 'purchased' ? provinceOf(originPlace) : null,
+    queenBornOn: r.origin === 'queen_bred' ? r.queenBornOn : null,
+  }));
+}
+
+export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail | null> {
+  const queenSrc = alias(hives, 'queen_src');
+  const broodSrc = alias(hives, 'brood_src');
+  const row = await db
+    .select({
+      id: hives.id,
+      code: hives.code,
+      priceThb: hives.salePrice,
+      species: species.nameTh,
+      origin: hives.origin,
+      originPlace: hives.originPlace,
+      acquiredOn: hives.acquiredOn,
+      acquiredOnPrecision: hives.acquiredOnPrecision,
+      queenBornOn: hives.queenBornOn,
+      publicNote: hives.publicNote,
+      queenSource: queenSrc.code,
+      broodSource: broodSrc.code,
+    })
+    .from(hives)
+    .innerJoin(species, eq(species.id, hives.speciesId))
+    .leftJoin(queenSrc, eq(queenSrc.id, hives.queenSourceHiveId))
+    .leftJoin(broodSrc, eq(broodSrc.id, hives.broodSourceHiveId))
+    .where(and(eq(hives.code, code), forSaleNow))
+    .limit(1)
+    .then((r) => r[0]);
+  if (!row) return null;
+
+  const media = await db
+    .select({ kind: hiveMedia.kind, key: hiveMedia.r2Key, youtubeId: hiveMedia.youtubeId, alt: hiveMedia.alt })
+    .from(hiveMedia)
+    .where(eq(hiveMedia.hiveId, row.id))
+    .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id));
+  const photos = (kind: string) => media.filter((m) => m.kind === kind && m.key).map((m) => ({ key: m.key!, alt: m.alt }));
+  const salePhotos = photos('sale').slice(0, 3);
+  const passportPhotos = photos('passport').slice(0, 2);
+
+  return {
+    code: row.code,
+    priceThb: row.priceThb ?? 0,
+    species: row.species,
+    origin: row.origin,
+    province: row.origin === 'purchased' ? provinceOf(row.originPlace) : null,
+    acquiredOn: row.acquiredOn,
+    acquiredOnPrecision: row.acquiredOnPrecision,
+    queenBornOn: row.origin === 'queen_bred' ? row.queenBornOn : null,
+    coverKey: (salePhotos[0] ?? passportPhotos[0])?.key ?? null,
+    salePhotos,
+    passportPhotos,
+    videoId: media.find((m) => m.kind === 'video')?.youtubeId ?? null,
+    queenSource: row.queenSource,
+    broodSource: row.broodSource,
+    publicNote: row.publicNote,
   };
 }
 

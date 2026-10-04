@@ -1,0 +1,25 @@
+---
+import { lineChatUrl } from '../config/site.ts';
+
+interface Props { message?: string }
+const { message = 'สนใจสั่งซื้อสินค้า' } = Astro.props;
+const line = lineChatUrl(message);
+const steps = [
+  ['1', 'ทักไลน์', 'บอกสินค้าที่สนใจ ระบบจะใส่ข้อความให้ในแชตอัตโนมัติ'],
+  ['2', 'ยืนยันรายละเอียด', 'แจ้งราคา สต็อก และวิธีรับ-ส่ง (รังเป็นสิ่งมีชีวิต สอบถามวิธีรับส่งที่เหมาะสมทางไลน์)'],
+  ['3', 'ชำระเงินและรับสินค้า', 'ชำระเงินตามที่ตกลงกันทางไลน์ แล้วรับสินค้าตามที่นัดหมาย'],
+];
+---
+
+<section class="rounded-3xl bg-palm-50 p-6" aria-labelledby="order-h">
+  <h2 id="order-h" class="text-xl font-bold text-palm-900">วิธีสั่งซื้อ</h2>
+  <ol class="mt-3 grid gap-3 md:grid-cols-3">
+    {steps.map(([n, t, d]) => (
+      <li class="flex gap-3">
+        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-600 font-bold text-white" aria-hidden="true">{n}</span>
+        <div><p class="font-semibold">{t}</p><p class="text-sm text-muted">{d}</p></div>
+      </li>
+    ))}
+  </ol>
+  {line && <a class="btn-primary mt-4" href={line} rel="noopener">💬 ทักไลน์สั่งซื้อ</a>}
+</section>

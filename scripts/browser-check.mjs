@@ -36,13 +36,18 @@ for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desk
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'th-TH' });
   const page = await ctx.newPage();
   // หน้าสาธารณะ (ยังไม่ล็อกอิน) — A19 = รังที่ขายแล้ว, A99999 = ไม่มีรหัสนี้ (ต้องได้ 404 สวย ๆ)
-  for (const [p, n, st] of [['/', 'home'], ['/passport', 'passport-search'], ['/passport/A25', 'passport-A25'], ['/passport/A19', 'passport-A19-sold'], ['/passport/A99999', 'passport-404', 404]])
+  for (const [p, n, st] of [['/', 'home'], ['/passport', 'passport-search'], ['/passport/A25', 'passport-A25'], ['/passport/A19', 'passport-A19-sold'], ['/passport/A99999', 'passport-404', 404],
+    ['/products', 'products'], ['/products/hives', 'products-hives'], ['/products/hive-box', 'product-hive-box'], ['/products/stingless-honey', 'product-honey'], ['/products/hives/A99999', 'product-hive-404', 404]])
     await visit(page, p, `${label}-public-${n}`, st);
+  // รังที่เปิดขายอยู่ (ถ้ามี): หาลิงก์แรกจากหน้ารายการแล้วเปิดหน้ารายละเอียด
+  await page.goto(BASE + '/products/hives', { waitUntil: 'networkidle' });
+  const saleLink = await page.evaluate(() => document.querySelector('a[href^="/products/hives/A"]')?.getAttribute('href'));
+  if (saleLink) await visit(page, saleLink, `${label}-public-product-hive-detail`);
   await visit(page, '/admin/login', `${label}-login`);
   await page.fill('#email', email);
   await page.fill('#password', password);
   await Promise.all([page.waitForURL('**/admin'), page.click('button[type=submit]')]);
-  for (const [p, n] of [['/admin', 'dashboard'], ['/admin/hives', 'hives'], ['/admin/hives/A25', 'hive-A25'], ['/admin/hives/A25/edit', 'edit-A25'], ['/admin/hives/A25/media', 'media-A25'], ['/admin/hives/new', 'new-hive'], ['/admin/hives?incomplete=1', 'incomplete']])
+  for (const [p, n] of [['/admin', 'dashboard'], ['/admin/hives', 'hives'], ['/admin/hives/A25', 'hive-A25'], ['/admin/hives/A25/edit', 'edit-A25'], ['/admin/hives/A25/media', 'media-A25'], ['/admin/hives/new', 'new-hive'], ['/admin/hives?incomplete=1', 'incomplete'], ['/admin/products', 'products']])
     await visit(page, p, `${label}-${n}`);
   await ctx.close();
 }

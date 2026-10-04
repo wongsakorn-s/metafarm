@@ -72,6 +72,18 @@ export const newHiveSchema = z.object({
   idem,
 });
 
+/** แก้ราคา/สต็อกของตัวเลือกสินค้า */
+export const variantSchema = z.object({
+  variantId: z.coerce.number().int().positive(),
+  priceThb: int(1_000_000).refine((n) => n >= 1, 'ราคาต้องมากกว่า 0'),
+  stockQty: int(100_000),
+});
+
+export const publishSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  published: z.preprocess((v) => v === 'on' || v === '1' || v === 'true', z.boolean()),
+});
+
 /** แก้ไขข้อมูลรัง: ช่องที่เว้นว่าง = ล้างค่า (ฟอร์มส่งทุกช่องเสมอ) */
 export const editHiveSchema = z.object({
   origin: z.enum(HIVE_ORIGINS),

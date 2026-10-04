@@ -1,0 +1,22 @@
+---
+import { formatPrice } from '../lib/products.ts';
+import { formatThaiDate } from '../lib/thai-date.ts';
+import { placeholder } from '../lib/placeholders.ts';
+import type { SaleHiveCard } from '../server/public.ts';
+
+interface Props { hive: SaleHiveCard }
+const { hive } = Astro.props;
+const origin = hive.origin === 'queen_bred' ? 'เพาะนางพญาเองที่ MetaFarm' : hive.origin === 'purchased' ? (hive.province ? `ซื้อมาจากจังหวัด${hive.province}` : 'ซื้อมา') : hive.origin === 'split' ? 'ขยายรังเองที่ MetaFarm' : hive.origin === 'natural' ? 'ขยายเองตามธรรมชาติ' : '';
+---
+
+<a href={`/products/hives/${hive.code}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">
+  <img src={hive.coverKey ? `/img/${hive.coverKey}` : placeholder.hive} alt={`รังชันโรงขนเงิน ${hive.code}`} loading="lazy" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
+  <div class="p-4">
+    <div class="flex items-baseline justify-between gap-2">
+      <h3 class="text-lg font-bold">รัง {hive.code}</h3>
+      <p class="text-xl font-bold text-palm-700">{formatPrice(hive.priceThb)}</p>
+    </div>
+    <p class="text-sm text-muted">{hive.species}{origin ? ` · ${origin}` : ''}</p>
+    {hive.queenBornOn && <p class="text-sm text-muted">นางพญาเกิด {formatThaiDate(hive.queenBornOn)}</p>}
+  </div>
+</a>

@@ -1,0 +1,1 @@
+ALTER TABLE `product_variants` ADD `price_confirmed` integer DEFAULT false NOT NULL;

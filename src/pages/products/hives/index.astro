@@ -1,0 +1,32 @@
+---
+import PublicLayout from '../../../layouts/PublicLayout.astro';
+import HiveCard from '../../../components/HiveCard.astro';
+import HowToOrder from '../../../components/HowToOrder.astro';
+import { getDb } from '../../../server/db.ts';
+import { getSaleHives } from '../../../server/public.ts';
+import { site } from '../../../config/site.ts';
+
+export const prerender = false;
+
+const items = await getSaleHives(getDb());
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=120');
+---
+
+<PublicLayout title="รังสมบูรณ์ชันโรงขนเงิน" description={`รังชันโรงขนเงินพร้อมเลี้ยงจาก ${site.name} ในรังไม้สักที่ออกแบบเอง ทุกรังมีสมุดพกประวัติให้ตรวจสอบ`} active="products" lineMessage="สนใจรังสมบูรณ์ชันโรงขนเงิน">
+  <p class="mb-2 text-sm text-muted"><a class="underline" href="/products">← สินค้า</a></p>
+  <h1 class="text-3xl font-bold">รังสมบูรณ์ชันโรงขนเงิน</h1>
+  <p class="mt-2 max-w-2xl text-muted">รังที่มีชันโรงอยู่พร้อมเลี้ยง ในรังไม้สัก 2 ห้องที่ MetaFarm ออกแบบเอง ทุกรังมี <a class="text-palm-700 underline" href="/passport">สมุดพก</a> บอกที่มา วันเกิดนางพญา และสายพันธุ์รังแม่</p>
+
+  {items.length === 0 ? (
+    <div class="card mt-6 text-center">
+      <p class="text-lg font-semibold">ขณะนี้ยังไม่มีรังที่เปิดขาย</p>
+      <p class="text-muted">รังเปิดขายเป็นรอบ ทักไลน์สอบถามคิวรังชุดถัดไปได้</p>
+    </div>
+  ) : (
+    <>
+      <p class="mt-4 text-sm text-muted" aria-live="polite">เปิดขาย {items.length} รัง · เรียงตามราคาน้อยไปมาก</p>
+      <ul class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((h) => <li><HiveCard hive={h} /></li>)}</ul>
+    </>
+  )}
+  <div class="mt-10"><HowToOrder message="สนใจรังสมบูรณ์ชันโรงขนเงิน" /></div>
+</PublicLayout>
