@@ -1,9 +1,7 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"compatibility_date": "2026-10-01",
-	"compatibility_flags": [
-		"global_fetch_strictly_public"
-	],
+	"compatibility_flags": ["global_fetch_strictly_public"],
 	"name": "metafarm",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"assets": {
@@ -26,11 +24,6 @@
 		{
 			"binding": "MEDIA",
 			"bucket_name": "metafarm-media"
-		},
-		{
-			"bucket_name": "metafarm-backups",
-			"binding": "metafarm_backups",
-			"remote": true
 		}
 	]
 }
