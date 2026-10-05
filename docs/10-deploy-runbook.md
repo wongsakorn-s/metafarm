@@ -86,6 +86,8 @@ $env:ADMIN_PASSWORD = $null
 ## 4. สำรองและกู้ข้อมูล
 
 - **สำรองอัตโนมัติ:** `.github/workflows/backup.yml` ทุกคืน 03:00 → R2 `metafarm-backups/d1/metafarm-YYYY-MM-DD.sql` (ข้ามเองถ้ายังไม่ตั้ง secret) — **กดรันเองครั้งแรกและเปิดไฟล์ดูว่ากู้ได้จริง**
+- **สำรองรูป:** `.github/workflows/backup-media.yml` ทุกวันอาทิตย์ 04:00 → `metafarm-backups/media/<คีย์เดิม>` เพิ่มเฉพาะรูปใหม่ (รายชื่อที่สำรองแล้วอยู่ใน `media/_manifest.txt`) ไม่ลบรูปเก่าในที่สำรอง · ครั้งแรกกดรันเอง (~230 รูป ใช้เวลาราว 20 นาที) · รูปย่อ (`thumb/`) ไม่สำรอง
+  - กู้รูปหนึ่งรูป: `npx wrangler r2 object get metafarm-backups/media/<คีย์> --file x --remote` แล้ว `npx wrangler r2 object put metafarm-media/<คีย์> --file x --remote` (คีย์ดูได้จาก `hive_media.r2_key`)
 - **ย้อนเวอร์ชันโปรแกรม:** `npx wrangler rollback`
 - **ย้อนฐานข้อมูล:** D1 Time Travel (`npx wrangler d1 time-travel info metafarm-db` / `restore … --timestamp …`) ระยะเวลาย้อนหลังตามแผนของ Cloudflare
 - **กู้จากไฟล์สำรอง:** ไฟล์จาก `d1 export` เรียงตารางตามตัวอักษร (audit_logs ก่อน users) นำเข้าตรง ๆ จะขึ้น `no such table: main.users` ต้องเรียงใหม่ก่อน (ทดสอบกู้จริงแล้ว 2026-10-05 ได้ข้อมูลครบ):

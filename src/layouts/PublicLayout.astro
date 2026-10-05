@@ -14,7 +14,7 @@ interface Props {
 const { title, description = site.description, lineMessage, active, noindex = false } = Astro.props;
 
 const fullTitle = title === site.name ? `${site.name} · ${site.tagline}` : `${title} · ${site.name}`;
-const ogImage = new URL('/brand/og.png', Astro.url).href;
+const ogImage = new URL('/brand/og.jpg', Astro.url).href;
 const c = Astro.locals.settings!.contact;
 const line = lineChatUrl(c, lineMessage);
 const tel = telHref(c.phone);
@@ -47,6 +47,8 @@ const nav = [
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.url.origin).href} />
     <meta property="og:url" content={new URL(Astro.url.pathname, Astro.url.origin).href} />
     <meta name="twitter:card" content="summary_large_image" />

@@ -55,7 +55,7 @@ const msg = Astro.url.searchParams.get('msg');
 </AdminLayout>
 
 <script>
-  import { resizeAll } from '../../scripts/resize-image';
+  import { appendPrepared, resizeAll, type Prepared } from '../../scripts/resize-image';
   import { describeUploadError, newBatchId, postUpload, UploadError } from '../../scripts/upload';
 
   const left = document.getElementById('left');
@@ -76,7 +76,7 @@ const msg = Astro.url.searchParams.get('msg');
     };
 
     // รูปที่ย่อแล้วของชุดล่าสุด — เก็บไว้ส่งซ้ำได้โดยไม่ต้องเดินกลับไปถ่ายใหม่ (รูปจากกล้องบางเครื่องไม่ถูกเก็บในอัลบั้ม)
-    let pending: File[] = [];
+    let pending: Prepared[] = [];
     let batch = '';
 
     const send = async () => {
@@ -86,9 +86,9 @@ const msg = Astro.url.searchParams.get('msg');
         const fd = new FormData();
         for (const [k, v] of new FormData(form)) if (!(v instanceof File)) fd.append(k, v);
         fd.set('batch', batch);
-        pending.forEach((f) => fd.append('file', f, f.name));
+        appendPrepared(fd, pending);
         say(`กำลังส่ง ${pending.length} รูป…`, 'busy');
-        const r = await postUpload(form.action, fd, pending.reduce((n, f) => n + f.size, 0));
+        const r = await postUpload(form.action, fd, pending.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0));
         say(`✅ ${r.message}`, 'ok');
         pending = [];
         form.querySelector('.grid')?.remove();

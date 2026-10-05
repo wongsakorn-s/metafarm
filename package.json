@@ -31,7 +31,8 @@
         "snapshot:export": "node --no-warnings scripts/export-snapshot.ts",
         "check:mobile": "node scripts/mobile-check.mjs",
         "backup:prepare": "node scripts/prepare-restore.mjs",
-        "check:forms": "node scripts/form-check.mjs"
+        "check:forms": "node scripts/form-check.mjs",
+        "backup:media": "node scripts/backup-media.mjs"
     },
     "dependencies": {
         "@astrojs/cloudflare": "^14.3.3",

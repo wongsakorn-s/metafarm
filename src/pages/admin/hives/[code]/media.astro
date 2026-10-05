@@ -4,7 +4,7 @@ import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
 import { deleteMedia, listMedia, setVideo, uploadImages } from '../../../../server/media.ts';
 import { jsonResult, wantsJson } from '../../../../lib/http.ts';
-import { kindLabel, LIMITS, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
+import { kindLabel, LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
 
 export const prerender = false;
 
@@ -34,7 +34,8 @@ if (Astro.request.method === 'POST') {
     if (kind !== 'passport' && kind !== 'sale') error = 'เลือกชนิดรูป';
     else if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
     else {
-      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''));
+      const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
+      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''), thumbs);
       const message = uploadSummary(r.added, r.skipped);
       // สคริปต์อัปโหลดต้องรู้ผลจริง (เดิมได้แค่ redirect → นับว่าสำเร็จแม้ข้ามทุกไฟล์)
       if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: `${backTo}?msg=${encodeURIComponent(message)}` });
@@ -58,6 +59,8 @@ const passport = by('passport');
 const sale = by('sale');
 const video = by('video')[0];
 const free = { passport: remainingSlots('passport', passport.length), sale: remainingSlots('sale', sale.length) };
+// ค่าเริ่มต้น: รังที่ตั้งขายอยู่ → รูปขาย, รังอื่น → รูปสมุดพก (เดิมเลือกรูปขายไว้ก่อนทุกรัง ทำให้รูปทั่วไปไปอยู่ผิดชนิด)
+const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ? 'passport' : free.sale > 0 ? 'sale' : null;
 ---
 
 <AdminLayout title={`รูปและวิดีโอ ${hive.code}`} active="hives">
@@ -74,10 +77,10 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
       <legend class="label">ชนิดรูป</legend>
       <div class="grid gap-2 sm:grid-cols-2">
         <label class:list={['flex min-h-11 items-center gap-2 rounded-xl border border-line px-3', free.sale === 0 && 'opacity-50']}>
-          <input class="size-5 accent-palm-600" type="radio" name="kind" value="sale" checked={free.sale > 0} disabled={free.sale === 0} /> รูปสำหรับขาย <span class="text-sm text-muted">(เหลือ {free.sale}/{LIMITS.sale})</span>
+          <input class="size-5 accent-palm-600" type="radio" name="kind" value="sale" checked={defaultKind === 'sale'} disabled={free.sale === 0} /> รูปสำหรับขาย <span class="text-sm text-muted">(เหลือ {free.sale}/{LIMITS.sale})</span>
         </label>
         <label class:list={['flex min-h-11 items-center gap-2 rounded-xl border border-line px-3', free.passport === 0 && 'opacity-50']}>
-          <input class="size-5 accent-palm-600" type="radio" name="kind" value="passport" checked={free.sale === 0 && free.passport > 0} disabled={free.passport === 0} /> รูปสมุดพก <span class="text-sm text-muted">(เหลือ {free.passport}/{LIMITS.passport})</span>
+          <input class="size-5 accent-palm-600" type="radio" name="kind" value="passport" checked={defaultKind === 'passport'} disabled={free.passport === 0} /> รูปสมุดพก <span class="text-sm text-muted">(เหลือ {free.passport}/{LIMITS.passport})</span>
         </label>
       </div>
     </fieldset>
@@ -98,7 +101,7 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
         <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((m) => (
             <li class="space-y-2">
-              <img src={`/media/${m.r2Key}`} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
+              <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
               <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
                 <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
                 <button class="btn-danger w-full" type="submit">🗑️ ลบ</button>
@@ -130,7 +133,7 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
 </AdminLayout>
 
 <script>
-  import { resizeAll } from '../../../../scripts/resize-image';
+  import { appendPrepared, resizeAll } from '../../../../scripts/resize-image';
   import { describeUploadError, newBatchId, postUpload } from '../../../../scripts/upload';
 
   // ย่อรูปก่อนอัปโหลด แล้วส่งด้วย fetch (ถ้า JS ใช้ไม่ได้ ฟอร์มจะส่งไฟล์เดิมตามปกติ)
@@ -159,8 +162,8 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
       const fd = new FormData(form);
       fd.delete('file');
       fd.set('batch', batch);
-      small.forEach((f) => fd.append('file', f, f.name));
-      const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, f) => n + f.size, 0);
+      appendPrepared(fd, small);
+      const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
       say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
       const r = await postUpload(form.action || location.href, fd, after);
       location.href = r.redirect ?? location.href;

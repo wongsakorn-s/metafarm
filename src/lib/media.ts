@@ -69,3 +69,13 @@ export function uploadSummary(added: number, skipped: { name: string; reason: st
   if (skipped.length) parts.push(`ข้าม ${skipped.length} ไฟล์ (${skipped.map((s) => `${s.name}: ${s.reason}`).join('; ')})`);
   return parts.join(' · ') || 'ไม่ได้เลือกไฟล์';
 }
+
+// ---------- รูปย่อ (thumbnail) ----------
+// เบราว์เซอร์ย่อรูปให้ตอนอัปโหลด (ด้านยาว 480px) เก็บที่ "thumb/<คีย์รูปเต็ม>"
+// หน้าเว็บขอด้วย ?w=thumb — ถ้ายังไม่มีรูปย่อ (รูปเก่า) เซิร์ฟเวอร์ส่งรูปเต็มแทน จึงไม่มีรูปเสีย
+export const THUMB_EDGE = 480;
+export const MAX_THUMB_BYTES = 300 * 1024;
+export const thumbKeyOf = (key: string) => `thumb/${key}`;
+export const thumbUrl = (url: string) => `${url}?w=thumb`;
+/** srcset สำหรับรูปที่แสดงใหญ่บ้างเล็กบ้าง: จอเล็ก/ช่องเล็กใช้รูปย่อ จอใหญ่ใช้รูปเต็ม */
+export const photoSrcset = (url: string) => `${thumbUrl(url)} ${THUMB_EDGE}w, ${url} 1600w`;

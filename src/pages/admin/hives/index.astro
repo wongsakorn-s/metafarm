@@ -5,6 +5,7 @@ import { listHives } from '../../../server/hives.ts';
 import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
+import { thumbUrl } from '../../../lib/media.ts';
 
 export const prerender = false;
 
@@ -63,7 +64,7 @@ const link = (p: number) => {
       {rows.map((h) => (
         <li>
           <a href={`/admin/hives/${h.code}`} class="card flex gap-3 transition hover:border-palm-500">
-            <img src={h.photoKey ? `/media/${h.photoKey}` : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
+            <img src={h.photoKey ? thumbUrl(`/media/${h.photoKey}`) : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
                 <span class="text-lg font-bold">{h.code}</span>

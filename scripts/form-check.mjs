@@ -197,6 +197,52 @@ console.log('\n5) หน้าสินค้า: ราคาตัวอย่
   }
 }
 
+console.log('\n6) สายพันธุ์: ตั้งรังลูกเป็นรังแม่ของรังแม่ตัวเองไม่ได้ (กันวน)');
+{
+  // หาคู่ แม่ → ลูก จากหน้ารัง: รังที่มีลิงก์ "ไข่นางจาก"
+  let child = null, parent = null;
+  for (const code of ['A12', 'A13', 'A14', 'A20', 'A30']) {
+    await page.goto(`${BASE}/admin/hives/${code}`);
+    const p = await page.locator('dt:has-text("ไข่นางจาก") + dd a').first().textContent().catch(() => null);
+    if (p) { child = code; parent = p.trim(); break; }
+  }
+  if (!child) fail('หาคู่รังแม่/ลูกในข้อมูลทดสอบไม่เจอ');
+  else {
+    await page.goto(`${BASE}/admin/hives/${parent}/edit`);
+    await page.fill('#qs', child);
+    await Promise.all([page.waitForLoadState('load'), page.click('button:has-text("บันทึกการแก้ไข")')]);
+    const msg = (await page.locator('[role=alert]').first().textContent().catch(() => '')) ?? '';
+    check(msg.includes('วนกัน') && !page.url().includes('saved='), `ตั้ง ${child} (ลูก) เป็นรังแม่ของ ${parent} → ถูกปฏิเสธ: "${msg.trim()}"`, `ไม่ถูกปฏิเสธ (url=${page.url()} msg="${msg.trim()}")`);
+  }
+}
+
+console.log('\n7) รูปย่อและ cache ของรูป');
+{
+  // อัปโหลดรูปใหญ่ผ่านหน้ารูปของรัง (ย่อในเบราว์เซอร์ → ได้ทั้งรูปเต็มและรูปย่อ)
+  await page.goto(BASE + '/admin/photos');
+  const code = await page.$eval('li[data-code]', (e) => e.dataset.code);
+  await page.goto(`${BASE}/admin/hives/${code}/media`);
+  await page.locator('#file').evaluate(async (el) => {
+    const cv = document.createElement('canvas'); cv.width = 3000; cv.height = 2250; const g = cv.getContext('2d');
+    for (let i = 0; i < 800; i++) { g.fillStyle = `hsl(${(i * 37) % 360} 60% 50%)`; g.fillRect((i * 97) % 3000, (i * 53) % 2250, 120, 120); }
+    const dt = new DataTransfer(); dt.items.add(new File([await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92))], 'big.jpg', { type: 'image/jpeg' }));
+    el.files = dt.files;
+  });
+  await Promise.all([page.waitForURL(/msg=/, { timeout: 60000 }), page.click('#upload-btn')]);
+  const src = await page.locator('img[src^="/media/hives/"]').first().getAttribute('src');
+  const info = await page.evaluate(async (src) => {
+    const full = src.replace('?w=thumb', '');
+    const [a, b] = await Promise.all([fetch(full), fetch(src)]);
+    return { thumbParam: src.includes('?w=thumb'), full: (await a.arrayBuffer()).byteLength, thumb: (await b.arrayBuffer()).byteLength, cache: a.headers.get('cache-control'), etag: a.headers.get('etag') };
+  }, src);
+  check(info.thumbParam, 'หน้ารูปของรังแสดงรูปย่อ (?w=thumb)', `หน้ารูปของรังยังใช้รูปเต็ม (${src})`);
+  check(info.thumb > 0 && info.thumb < info.full / 2, `รูปย่อ ${(info.thumb / 1024).toFixed(0)} KB เล็กกว่ารูปเต็ม ${(info.full / 1024).toFixed(0)} KB`, `รูปย่อไม่เล็กลง (${info.thumb} vs ${info.full} bytes)`);
+  check(/private/.test(info.cache ?? '') && /max-age=\d{6,}/.test(info.cache ?? '') && !/no-store/.test(info.cache ?? ''), `รูปหลังบ้านเก็บในเครื่องได้: ${info.cache}`, `รูปหลังบ้านไม่ถูก cache: ${info.cache}`);
+  const status304 = await page.evaluate(async ({ src, etag }) => (await fetch(src.replace('?w=thumb', ''), { headers: { 'If-None-Match': etag }, cache: 'no-store' })).status, { src, etag: info.etag });
+  check(status304 === 304, 'ขอซ้ำพร้อม ETag → 304 (ไม่ส่งรูปซ้ำ)', `ขอซ้ำได้ ${status304} แทน 304`);
+  console.log(`   ℹ️ รังที่ได้รูปทดสอบเพิ่ม: ${code}`);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

@@ -4,6 +4,8 @@ import { auditLogs, hiveMedia, hives, products } from '../db/schema.ts';
 import {
   detectImageType,
   LIMITS,
+  MAX_THUMB_BYTES,
+  thumbKeyOf,
   MAX_FILES_PER_REQUEST,
   MAX_UPLOAD_BYTES,
   mediaKey,
@@ -35,6 +37,8 @@ export async function uploadImages(
   files: File[],
   /** รหัสชุดอัปโหลดจากเบราว์เซอร์ — ส่งชุดเดิมซ้ำ (เน็ตหลุดหลังเซิร์ฟเวอร์ได้รับแล้ว) จะไม่บันทึกรูปซ้ำ */
   batch?: string,
+  /** รูปย่อจากเบราว์เซอร์ ลำดับเดียวกับ files (ไม่บังคับ — ไม่มี/ไม่ถูกต้องก็ข้าม หน้าเว็บจะใช้รูปเต็มแทน) */
+  thumbs: File[] = [],
 ): Promise<{ added: number; skipped: Skipped[] }> {
   const skipped: Skipped[] = [];
   let added = 0;
@@ -61,6 +65,8 @@ export async function uploadImages(
     }
     if (slots <= 0) { skipped.push({ name, reason: `เต็มแล้ว (สูงสุด ${LIMITS[kind]} รูป)` }); continue; }
     await bucket.put(key, bytes, { httpMetadata: { contentType: type.mime } });
+    const thumb = await validThumb(thumbs[i]);
+    if (thumb) await bucket.put(thumbKeyOf(key), thumb.bytes, { httpMetadata: { contentType: thumb.mime } });
     try {
       await db.batch([
         db.insert(hiveMedia).values({ hiveId: hive.id, kind, r2Key: key, alt: `รูปรัง ${hive.code}`, sortOrder: order }),
@@ -72,12 +78,19 @@ export async function uploadImages(
         added++;
         continue;
       }
-      await bucket.delete(key).catch(() => {}); // ไม่ทิ้งไฟล์ค้างใน R2 ถ้าบันทึกฐานข้อมูลไม่สำเร็จ
+      await bucket.delete([key, thumbKeyOf(key)]).catch(() => {}); // ไม่ทิ้งไฟล์ค้างใน R2 ถ้าบันทึกฐานข้อมูลไม่สำเร็จ
       throw e;
     }
     added++; slots--; order++;
   }
   return { added, skipped };
+}
+
+async function validThumb(f: File | undefined): Promise<{ bytes: Uint8Array; mime: string } | null> {
+  if (!(f instanceof File) || f.size === 0 || f.size > MAX_THUMB_BYTES) return null;
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  const type = detectImageType(bytes);
+  return type ? { bytes, mime: type.mime } : null;
 }
 
 export async function deleteMedia(db: Db, bucket: R2Bucket, user: SessionUser, hive: Hive, mediaId: number): Promise<{ ok: boolean; error?: string }> {
@@ -87,7 +100,7 @@ export async function deleteMedia(db: Db, bucket: R2Bucket, user: SessionUser, h
     db.delete(hiveMedia).where(eq(hiveMedia.id, row.id)),
     audit(db, user, 'media.delete', hive.id, { kind: row.kind, key: row.r2Key, youtubeId: row.youtubeId }),
   ]);
-  if (row.r2Key) await bucket.delete(row.r2Key).catch(() => {});
+  if (row.r2Key) await bucket.delete([row.r2Key, thumbKeyOf(row.r2Key)]).catch(() => {});
   return { ok: true };
 }
 

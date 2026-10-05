@@ -99,6 +99,9 @@ export const hives = sqliteTable(
     uniqueIndex('hives_create_key_uq').on(t.createKey),
     index('hives_status_idx').on(t.status),
     index('hives_for_sale_idx').on(t.forSale),
+    // หารังลูก (สมุดพก/หน้ารัง): WHERE queen_source_hive_id = ? OR brood_source_hive_id = ?
+    index('hives_queen_src_idx').on(t.queenSourceHiveId),
+    index('hives_brood_src_idx').on(t.broodSourceHiveId),
   ],
 );
 
@@ -130,6 +133,10 @@ export const hiveEvents = sqliteTable(
   },
   (t) => [
     index('hive_events_hive_idx').on(t.hiveId, t.occurredOn),
+    // หน้าภาพรวม: กิจกรรมล่าสุด (เรียงตามวันที่) และยอดน้ำผึ้งปีนี้ (type + วันที่)
+    index('hive_events_occurred_idx').on(t.occurredOn, t.id),
+    index('hive_events_type_occurred_idx').on(t.type, t.occurredOn),
+    index('hive_events_target_idx').on(t.targetHiveId),
     uniqueIndex('hive_events_idem_uq').on(t.idempotencyKey),
     check(
       'hive_events_amounts_nonneg',
@@ -175,7 +182,7 @@ export const products = sqliteTable(
     sortOrder: integer('sort_order').notNull().default(0),
     ...timestamps,
   },
-  (t) => [uniqueIndex('products_slug_uq').on(t.slug)],
+  (t) => [uniqueIndex('products_slug_uq').on(t.slug), index('products_image_key_idx').on(t.imageKey)],
 );
 
 export const productVariants = sqliteTable('product_variants', {

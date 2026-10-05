@@ -43,6 +43,13 @@
       "when": 1791214656851,
       "tag": "0005_idempotent_create_and_media",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791216078026,
+      "tag": "0006_query_indexes",
+      "breakpoints": true
     }
   ]
 }

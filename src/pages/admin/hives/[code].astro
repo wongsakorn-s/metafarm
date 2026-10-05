@@ -6,6 +6,7 @@ import { addBroodSplit, addHoneyHarvest, addNote, addQueenCell, changeStatus, ge
 import { baht, boxLabel, eventIcon, eventLabel, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
 import { formatThaiDate, UNKNOWN } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
+import { thumbUrl } from '../../../lib/media.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
 export const prerender = false;
@@ -85,7 +86,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
     </div>
     <div class="mt-3 grid grid-cols-2 gap-2">
       {(photos.length ? photos.slice(0, 2) : [null, null]).map((p) => (
-        <img src={p?.r2Key ? `/media/${p.r2Key}` : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
+        <img src={p?.r2Key ? thumbUrl(`/media/${p.r2Key}`) : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
       ))}
     </div>
     {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}

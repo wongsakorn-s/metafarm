@@ -1,0 +1,10 @@
+# Cloudflare static assets: ไฟล์ใน public/ (ชื่อไม่มี hash) — cache 7 วัน แล้วตรวจใหม่ (เปลี่ยนโลโก้แล้วเห็นภายใน 7 วัน)
+# ไฟล์ /_astro/* (มี hash) adapter ใส่ immutable 1 ปีให้เองตอน build
+/brand/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/placeholder/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/favicon.png
+  Cache-Control: public, max-age=604800
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800

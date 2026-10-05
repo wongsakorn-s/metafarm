@@ -2,6 +2,7 @@
 import { formatPrice } from '../lib/products.ts';
 import { formatThaiDate } from '../lib/thai-date.ts';
 import { placeholder } from '../lib/placeholders.ts';
+import { photoSrcset } from '../lib/media.ts';
 import type { SaleHiveCard } from '../server/public.ts';
 
 interface Props { hive: SaleHiveCard; /** รูปที่เห็นทันทีเมื่อเปิดหน้า (ไม่ lazy) */ eager?: boolean }
@@ -10,7 +11,7 @@ const origin = hive.origin === 'queen_bred' ? 'เพาะนางพญาเ
 ---
 
 <a href={`/products/hives/${hive.code}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">
-  <img src={hive.coverKey ? `/img/${hive.coverKey}` : placeholder.hive} alt={`รังชันโรงขนเงิน ${hive.code}`} loading={eager ? 'eager' : 'lazy'} width="800" height="600" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
+  <img src={hive.coverKey ? `/img/${hive.coverKey}` : placeholder.hive} srcset={hive.coverKey ? photoSrcset(`/img/${hive.coverKey}`) : undefined} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" alt={`รังชันโรงขนเงิน ${hive.code}`} loading={eager ? 'eager' : 'lazy'} width="800" height="600" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
   <div class="p-4">
     <div class="flex items-baseline justify-between gap-2">
       <h3 class="text-lg font-bold">รัง {hive.code}</h3>

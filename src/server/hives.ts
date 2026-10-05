@@ -123,7 +123,7 @@ export async function getHiveDetail(db: Db, code: string) {
 }
 
 export async function getDashboard(db: Db) {
-  const year = String(new Date().getFullYear());
+  const year = todayBangkok().slice(0, 4); // ปีตามเวลาไทย (Workers ใช้ UTC — ตี 0–7 วันที่ 1 ม.ค. จะยังเป็นปีเก่า)
   const [byStatus, byOrigin, [sale], recent, [honey], [incomplete]] = await Promise.all([
     db.select({ status: hives.status, n: sql<number>`count(*)` }).from(hives).groupBy(hives.status),
     db
@@ -160,6 +160,27 @@ async function findTarget(db: Db, selfId: number, code?: string): Promise<{ id: 
   const t = await db.query.hives.findFirst({ where: eq(hives.code, code), columns: { id: true } });
   return t ? { id: t.id } : { id: null, error: `ไม่พบรัง ${code}` };
 }
+
+/**
+ * ตั้ง parentId เป็นรังแม่ของ selfId แล้วจะวนหรือไม่ (รังแม่เป็นลูกหลานของรังนี้เอง เช่น A10 ↔ A20)
+ * ไล่ขึ้นทั้งสายไข่นางและไข่อ่อนจาก parentId — ถ้าเจอ selfId แปลว่าวน
+ */
+export async function wouldCreateCycle(db: Db, selfId: number, parentId: number | null | undefined): Promise<boolean> {
+  if (parentId == null) return false;
+  if (parentId === selfId) return true;
+  const rows = await db.all<{ id: number }>(sql`
+    WITH RECURSIVE anc(id) AS (
+      SELECT ${parentId}
+      UNION
+      SELECT p.pid FROM anc
+        JOIN (SELECT id, queen_source_hive_id AS pid FROM hives UNION ALL SELECT id, brood_source_hive_id FROM hives) p ON p.id = anc.id
+       WHERE p.pid IS NOT NULL
+    )
+    SELECT id FROM anc WHERE id = ${selfId} LIMIT 1`);
+  return rows.length > 0;
+}
+
+const CYCLE_ERROR = (code: string) => `ตั้ง ${code} เป็นรังแม่ไม่ได้ เพราะ ${code} เป็นรังลูก/หลานของรังนี้อยู่แล้ว (สายพันธุ์จะวนกัน)`;
 
 export async function addHoneyHarvest(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof honeyHarvestSchema>): Promise<Result> {
   const key = idemKey(user, 'honey_harvest', d.idem);
@@ -205,12 +226,10 @@ export async function addNote(db: Db, user: SessionUser, hive: Hive, d: z.output
   return { ok: true };
 }
 
-export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>): Promise<Result> {
-  const key = idemKey(user, 'status_change', d.idem);
-  if (await alreadySaved(db, key)) return { ok: true };
-  if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
+/** คำสั่งเปลี่ยนสถานะ (บันทึกเหตุการณ์ + อัปเดตรัง + audit) — แยกออกมาให้ fillMissing รวมเป็น batch เดียวได้ */
+function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>, key: string | null): BatchItem<'sqlite'>[] {
   const sold = d.status === 'sold';
-  await db.batch([
+  return [
     db.insert(hiveEvents).values({ hiveId: hive.id, type: 'status_change', occurredOn: d.occurredOn, fromStatus: hive.status, toStatus: d.status, note: d.note ?? d.collapseReason, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     db
       .update(hives)
@@ -226,7 +245,14 @@ export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.o
       })
       .where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.status', hive.id, { from: hive.status, to: d.status }),
-  ]);
+  ];
+}
+
+export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>): Promise<Result> {
+  const key = idemKey(user, 'status_change', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
+  if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
+  await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   return { ok: true };
 }
 
@@ -242,6 +268,8 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
   if (queen.error) return { ok: false, error: queen.error };
   const brood = await source(d.broodSourceCode, 'รังแม่ (ไข่อ่อน)');
   if (brood.error) return { ok: false, error: brood.error };
+  if (await wouldCreateCycle(db, hive.id, queen.id)) return { ok: false, error: CYCLE_ERROR(d.queenSourceCode!) };
+  if (await wouldCreateCycle(db, hive.id, brood.id)) return { ok: false, error: CYCLE_ERROR(d.broodSourceCode!) };
 
   const acquiredOn = d.acquiredOn ?? null;
   const notes = resolveUnknownNotes(d.notes, {
@@ -327,12 +355,14 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
   const b = await find(d.broodSourceCode);
   if ('error' in b && b.error) return { ok: false, error: b.error };
 
-  // สถานะ: ใช้ขั้นตอนเดียวกับการเปลี่ยนสถานะปกติ (บันทึกเหตุการณ์ + เคลียร์ ??? สถานะรัง)
-  if (d.status && d.status !== hive.status) {
-    const r = await changeStatus(db, user, hive, { status: d.status, occurredOn: todayBangkok() } as z.output<typeof statusSchema>);
-    if (!r.ok) return r;
-    hive = (await db.query.hives.findFirst({ where: eq(hives.id, hive.id) }))!;
-  }
+  if (await wouldCreateCycle(db, hive.id, q.id)) return { ok: false, error: CYCLE_ERROR(d.queenSourceCode!) };
+  if (await wouldCreateCycle(db, hive.id, b.id)) return { ok: false, error: CYCLE_ERROR(d.broodSourceCode!) };
+
+  // สถานะ: ใช้คำสั่งเดียวกับการเปลี่ยนสถานะปกติ (บันทึกเหตุการณ์ + เคลียร์ ??? สถานะรัง)
+  // ทั้งหมดอยู่ใน batch เดียว — สำเร็จพร้อมกันหรือไม่บันทึกเลย (เดิมแยก 2 ครั้ง ถ้าครั้งหลังล้ม สถานะเปลี่ยนแต่ข้อมูลอื่นหาย)
+  const statusChange = d.status && d.status !== hive.status;
+  const stmts: BatchItem<'sqlite'>[] = statusChange ? statusStatements(db, user, hive, { status: d.status!, occurredOn: todayBangkok() } as z.output<typeof statusSchema>, null) : [];
+  const status = statusChange ? d.status! : hive.status;
 
   const next = {
     queenBornOn: d.queenBornOn ?? hive.queenBornOn,
@@ -341,11 +371,13 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
     queenSourceHiveId: q.id ?? hive.queenSourceHiveId,
     broodSourceHiveId: b.id ?? hive.broodSourceHiveId,
   };
-  const notes = resolveUnknownNotes(hive.notes, { status: hive.status, queenBornOn: next.queenBornOn, acquiredOn: next.acquiredOn, hasQueenSource: next.queenSourceHiveId != null, hasBroodSource: next.broodSourceHiveId != null });
-  await db.batch([
+  // คำนวณหมายเหตุ ??? จากสถานะใหม่ + ข้อมูลที่เติม (คำสั่งนี้อยู่หลังคำสั่งสถานะ จึงเป็นค่าสุดท้าย)
+  const notes = resolveUnknownNotes(hive.notes, { status, queenBornOn: next.queenBornOn, acquiredOn: next.acquiredOn, hasQueenSource: next.queenSourceHiveId != null, hasBroodSource: next.broodSourceHiveId != null });
+  stmts.push(
     db.update(hives).set({ ...next, notes, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.fill', hive.id, { fields: Object.keys(d).filter((k) => (d as Record<string, unknown>)[k] != null) }),
-  ]);
+  );
+  await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   return { ok: true };
 }
 

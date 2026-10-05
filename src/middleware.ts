@@ -27,8 +27,8 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
   const res = await next();
   if (needsAuth || pathname === '/admin/login') {
-    // หน้าหลังบ้านห้ามถูก cache และห้ามถูกค้นหา
-    res.headers.set('Cache-Control', 'private, no-store');
+    // หน้าหลังบ้านห้ามถูก cache และห้ามถูกค้นหา — ยกเว้นรูป /media ที่ตั้ง private cache เอง (คีย์ไม่เปลี่ยนเนื้อหา)
+    if (!pathname.startsWith('/media/') || res.status >= 400) res.headers.set('Cache-Control', 'private, no-store');
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
   } else if (ctx.locals.settings && !ctx.locals.settings.contact.confirmed) {
     // ช่องทางติดต่อยังเป็นตัวอย่าง = เว็บทดลอง → ห้ามติดผลค้นหา (หายเองเมื่อเจ้าของติ๊กยืนยันที่ ⚙️ ตั้งค่า)

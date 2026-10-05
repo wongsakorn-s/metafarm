@@ -1,0 +1,39 @@
+name: Weekly R2 photo backup
+
+# สำรองรูป (R2 "metafarm-media") ไป "metafarm-backups/media/" ทุกวันอาทิตย์ 04:00 (ไทย) — เพิ่มเฉพาะรูปใหม่ (scripts/backup-media.mjs)
+# ไม่ลบรูปเก่าในที่สำรอง (กฎลบอัตโนมัติ 30 วันใช้เฉพาะ prefix d1/) · ถ้ายังไม่ได้ตั้ง secret จะข้ามอย่างปลอดภัย
+on:
+  schedule:
+    - cron: '0 21 * * 6' # 21:00 UTC วันเสาร์ = 04:00 เวลาไทยวันอาทิตย์
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-media
+  cancel-in-progress: false
+
+jobs:
+  backup-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # ครั้งแรก ~230 รูป × ~5 วินาที · ถ้าหมดเวลา รอบหน้าทำต่อจากที่ค้าง
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Skip when Cloudflare secrets are not configured
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN — ข้ามการสำรองรูป"
+      - uses: actions/checkout@v5
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - uses: actions/setup-node@v5
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+      - name: Copy new photos to backup bucket
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: node scripts/backup-media.mjs

@@ -39,6 +39,8 @@ export async function login(db: Db, emailRaw: string, password: string, ip: stri
   const ok = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
   if (!user || !user.active || !ok) {
     await db.insert(loginAttempts).values({ keyHash: key });
+    // ล้างของเก่าเป็นครั้งคราวด้วย (เดิมล้างเฉพาะตอนล็อกอินสำเร็จ — บอทที่เดารหัสไม่หยุดทำให้ตารางโตไม่จำกัด)
+    if (Math.random() < 0.05) await cleanup(db);
     return { ok: false, reason: 'invalid' };
   }
 
@@ -109,7 +111,7 @@ export async function logout(db: Db, token: string | undefined) {
   if (token) await db.delete(sessions).where(eq(sessions.tokenHash, await sha256Hex(token)));
 }
 
-/** ลบ session หมดอายุ และบันทึกล็อกอินผิดที่เก่าเกินหน้าต่าง (เรียกตอนล็อกอินสำเร็จ) */
+/** ลบ session หมดอายุ และบันทึกล็อกอินผิดที่เก่าเกินหน้าต่าง (เรียกตอนล็อกอินสำเร็จ และสุ่ม 5% ตอนล็อกอินผิด) */
 export async function cleanup(db: Db) {
   const now = new Date().toISOString();
   await db.delete(sessions).where(sql`${sessions.expiresAt} < ${now}`);
