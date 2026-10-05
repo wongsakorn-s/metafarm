@@ -11,6 +11,11 @@ describe('products helpers', () => {
     expect(orderMessage('น้ำผึ้ง', { variant: 'Size เล็ก 50 มล.', price: 250 })).toBe('สนใจสั่งซื้อ น้ำผึ้ง (Size เล็ก 50 มล.) ราคา 250 บาท');
     expect(orderMessage('', { code: 'A25', price: 1590 })).toBe('สนใจรัง A25 ราคา 1,590 บาท');
   });
+  it('orderMessage ราคาตัวอย่าง ไม่ส่งตัวเลขไปในข้อความ LINE', () => {
+    const m = orderMessage('น้ำผึ้ง', { variant: 'Size เล็ก 50 มล.', price: 250, sample: true });
+    expect(m).not.toContain('250');
+    expect(m).toContain('ขอทราบราคา');
+  });
   it('stockLabel ไม่เปิดจำนวนสต็อก', () => {
     expect(stockLabel(true).text).toBe('มีสินค้า');
     expect(stockLabel(false).text).toContain('สอบถาม');

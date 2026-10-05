@@ -18,6 +18,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
 const image = product?.imageKey ? `/img/${product.imageKey}` : product?.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
 const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) : 0;
+// ราคาตัวอย่างไม่ใส่ในคำอธิบาย (ผลค้นหา/การแชร์) — ไม่มีป้าย "ราคาตัวอย่าง" กำกับเหมือนบนหน้าเว็บ
+const anySample = product?.variants.some((v) => v.priceIsSample) ?? false;
 ---
 
 {!product ? (
@@ -28,7 +30,7 @@ const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) 
     </section>
   </PublicLayout>
 ) : (
-  <PublicLayout title={product.name} description={`${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products">
+  <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products">
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
     <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
       <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
@@ -38,7 +40,7 @@ const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) 
 
         <ul class="mt-5 space-y-3">
           {product.variants.map((v) => {
-            const line = lineChatUrl(Astro.locals.settings!.contact, orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb }));
+            const line = lineChatUrl(Astro.locals.settings!.contact, orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb, sample: v.priceIsSample }));
             const stock = stockLabel(v.inStock);
             return (
               <li class="card">

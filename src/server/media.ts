@@ -33,9 +33,12 @@ export async function uploadImages(
   hive: Hive,
   kind: ImageKind,
   files: File[],
+  /** รหัสชุดอัปโหลดจากเบราว์เซอร์ — ส่งชุดเดิมซ้ำ (เน็ตหลุดหลังเซิร์ฟเวอร์ได้รับแล้ว) จะไม่บันทึกรูปซ้ำ */
+  batch?: string,
 ): Promise<{ added: number; skipped: Skipped[] }> {
   const skipped: Skipped[] = [];
   let added = 0;
+  const batchId = batch && /^[0-9a-f-]{36}$/.test(batch) ? batch : null;
 
   const existing = (await listMedia(db, hive.id)).filter((m) => m.kind === kind);
   let slots = remainingSlots(kind, existing.length);
@@ -44,7 +47,6 @@ export async function uploadImages(
   for (const [i, file] of files.entries()) {
     const name = file.name || `ไฟล์ที่ ${i + 1}`;
     if (i >= MAX_FILES_PER_REQUEST) { skipped.push({ name, reason: `ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} ไฟล์` }); continue; }
-    if (slots <= 0) { skipped.push({ name, reason: `เต็มแล้ว (สูงสุด ${LIMITS[kind]} รูป)` }); continue; }
     if (file.size === 0) { skipped.push({ name, reason: 'ไฟล์ว่าง' }); continue; }
     if (file.size > MAX_UPLOAD_BYTES) { skipped.push({ name, reason: `ใหญ่เกิน ${MAX_UPLOAD_BYTES / 1024 / 1024} MB` }); continue; }
 
@@ -52,7 +54,12 @@ export async function uploadImages(
     const type = detectImageType(bytes);
     if (!type) { skipped.push({ name, reason: 'ไม่ใช่รูป JPEG/PNG/WebP' }); continue; }
 
-    const key = mediaKey(hive.code, kind, crypto.randomUUID(), type.ext);
+    const key = mediaKey(hive.code, kind, batchId ? `${batchId}-${i}` : crypto.randomUUID(), type.ext);
+    if (batchId && (await db.select({ id: hiveMedia.id }).from(hiveMedia).where(eq(hiveMedia.r2Key, key)).limit(1)).length) {
+      added++; // บันทึกไว้แล้วจากครั้งก่อน — นับว่าสำเร็จ ไม่ใช้ช่องเพิ่ม
+      continue;
+    }
+    if (slots <= 0) { skipped.push({ name, reason: `เต็มแล้ว (สูงสุด ${LIMITS[kind]} รูป)` }); continue; }
     await bucket.put(key, bytes, { httpMetadata: { contentType: type.mime } });
     try {
       await db.batch([
@@ -60,6 +67,11 @@ export async function uploadImages(
         audit(db, user, 'media.add', hive.id, { kind, key }),
       ]);
     } catch (e) {
+      // คำขอชุดเดิมที่มาพร้อมกันบันทึกคีย์นี้ไปแล้ว (ชน unique r2_key) → ไฟล์ใน R2 เป็นของแถวนั้น ห้ามลบ
+      if (batchId && (await db.select({ id: hiveMedia.id }).from(hiveMedia).where(eq(hiveMedia.r2Key, key)).limit(1)).length) {
+        added++;
+        continue;
+      }
       await bucket.delete(key).catch(() => {}); // ไม่ทิ้งไฟล์ค้างใน R2 ถ้าบันทึกฐานข้อมูลไม่สำเร็จ
       throw e;
     }

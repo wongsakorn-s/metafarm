@@ -46,6 +46,7 @@ const msg = Astro.url.searchParams.get('msg');
             <input class="sr-only" id={`pick-${h.code}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
             <noscript><button class="btn-ghost w-full" type="submit">อัปโหลด</button></noscript>
             <p class="text-sm" data-state role="status" aria-live="polite"></p>
+            <button class="btn-primary w-full" type="button" data-retry hidden>🔁 ส่งรูปเดิมอีกครั้ง</button>
           </form>
         </li>
       ))}
@@ -54,40 +55,64 @@ const msg = Astro.url.searchParams.get('msg');
 </AdminLayout>
 
 <script>
-  import { resizeImage } from '../../scripts/resize-image';
-  import { describeUploadError, postUpload } from '../../scripts/upload';
+  import { resizeAll } from '../../scripts/resize-image';
+  import { describeUploadError, newBatchId, postUpload, UploadError } from '../../scripts/upload';
 
   const left = document.getElementById('left');
   const bump = () => { if (left) left.textContent = String(Math.max(0, Number(left.textContent) - 1)); };
 
   document.querySelectorAll<HTMLFormElement>('form[data-photo-form]').forEach((form) => {
     const state = form.querySelector<HTMLElement>('[data-state]')!;
+    const retry = form.querySelector<HTMLButtonElement>('[data-retry]')!;
     const inputs = [...form.querySelectorAll<HTMLInputElement>('input[type=file]')];
+    const labels = [...form.querySelectorAll('label')];
+    const lock = (on: boolean) => labels.forEach((l) => {
+      l.classList.toggle('pointer-events-none', on);
+      l.classList.toggle('opacity-60', on);
+    });
+    const say = (msg: string, tone: 'busy' | 'ok' | 'bad') => {
+      state.className = tone === 'ok' ? 'text-sm font-semibold text-palm-700' : tone === 'bad' ? 'text-sm font-medium text-danger' : 'text-sm';
+      state.textContent = msg;
+    };
+
+    // รูปที่ย่อแล้วของชุดล่าสุด — เก็บไว้ส่งซ้ำได้โดยไม่ต้องเดินกลับไปถ่ายใหม่ (รูปจากกล้องบางเครื่องไม่ถูกเก็บในอัลบั้ม)
+    let pending: File[] = [];
+    let batch = '';
+
+    const send = async () => {
+      lock(true);
+      retry.hidden = true;
+      try {
+        const fd = new FormData();
+        for (const [k, v] of new FormData(form)) if (!(v instanceof File)) fd.append(k, v);
+        fd.set('batch', batch);
+        pending.forEach((f) => fd.append('file', f, f.name));
+        say(`กำลังส่ง ${pending.length} รูป…`, 'busy');
+        const r = await postUpload(form.action, fd, pending.reduce((n, f) => n + f.size, 0));
+        say(`✅ ${r.message}`, 'ok');
+        pending = [];
+        form.querySelector('.grid')?.remove();
+        form.closest('li')?.classList.add('opacity-70');
+        bump();
+      } catch (err) {
+        say(describeUploadError(err), 'bad');
+        lock(false);
+        // ส่งไม่ถึง/ล็อกอินหมดอายุ → ส่งรูปเดิมซ้ำได้ · เซิร์ฟเวอร์ไม่รับไฟล์ (เต็ม/ไม่ใช่รูป) → ต้องเลือกรูปใหม่
+        if (!(err instanceof UploadError && (err.kind === 'rejected' || err.kind === 'client'))) retry.hidden = false;
+        else pending = [];
+      }
+      inputs.forEach((i) => (i.value = ''));
+    };
 
     // เลือกไฟล์แล้วส่งทันที ไม่ต้องกดปุ่มซ้ำ (ลดการแตะบนมือถือ)
     inputs.forEach((input) => input.addEventListener('change', async () => {
       const picked = [...(input.files ?? [])];
       if (picked.length === 0) return;
-      form.querySelectorAll('label').forEach((l) => l.classList.add('pointer-events-none', 'opacity-60'));
-      state.className = 'text-sm font-medium text-honey-700';
-      state.textContent = `กำลังย่อรูปและอัปโหลด ${picked.length} รูป…`;
-      try {
-        const small = await Promise.all(picked.map(resizeImage));
-        const fd = new FormData();
-        for (const [k, v] of new FormData(form)) if (!(v instanceof File)) fd.append(k, v);
-        small.forEach((f) => fd.append('file', f, f.name));
-        await postUpload(form.action, fd);
-        state.className = 'text-sm font-semibold text-palm-700';
-        state.textContent = `✅ เพิ่มรูปแล้ว ${small.length} รูป`;
-        form.querySelector('.grid')?.remove();
-        form.closest('li')?.classList.add('opacity-70');
-        bump();
-      } catch (err) {
-        state.className = 'text-sm font-medium text-danger';
-        state.textContent = describeUploadError(err);
-        form.querySelectorAll('label').forEach((l) => l.classList.remove('pointer-events-none', 'opacity-60'));
-        inputs.forEach((i) => (i.value = ''));
-      }
+      lock(true);
+      pending = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`, 'busy'));
+      batch = newBatchId();
+      await send();
     }));
+    retry.addEventListener('click', () => void send());
   });
 </script>

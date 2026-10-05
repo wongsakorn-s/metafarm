@@ -30,9 +30,23 @@ export async function resizeImage(file: File): Promise<File> {
     // ถ้าไฟล์เดิมเล็กกว่าอยู่แล้ว (และเป็นชนิดที่รับ) ไม่ต้องใช้ไฟล์ที่ย่อ
     if (scale === 1 && file.size <= blob.size && /^image\/(jpeg|png|webp)$/.test(file.type)) return file;
 
+    canvas.width = canvas.height = 0; // คืนหน่วยความจำทันที (มือถือ RAM น้อย)
     const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
     return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.' + ext, { type: blob.type });
   } catch {
     return file;
   }
+}
+
+/**
+ * ย่อทีละรูป (ไม่ทำพร้อมกัน) — รูปกล้อง 12 MP ใช้หน่วยความจำ ~50 MB ต่อรูปตอนถอดรหัส
+ * ถ้าย่อ 6 รูปพร้อมกัน มือถือสเปกต่ำอาจรีโหลดหน้าเอง
+ */
+export async function resizeAll(files: File[], onEach?: (done: number, total: number) => void): Promise<File[]> {
+  const out: File[] = [];
+  for (const f of files) {
+    out.push(await resizeImage(f));
+    onEach?.(out.length, files.length);
+  }
+  return out;
 }

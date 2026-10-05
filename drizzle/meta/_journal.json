@@ -36,6 +36,13 @@
       "when": 1791128384272,
       "tag": "0004_product_image",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791214656851,
+      "tag": "0005_idempotent_create_and_media",
+      "breakpoints": true
     }
   ]
 }

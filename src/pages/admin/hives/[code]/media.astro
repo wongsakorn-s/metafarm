@@ -3,6 +3,7 @@ import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
 import { deleteMedia, listMedia, setVideo, uploadImages } from '../../../../server/media.ts';
+import { jsonResult, wantsJson } from '../../../../lib/http.ts';
 import { kindLabel, LIMITS, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
 
 export const prerender = false;
@@ -33,9 +34,13 @@ if (Astro.request.method === 'POST') {
     if (kind !== 'passport' && kind !== 'sale') error = 'เลือกชนิดรูป';
     else if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
     else {
-      const r = await uploadImages(db, getMedia(), user, hive, kind, files);
-      return back(uploadSummary(r.added, r.skipped));
+      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''));
+      const message = uploadSummary(r.added, r.skipped);
+      // สคริปต์อัปโหลดต้องรู้ผลจริง (เดิมได้แค่ redirect → นับว่าสำเร็จแม้ข้ามทุกไฟล์)
+      if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: `${backTo}?msg=${encodeURIComponent(message)}` });
+      return back(message);
     }
+    if (wantsJson(Astro.request)) return jsonResult({ ok: false, message: error });
   } else if (intent === 'delete') {
     const r = await deleteMedia(db, getMedia(), user, hive, Number(form.get('mediaId')));
     if (r.ok) return back('ลบแล้ว');
@@ -77,7 +82,7 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
       </div>
     </fieldset>
     <div>
-      <label class="label" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
+      <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
       <input class="field" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
       <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปให้อัตโนมัติก่อนส่ง (ประหยัดเน็ต)</p>
     </div>
@@ -125,41 +130,40 @@ const free = { passport: remainingSlots('passport', passport.length), sale: rema
 </AdminLayout>
 
 <script>
-  import { resizeImage } from '../../../../scripts/resize-image';
-  import { describeUploadError, postUpload } from '../../../../scripts/upload';
-
-  // ยืนยันก่อนลบ
-  document.querySelectorAll<HTMLFormElement>('form[data-confirm]').forEach((f) =>
-    f.addEventListener('submit', (e) => { if (!confirm(f.dataset.confirm ?? 'ยืนยัน?')) e.preventDefault(); }),
-  );
+  import { resizeAll } from '../../../../scripts/resize-image';
+  import { describeUploadError, newBatchId, postUpload } from '../../../../scripts/upload';
 
   // ย่อรูปก่อนอัปโหลด แล้วส่งด้วย fetch (ถ้า JS ใช้ไม่ได้ ฟอร์มจะส่งไฟล์เดิมตามปกติ)
+  // ยืนยันก่อนลบ/กันกดซ้ำ อยู่ในสคริปต์กลางของหลังบ้าน (scripts/admin-forms.ts)
   const form = document.getElementById('upload-form') as HTMLFormElement | null;
   const status = document.getElementById('upload-status')!;
   const btn = document.getElementById('upload-btn') as HTMLButtonElement | null;
+  const input = form?.querySelector<HTMLInputElement>('input[type=file]');
   const say = (msg: string, bad = false) => {
     status.textContent = msg;
     status.classList.remove('hidden');
     status.classList.toggle('bg-red-50', bad);
     status.classList.toggle('text-danger', bad);
   };
+  // รหัสชุดผูกกับ "ไฟล์ที่เลือก" — กดส่งซ้ำหลังเน็ตหลุด เซิร์ฟเวอร์จะไม่บันทึกรูปเดิมซ้ำ
+  let batch = newBatchId();
+  input?.addEventListener('change', () => (batch = newBatchId()));
 
   form?.addEventListener('submit', async (e) => {
-    const input = form.querySelector<HTMLInputElement>('input[type=file]')!;
-    const picked = [...(input.files ?? [])];
+    const picked = [...(input?.files ?? [])];
     if (picked.length === 0) return; // ให้ server แจ้งว่ายังไม่ได้เลือกไฟล์
     e.preventDefault();
     btn && (btn.disabled = true);
     try {
-      say(`กำลังย่อรูป ${picked.length} ไฟล์…`);
-      const small = await Promise.all(picked.map(resizeImage));
+      const small = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`));
       const fd = new FormData(form);
       fd.delete('file');
+      fd.set('batch', batch);
       small.forEach((f) => fd.append('file', f, f.name));
       const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, f) => n + f.size, 0);
       say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
-      const res = await postUpload(form.action || location.href, fd);
-      location.href = res.url;
+      const r = await postUpload(form.action || location.href, fd, after);
+      location.href = r.redirect ?? location.href;
     } catch (err) {
       say(describeUploadError(err), true);
       btn && (btn.disabled = false);

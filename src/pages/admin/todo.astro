@@ -75,7 +75,7 @@ const items = rows.map((h) => ({ ...h, topics: unknownTopics(h.notes) }));
             <p class="text-sm text-muted">{originLabel[h.origin]}{provinceOf(h.originPlace) ? ` · ${provinceOf(h.originPlace)}` : ''} · {statusLabel[h.status]} · ได้มา {formatThaiDate(h.acquiredOn)}</p>
             <p class="rounded-xl bg-honey-50 p-2 text-sm">ยังไม่ทราบ: {h.topics.join(' · ')}</p>
 
-            <form method="post" class="space-y-3">
+            <form method="post" class="space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${h.code} เป็น "{status}" ด้วย ใช่ไหม?`} data-confirm-when="status">
               <input type="hidden" name="intent" value="fill" /><input type="hidden" name="code" value={h.code} />
               {(needs('วันเกิดนางพญา')) && <div><label class="label" for={`qb-${h.code}`}>วันเกิดนางพญา</label><input class="field" id={`qb-${h.code}`} name="queenBornOn" type="date" max={today} value={val('queenBornOn')} />{mine && errorFields.queenBornOn && <p class="error">{errorFields.queenBornOn}</p>}</div>}
               {(needs('วันที่ซื้อ')) && <div><label class="label" for={`ac-${h.code}`}>วันที่ซื้อ</label><input class="field" id={`ac-${h.code}`} name="acquiredOn" type="date" max={today} value={val('acquiredOn')} />{mine && errorFields.acquiredOn && <p class="error">{errorFields.acquiredOn}</p>}</div>}

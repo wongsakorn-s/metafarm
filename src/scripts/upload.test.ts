@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyResponse, describeUploadError, UploadError } from './upload.ts';
+import { checkResult, classifyResponse, describeUploadError, UploadError, uploadTimeoutMs } from './upload.ts';
 
 const res = (o: Partial<{ ok: boolean; redirected: boolean; status: number; url: string }>) => ({ ok: true, redirected: false, status: 200, url: 'http://x/admin/photos', ...o });
 
@@ -41,5 +41,31 @@ describe('describeUploadError', () => {
   it('ไม่ทราบสาเหตุ → ข้อความกลาง ๆ ไม่ใช่ข้อความดิบของเครื่อง', () => {
     expect(describeUploadError(new Error('boom'))).toBe('ส่งรูปไม่สำเร็จ ไม่ทราบสาเหตุ — ลองใหม่อีกครั้ง');
     expect(describeUploadError('x')).toContain('ไม่ทราบสาเหตุ');
+  });
+});
+
+describe('ผลอัปโหลดจากเซิร์ฟเวอร์ (JSON)', () => {
+  it('422 = เซิร์ฟเวอร์ได้รับแต่ไม่บันทึก → ไม่ใช่ข้อผิดพลาดเครือข่าย ให้อ่านข้อความใน JSON', () => {
+    expect(classifyResponse(res({ ok: false, status: 422 }))).toBeNull();
+  });
+  it('ข้ามทุกไฟล์ (เช่นช่องรูปเต็ม) ห้ามนับว่าสำเร็จ และบอกเหตุผลจากเซิร์ฟเวอร์', () => {
+    let caught: unknown;
+    try { checkResult({ ok: false, message: 'ข้าม 1 ไฟล์ (IMG_1.heic: ไม่ใช่รูป JPEG/PNG/WebP)' }); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(UploadError);
+    expect((caught as UploadError).kind).toBe('rejected');
+    expect(describeUploadError(caught)).toContain('ไม่ใช่รูป JPEG/PNG/WebP');
+    expect(checkResult({ ok: true, message: 'เพิ่มแล้ว 1 รูป', added: 1 }).added).toBe(1);
+  });
+  it('หมดเวลา: ข้อความภาษาไทย และบอกว่าส่งซ้ำได้ไม่บันทึกซ้ำ', () => {
+    for (const e of [new UploadError('timeout'), new DOMException('aborted', 'AbortError')]) {
+      const m = describeUploadError(e);
+      expect(m).toContain('นานเกินไป');
+      expect(m).toContain('ไม่บันทึกรูปซ้ำ');
+    }
+  });
+  it('เวลารอตามขนาดไฟล์ มีเพดาน 3 นาที', () => {
+    expect(uploadTimeoutMs(0)).toBe(30_000);
+    expect(uploadTimeoutMs(1.5 * 1048576)).toBe(70_000);
+    expect(uploadTimeoutMs(100 * 1048576)).toBe(180_000);
   });
 });

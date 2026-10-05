@@ -90,10 +90,13 @@ export const hives = sqliteTable(
     soldOn: text('sold_on'),
     customerId: integer('customer_id').references(() => customers.id),
     notes: text('notes'),
+    /** คีย์กันสร้างรังซ้ำจากฟอร์ม "เพิ่มรัง" (กดสองครั้ง/ส่งซ้ำตอนเน็ตช้า) — ว่างได้ */
+    createKey: text('create_key'),
     ...timestamps,
   },
   (t) => [
     uniqueIndex('hives_code_uq').on(t.code),
+    uniqueIndex('hives_create_key_uq').on(t.createKey),
     index('hives_status_idx').on(t.status),
     index('hives_for_sale_idx').on(t.forSale),
   ],
@@ -151,7 +154,11 @@ export const hiveMedia = sqliteTable(
     sortOrder: integer('sort_order').notNull().default(0),
     ...timestamps,
   },
-  (t) => [index('hive_media_hive_idx').on(t.hiveId, t.kind, t.sortOrder)],
+  (t) => [
+    index('hive_media_hive_idx').on(t.hiveId, t.kind, t.sortOrder),
+    // /img/* ตรวจสิทธิ์ด้วย r2_key ทุกครั้ง และใช้กันอัปโหลดซ้ำ (ว่างได้สำหรับวิดีโอ)
+    uniqueIndex('hive_media_r2_key_uq').on(t.r2Key),
+  ],
 );
 
 export const products = sqliteTable(

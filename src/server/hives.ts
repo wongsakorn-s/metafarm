@@ -14,7 +14,14 @@ type Hive = typeof hives.$inferSelect;
 type Result = { ok: true } | { ok: false; error: string };
 
 const codeToId = (code: string) => Number(code.slice(1));
-const idemKey = (user: SessionUser, idem?: string) => (idem ? `ui:${user.id}:${idem}` : null);
+// คีย์กันบันทึกซ้ำ (กดสองครั้ง/ส่งซ้ำตอนเน็ตช้า) — ใส่ชนิดเหตุการณ์ด้วย เพื่อให้คีย์ของฟอร์มหนึ่งไม่ไปกลืนอีกฟอร์ม
+const idemKey = (user: SessionUser, type: string, idem?: string) => (idem ? `ui:${user.id}:${type}:${idem}` : null);
+/** ส่งซ้ำด้วยคีย์เดิม = บันทึกไปแล้ว → ตอบสำเร็จโดยไม่เขียนอะไรเพิ่ม (ไม่มี audit ซ้ำ ไม่เปลี่ยนสถานะซ้ำ) */
+async function alreadySaved(db: Db, key: string | null): Promise<boolean> {
+  if (!key) return false;
+  const row = await db.select({ id: hiveEvents.id }).from(hiveEvents).where(eq(hiveEvents.idempotencyKey, key)).limit(1);
+  return row.length > 0;
+}
 const audit = (db: Db, user: SessionUser, action: string, entityId: number, diff?: unknown, entity = 'hive') =>
   db.insert(auditLogs).values({ userId: user.id, action, entity, entityId, diff: diff ?? null });
 const touch = { updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` };
@@ -155,46 +162,56 @@ async function findTarget(db: Db, selfId: number, code?: string): Promise<{ id: 
 }
 
 export async function addHoneyHarvest(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof honeyHarvestSchema>): Promise<Result> {
+  const key = idemKey(user, 'honey_harvest', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
   await db.batch([
-    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'honey_harvest', occurredOn: d.occurredOn, honeyMl: d.honeyMl, propolisG: d.propolisG, pollenG: d.pollenG, note: d.note, createdBy: user.id, idempotencyKey: idemKey(user, d.idem) }).onConflictDoNothing(),
+    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'honey_harvest', occurredOn: d.occurredOn, honeyMl: d.honeyMl, propolisG: d.propolisG, pollenG: d.pollenG, note: d.note, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     audit(db, user, 'event.honey_harvest', hive.id, { honeyMl: d.honeyMl, propolisG: d.propolisG, pollenG: d.pollenG }),
   ]);
   return { ok: true };
 }
 
 export async function addQueenCell(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof queenCellSchema>): Promise<Result> {
+  const key = idemKey(user, 'queen_cell_taken', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
   const t = await findTarget(db, hive.id, d.targetCode);
   if (t.error) return { ok: false, error: t.error };
   await db.batch([
-    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'queen_cell_taken', occurredOn: d.occurredOn, queenCells: d.queenCells, targetHiveId: t.id, note: d.note, createdBy: user.id, idempotencyKey: idemKey(user, d.idem) }).onConflictDoNothing(),
+    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'queen_cell_taken', occurredOn: d.occurredOn, queenCells: d.queenCells, targetHiveId: t.id, note: d.note, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     audit(db, user, 'event.queen_cell_taken', hive.id, { queenCells: d.queenCells, target: d.targetCode }),
   ]);
   return { ok: true };
 }
 
 export async function addBroodSplit(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof broodSplitSchema>): Promise<Result> {
+  const key = idemKey(user, 'brood_split', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
   const t = await findTarget(db, hive.id, d.targetCode);
   if (t.error) return { ok: false, error: t.error };
   await db.batch([
-    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'brood_split', occurredOn: d.occurredOn, targetHiveId: t.id, note: d.note, createdBy: user.id, idempotencyKey: idemKey(user, d.idem) }).onConflictDoNothing(),
+    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'brood_split', occurredOn: d.occurredOn, targetHiveId: t.id, note: d.note, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     audit(db, user, 'event.brood_split', hive.id, { target: d.targetCode }),
   ]);
   return { ok: true };
 }
 
 export async function addNote(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof noteSchema>): Promise<Result> {
+  const key = idemKey(user, 'note', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
   await db.batch([
-    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'note', occurredOn: d.occurredOn, note: d.note, isPublic: d.isPublic, createdBy: user.id, idempotencyKey: idemKey(user, d.idem) }).onConflictDoNothing(),
+    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'note', occurredOn: d.occurredOn, note: d.note, isPublic: d.isPublic, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     audit(db, user, 'event.note', hive.id),
   ]);
   return { ok: true };
 }
 
 export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>): Promise<Result> {
+  const key = idemKey(user, 'status_change', d.idem);
+  if (await alreadySaved(db, key)) return { ok: true };
   if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
   const sold = d.status === 'sold';
   await db.batch([
-    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'status_change', occurredOn: d.occurredOn, fromStatus: hive.status, toStatus: d.status, note: d.note ?? d.collapseReason, createdBy: user.id, idempotencyKey: idemKey(user, d.idem) }).onConflictDoNothing(),
+    db.insert(hiveEvents).values({ hiveId: hive.id, type: 'status_change', occurredOn: d.occurredOn, fromStatus: hive.status, toStatus: d.status, note: d.note ?? d.collapseReason, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     db
       .update(hives)
       .set({
@@ -347,6 +364,11 @@ export async function nextHiveCode(db: Db): Promise<string> {
 }
 
 export async function createHive(db: Db, user: SessionUser, d: z.output<typeof newHiveSchema>): Promise<Result & { code?: string }> {
+  // ส่งซ้ำด้วยคีย์เดิม (กดสองครั้ง/เน็ตช้าแล้วกดใหม่) → ตอบรังที่สร้างไว้แล้ว ไม่สร้างรังใหม่
+  const createKey = d.idem ? `ui:${user.id}:${d.idem}` : null;
+  const existing = async () => (createKey ? await db.query.hives.findFirst({ where: eq(hives.createKey, createKey), columns: { code: true } }) : undefined);
+  const prev = await existing();
+  if (prev) return { ok: true, code: prev.code };
   const queen = d.queenSourceCode ? await db.query.hives.findFirst({ where: eq(hives.code, d.queenSourceCode), columns: { id: true } }) : null;
   const brood = d.broodSourceCode ? await db.query.hives.findFirst({ where: eq(hives.code, d.broodSourceCode), columns: { id: true } }) : null;
   if (d.queenSourceCode && !queen) return { ok: false, error: `ไม่พบรังแม่ ${d.queenSourceCode}` };
@@ -359,7 +381,7 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
       db.insert(hives).values({
         id, code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
         queenBornOn: d.queenBornOn, boxType: d.boxType, status: 'active', queenSourceHiveId: queen?.id, broodSourceHiveId: brood?.id,
-        purchasePrice: d.purchasePrice, notes: d.notes,
+        purchasePrice: d.purchasePrice, notes: d.notes, createKey,
       }),
       // บันทึกในรังแม่ให้อัตโนมัติ (วันที่ = วันที่ได้มา ถ้ามี)
       ...(brood && acquiredOn ? [db.insert(hiveEvents).values({ hiveId: brood.id, type: 'brood_split', occurredOn: acquiredOn, targetHiveId: id, createdBy: user.id, idempotencyKey: `auto:${code}:brood` }).onConflictDoNothing()] : []),
@@ -368,8 +390,12 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
   ];
   try {
     await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
-  } catch {
-    return { ok: false, error: 'สร้างรังไม่สำเร็จ (อาจมีคนสร้างรหัสเดียวกันพร้อมกัน) ลองอีกครั้ง' };
+  } catch (e) {
+    // คำขอซ้ำที่มาพร้อมกันจะชนกันตรงนี้ → ถ้าอีกคำขอสร้างสำเร็จแล้ว ตอบรังนั้น
+    const dup = await existing();
+    if (dup) return { ok: true, code: dup.code };
+    if (/UNIQUE/i.test(String(e))) return { ok: false, error: 'สร้างรังไม่สำเร็จ (อาจมีคนสร้างรหัสเดียวกันพร้อมกัน) ลองอีกครั้ง' };
+    throw e;
   }
   return { ok: true, code };
 }

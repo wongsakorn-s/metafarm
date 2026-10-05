@@ -30,7 +30,8 @@
         "media:upload:remote": "node scripts/upload-media-remote.mjs",
         "snapshot:export": "node --no-warnings scripts/export-snapshot.ts",
         "check:mobile": "node scripts/mobile-check.mjs",
-        "backup:prepare": "node scripts/prepare-restore.mjs"
+        "backup:prepare": "node scripts/prepare-restore.mjs",
+        "check:forms": "node scripts/form-check.mjs"
     },
     "dependencies": {
         "@astrojs/cloudflare": "^14.3.3",
