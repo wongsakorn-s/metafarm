@@ -11,13 +11,12 @@
 	"observability": {
 		"enabled": true
 	},
-	// ตอนนี้ใช้บนเครื่องเท่านั้น (ข้อมูลอยู่ใน .wrangler/state)
-	// database_id จะเปลี่ยนเป็นค่าจริงตอนสร้าง D1 บน Cloudflare ใน Phase 3
+	// D1 จริงบน Cloudflare (region APAC) — ในเครื่องยังใช้ .wrangler/state เหมือนเดิม (--local)
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "metafarm-db",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "bf382def-45df-4a0a-bcfb-193f4be3bfb2",
 			"migrations_dir": "drizzle"
 		}
 	],
