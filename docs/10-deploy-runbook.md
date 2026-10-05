@@ -26,7 +26,7 @@
 2. `npx wrangler login` (เปิดเบราว์เซอร์ให้อนุญาต)
 3. สร้างฐานข้อมูล: `npx wrangler d1 create metafarm-db` → จะได้ `database_id` → ใส่ใน `wrangler.jsonc` แทน `00000000-…`
 4. สร้างที่เก็บรูป: `npx wrangler r2 bucket create metafarm-media` และที่เก็บสำรอง `npx wrangler r2 bucket create metafarm-backups`
-   - ให้ลบสำรองเก่าเองหลัง 30 วัน: `npx wrangler r2 bucket lifecycle add metafarm-backups --name expire-30d --prefix d1/ --expire-days 30` (ตรวจ syntax ด้วย `--help` ก่อน)
+   - ให้ลบสำรองเก่าเองหลัง 30 วัน: `npx wrangler r2 bucket lifecycle add metafarm-backups expire-30d d1/ --expire-days 30` (ตรวจกับ wrangler 4.147 แล้ว: ชื่อกฎและ prefix เป็น positional)
 5. สร้างตารางในฐานข้อมูลจริง: `npm run db:migrate:remote`
 6. นำข้อมูลเข้า (**ทำครั้งเดียวก่อนใช้งานจริงเท่านั้น**)
 
