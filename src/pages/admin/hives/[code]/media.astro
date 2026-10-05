@@ -69,7 +69,7 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
-  <!-- อัปโหลด -->
+  {/* อัปโหลด */}
   <form method="post" enctype="multipart/form-data" id="upload-form" class="card mb-5 space-y-3" data-code={hive.code} data-max={MAX_FILES_PER_REQUEST}>
     <input type="hidden" name="intent" value="upload" />
     <h2 class="text-lg font-semibold">📷 เพิ่มรูป</h2>
@@ -113,7 +113,7 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
     </section>
   ))}
 
-  <!-- วิดีโอ -->
+  {/* วิดีโอ */}
   <section class="card mb-5" aria-labelledby="h-video">
     <h2 id="h-video" class="mb-1 text-lg font-semibold">🎬 วิดีโอ <span class="text-sm font-normal text-muted">({video ? 1 : 0}/{LIMITS.video})</span></h2>
     <p class="hint mb-3">อัปโหลดวิดีโอขึ้น YouTube (ตั้งเป็น "ไม่แสดงในรายการ" ก็ได้) แล้ววางลิงก์ที่นี่</p>

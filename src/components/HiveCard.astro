@@ -3,11 +3,13 @@ import { formatPrice } from '../lib/products.ts';
 import { formatThaiDate } from '../lib/thai-date.ts';
 import { placeholder } from '../lib/placeholders.ts';
 import { photoSrcset } from '../lib/media.ts';
+import { originText } from '../lib/labels.ts';
+import { site } from '../config/site.ts';
 import type { SaleHiveCard } from '../server/public.ts';
 
 interface Props { hive: SaleHiveCard; /** รูปที่เห็นทันทีเมื่อเปิดหน้า (ไม่ lazy) */ eager?: boolean }
 const { hive, eager = false } = Astro.props;
-const origin = hive.origin === 'queen_bred' ? 'เพาะนางพญาเองที่ MetaFarm' : hive.origin === 'purchased' ? (hive.province ? `ซื้อมาจากจังหวัด${hive.province}` : 'ซื้อมา') : hive.origin === 'split' ? 'ขยายรังเองที่ MetaFarm' : hive.origin === 'natural' ? 'ขยายเองตามธรรมชาติ' : '';
+const origin = originText(hive.origin, hive.province, site.name);
 ---
 
 <a href={`/products/hives/${hive.code}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">

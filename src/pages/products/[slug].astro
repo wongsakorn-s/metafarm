@@ -8,6 +8,8 @@ import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel } from 
 import { site } from '../../config/site.ts';
 import { lineChatUrl } from '../../lib/settings.ts';
 import { placeholder } from '../../lib/placeholders.ts';
+import NotFound from '../../components/NotFound.astro';
+import { breadcrumbLd, productLd } from '../../lib/seo.ts';
 
 export const prerender = false;
 
@@ -20,17 +22,24 @@ const image = product?.imageKey ? `/img/${product.imageKey}` : product?.category
 const cheapest = product ? Math.min(...product.variants.map((v) => v.priceThb)) : 0;
 // ราคาตัวอย่างไม่ใส่ในคำอธิบาย (ผลค้นหา/การแชร์) — ไม่มีป้าย "ราคาตัวอย่าง" กำกับเหมือนบนหน้าเว็บ
 const anySample = product?.variants.some((v) => v.priceIsSample) ?? false;
+const jsonLd = product
+  ? [
+      productLd(
+        { name: product.name, description: product.description, url: `/products/${product.slug}`, image, brand: site.name },
+        product.variants.map((v) => ({ name: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), priceThb: v.priceThb, confirmed: !v.priceIsSample, inStock: v.inStock })),
+        Astro.url.origin,
+      ),
+      breadcrumbLd([['หน้าแรก', '/'], ['สินค้า', '/products'], [product.name, `/products/${product.slug}`]], Astro.url.origin),
+    ]
+  : undefined;
 ---
 
 {!product ? (
   <PublicLayout title="ไม่พบสินค้า" active="products" noindex>
-    <section class="mx-auto max-w-md py-10 text-center">
-      <h1 class="text-2xl font-bold">ไม่พบสินค้านี้</h1>
-      <a class="btn-primary mt-5" href="/products">ดูสินค้าทั้งหมด</a>
-    </section>
+    <NotFound icon="🍯" title="ไม่พบสินค้านี้" href="/products" linkLabel="ดูสินค้าทั้งหมด" />
   </PublicLayout>
 ) : (
-  <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products">
+  <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
     <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
       <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />

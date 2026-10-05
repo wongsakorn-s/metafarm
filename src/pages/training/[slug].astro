@@ -4,6 +4,9 @@ import SampleBadge from '../../components/SampleBadge.astro';
 import { getTraining } from '../../lib/content.ts';
 import { formatPrice } from '../../lib/products.ts';
 import { effectiveCourse, lineChatUrl } from '../../lib/settings.ts';
+import NotFound from '../../components/NotFound.astro';
+import { breadcrumbLd, courseLd } from '../../lib/seo.ts';
+import { site } from '../../config/site.ts';
 
 export const prerender = false;
 
@@ -16,17 +19,20 @@ const settings = Astro.locals.settings!;
 // ราคา/ระยะเวลาที่เจ้าของฟาร์มแก้ในหลังบ้านชนะค่าในไฟล์ Markdown
 const eff = effectiveCourse({ priceThb: Number(fm.priceThb ?? 0), duration: String(fm.duration ?? ''), priceIsSample: fm.priceIsSample !== false }, settings.courses[slug]);
 const line = course ? lineChatUrl(settings.contact, `สนใจหลักสูตร${fm.title}`) : null;
+const jsonLd = course
+  ? [
+      courseLd({ name: String(fm.title), description: String(fm.summary ?? fm.title), url: `/training/${slug}`, priceThb: eff.priceThb, confirmed: !eff.priceIsSample }, site.name, Astro.url.origin),
+      breadcrumbLd([['หน้าแรก', '/'], ['อบรม', '/training'], [String(fm.title), `/training/${slug}`]], Astro.url.origin),
+    ]
+  : undefined;
 ---
 
 {!course ? (
   <PublicLayout title="ไม่พบหลักสูตร" active="training" noindex>
-    <section class="mx-auto max-w-md py-10 text-center">
-      <h1 class="text-2xl font-bold">ไม่พบหลักสูตรนี้</h1>
-      <a class="btn-primary mt-5" href="/training">ดูหลักสูตรทั้งหมด</a>
-    </section>
+    <NotFound icon="📚" title="ไม่พบหลักสูตรนี้" href="/training" linkLabel="ดูหลักสูตรทั้งหมด" />
   </PublicLayout>
 ) : (
-  <PublicLayout title={fm.title} description={fm.summary} active="training" lineMessage={`สนใจหลักสูตร${fm.title}`}>
+  <PublicLayout title={fm.title} description={fm.summary} active="training" lineMessage={`สนใจหลักสูตร${fm.title}`} jsonLd={jsonLd}>
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/training">← อบรม</a></p>
     <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
     <p class="mt-2 max-w-2xl text-lg text-muted">{fm.summary}</p>

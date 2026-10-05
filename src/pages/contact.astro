@@ -1,5 +1,6 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
+import { businessLd } from '../lib/seo.ts';
 import { site } from '../config/site.ts';
 import { lineChatUrl, telHref } from '../lib/settings.ts';
 
@@ -17,7 +18,7 @@ const channels = [
 ].filter(Boolean) as { icon: string; label: string; value: string; href: string; note: string }[];
 ---
 
-<PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact">
+<PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
   <h1 class="text-3xl font-bold md:text-4xl">ติดต่อเรา</h1>
   <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ได้ตามช่องทางด้านล่าง</p>
 

@@ -36,10 +36,12 @@
     font-family: var(--font-sans);
     line-height: 1.55;
   }
-  /* วงโฟกัสชัดเจน สำหรับคีย์บอร์ด */
+  /* วงโฟกัสสำหรับคีย์บอร์ด: สองสี — วงเข้ม (เห็นบนพื้นขาว/ครีม) + วงขาวด้านใน (เห็นบนปุ่มเขียว)
+     เดิมเป็นสีเหลือง honey-400 คอนทราสต์บนพื้นขาวแค่ 1.7:1 (WCAG ต้อง ≥ 3:1) */
   :focus-visible {
-    outline: 3px solid var(--color-honey-400);
+    outline: 3px solid var(--color-palm-900);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
   }
   /* ไม่ให้ iOS ซูมเข้าตอนแตะช่องกรอก */
   input, select, textarea {

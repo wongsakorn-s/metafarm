@@ -6,10 +6,15 @@ import { formatThaiDate } from '../../lib/thai-date.ts';
 import { placeholder } from '../../lib/placeholders.ts';
 import { photoSrcset } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
+import NotFound from '../../components/NotFound.astro';
+import { originText as originOf } from '../../lib/labels.ts';
+import { breadcrumbLd } from '../../lib/seo.ts';
 
 export const prerender = false;
 
 const code = (Astro.params.code ?? '').toUpperCase();
+// /passport/a25 → /passport/A25 (URL เดียวต่อหนึ่งรัง ไม่ให้ Google เห็นหน้าซ้ำ)
+if (/^A\d{1,5}$/.test(code) && Astro.params.code !== code) return Astro.redirect(`/passport/${code}`, 301);
 const hive = /^A\d{1,5}$/.test(code) ? await getPublicHive(getDb(), code) : null;
 
 if (!hive) {
@@ -19,16 +24,7 @@ if (!hive) {
   Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
 }
 
-const originText = (() => {
-  if (!hive) return '';
-  switch (hive.origin) {
-    case 'purchased': return hive.province ? `ซื้อมาจากจังหวัด${hive.province}` : 'ซื้อมาจากผู้เลี้ยงภายนอก';
-    case 'queen_bred': return `เพาะนางพญาเองที่ ${site.name}`;
-    case 'split': return `ขยายรังเองที่ ${site.name} (แยกจากรังแม่)`;
-    case 'natural': return 'ขยายเองตามธรรมชาติ';
-    default: return '';
-  }
-})();
+const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
 
 const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['ปิดรัง', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
 
@@ -37,12 +33,7 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
 
 {!hive ? (
   <PublicLayout title="ไม่พบสมุดพก" active="passport" noindex>
-    <section class="mx-auto max-w-md py-10 text-center">
-      <div class="text-5xl" aria-hidden="true">🔎</div>
-      <h1 class="mt-3 text-2xl font-bold">ไม่พบสมุดพกรัง {code || ''}</h1>
-      <p class="mt-2 text-muted">ตรวจสอบรหัสรังที่ติดอยู่ที่ตัวรัง (เช่น A25) แล้วลองใหม่</p>
-      <a class="btn-primary mt-5" href="/passport">ค้นหารหัสรัง</a>
-    </section>
+    <NotFound title={`ไม่พบสมุดพกรัง ${code || ''}`} message="ตรวจสอบรหัสรังที่ติดอยู่ที่ตัวรัง (เช่น A25) แล้วลองใหม่" href="/passport" linkLabel="ค้นหารหัสรัง" />
   </PublicLayout>
 ) : (
   <PublicLayout
@@ -50,6 +41,9 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
     description={`ประวัติรังชันโรงขนเงิน ${hive.code} ของ ${site.name}: ${originText}${hive.acquiredOn ? ` · ได้มา ${formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}` : ''}`}
     lineMessage={`สอบถามเกี่ยวกับรัง ${hive.code}`}
     active="passport"
+    canonical={`/passport/${hive.code}`}
+    ogImage={hive.photos[0] ? `/img/${hive.photos[0].key}` : undefined}
+    jsonLd={breadcrumbLd([['หน้าแรก', '/'], ['สมุดพกชันโรง', '/passport'], [`รัง ${hive.code}`, `/passport/${hive.code}`]], Astro.url.origin)}
   >
     <article>
       <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/passport">← สมุดพกชันโรง</a></p>

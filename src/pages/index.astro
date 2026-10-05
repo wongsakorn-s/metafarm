@@ -1,5 +1,6 @@
 ---
 import PublicLayout from '../layouts/PublicLayout.astro';
+import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
 import { getFarmStats } from '../server/public.ts';
 import { site } from '../config/site.ts';
@@ -18,7 +19,7 @@ const highlights = [
 ];
 ---
 
-<PublicLayout title={site.name} active="home">
+<PublicLayout title={site.name} active="home" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
   <section class="grid items-center gap-8 md:grid-cols-[1.2fr_1fr]">
     <div>
       <p class="font-medium text-palm-700">{site.tagline}</p>

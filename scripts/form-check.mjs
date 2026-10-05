@@ -243,6 +243,31 @@ console.log('\n7) รูปย่อและ cache ของรูป');
   console.log(`   ℹ️ รังที่ได้รูปทดสอบเพิ่ม: ${code}`);
 }
 
+console.log('\n8) SEO: รังที่ตั้งขาย / 404 / URL ตัวพิมพ์เล็ก');
+{
+  await page.goto(`${BASE}/admin/hives/${HIVE}`);
+  await page.click('summary:has-text("ตั้งขาย")');
+  await page.check('input[name=forSale]');
+  await page.fill('#s-price', '1590');
+  await Promise.all([page.waitForURL(/saved=sale/), page.click('button:has-text("บันทึกการตั้งขาย")')]);
+  const res = await page.goto(`${BASE}/products/hives/${HIVE.toLowerCase()}`);
+  check(page.url().endsWith(`/products/hives/${HIVE}`) && res.status() === 200, `/products/hives/${HIVE.toLowerCase()} → ย้ายไป ${HIVE} (URL เดียว)`, `ไม่ย้าย URL (${page.url()})`);
+  const ld = await page.$$eval('script[type="application/ld+json"]', (els) => els.flatMap((e) => [JSON.parse(e.textContent)].flat()));
+  const product = ld.find((x) => x['@type'] === 'Product');
+  check(product?.offers?.[0]?.price === 1590 && product.offers[0].priceCurrency === 'THB', 'ข้อมูลสินค้า (JSON-LD) มีราคา 1,590 บาท', `JSON-LD ไม่ถูกต้อง: ${JSON.stringify(ld)}`);
+  // ยกเลิกการตั้งขาย
+  await page.goto(`${BASE}/admin/hives/${HIVE}`);
+  await page.click('summary:has-text("ตั้งขาย")');
+  await page.uncheck('input[name=forSale]');
+  await Promise.all([page.waitForURL(/saved=sale/), page.click('button:has-text("บันทึกการตั้งขาย")')]);
+  // ข้าม cache ของเบราว์เซอร์ (หน้านี้ cache 60 วินาที — ผู้ที่เพิ่งเปิดอาจเห็นต่ออีกไม่เกิน 1 นาที)
+  const gone = await page.evaluate(async (u) => { const r = await fetch(u, { cache: 'no-store' }); return { status: r.status, text: await r.text() }; }, `/products/hives/${HIVE}`);
+  check(gone.status === 404 && gone.text.includes('ไม่ได้เปิดขายแล้ว'), 'ยกเลิกตั้งขาย → หน้ารังขายตอบ 404 พร้อมข้อความไทย', `ยกเลิกแล้วได้ ${gone.status}`);
+  const nf = await page.goto(`${BASE}/no-such-page-${Date.now()}`);
+  const nfInfo = await page.evaluate(() => ({ lang: document.documentElement.lang, canonical: !!document.querySelector('link[rel=canonical]'), robots: document.querySelector('meta[name=robots]')?.content, nav: !!document.querySelector('nav[aria-label="เมนูหลัก"]') }));
+  check(nf.status() === 404 && nfInfo.lang === 'th' && nfInfo.nav && !nfInfo.canonical && /noindex/.test(nfInfo.robots ?? ''), 'หน้า 404 ภาษาไทย มีเมนู ไม่มี canonical และ noindex', `หน้า 404: ${nf.status()} ${JSON.stringify(nfInfo)}`);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

@@ -1,0 +1,20 @@
+---
+import PublicLayout from '../layouts/PublicLayout.astro';
+import NotFound from '../components/NotFound.astro';
+import { getDb } from '../server/db.ts';
+import { getSettings } from '../server/settings.ts';
+
+// หน้า 404 ทั่วไป (URL ที่ไม่มีอยู่) — เดิมเป็นหน้าอังกฤษสีดำของ Astro ไม่มีเมนู/ปุ่ม LINE
+export const prerender = false;
+Astro.locals.settings ??= await getSettings(getDb());
+---
+
+<PublicLayout title="ไม่พบหน้านี้" noindex>
+  <NotFound icon="🐝" title="ไม่พบหน้านี้" message="ลิงก์อาจพิมพ์ผิด หรือหน้านี้ถูกย้ายไปแล้ว" href="/" linkLabel="กลับหน้าแรก">
+    <ul class="mt-6 flex flex-wrap justify-center gap-2 text-sm">
+      <li><a class="btn-ghost" href="/products">สินค้า</a></li>
+      <li><a class="btn-ghost" href="/passport">ค้นหาสมุดพกรัง</a></li>
+      <li><a class="btn-ghost" href="/contact">ติดต่อเรา</a></li>
+    </ul>
+  </NotFound>
+</PublicLayout>

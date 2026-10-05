@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { site } from '../config/site.ts';
 import { lineChatUrl, telHref } from '../lib/settings.ts';
+import { ldJson } from '../lib/seo.ts';
 
 interface Props {
   title: string;
@@ -10,11 +11,18 @@ interface Props {
   lineMessage?: string;
   active?: 'home' | 'stingless-bee' | 'honey' | 'products' | 'training' | 'passport' | 'contact';
   noindex?: boolean;
+  /** พาธหลักของหน้า (เช่น /passport/A25) — ใช้เมื่อ URL ที่เข้ามาอาจต่างกัน */
+  canonical?: string;
+  /** รูปตอนแชร์ลิงก์ (พาธหรือ URL เต็ม) — ไม่ใส่ = โลโก้ฟาร์ม */
+  ogImage?: string;
+  /** ข้อมูลโครงสร้างสำหรับ Google (สร้างด้วย src/lib/seo.ts) */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
-const { title, description = site.description, lineMessage, active, noindex = false } = Astro.props;
+const { title, description = site.description, lineMessage, active, noindex = false, canonical, ogImage: ogImageProp, jsonLd } = Astro.props;
 
 const fullTitle = title === site.name ? `${site.name} · ${site.tagline}` : `${title} · ${site.name}`;
-const ogImage = new URL('/brand/og.jpg', Astro.url).href;
+const ogImage = new URL(ogImageProp ?? '/brand/og.jpg', Astro.url).href;
+const pageUrl = new URL(canonical ?? Astro.url.pathname, Astro.url.origin).href;
 const c = Astro.locals.settings!.contact;
 const line = lineChatUrl(c, lineMessage);
 const tel = telHref(c.phone);
@@ -47,10 +55,13 @@ const nav = [
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.url.origin).href} />
-    <meta property="og:url" content={new URL(Astro.url.pathname, Astro.url.origin).href} />
+    {!ogImageProp && <meta property="og:image:width" content="1200" />}
+    {!ogImageProp && <meta property="og:image:height" content="630" />}
+    <meta property="og:image:alt" content={title} />
+    {/* หน้า noindex (เช่น 404) ไม่ต้องมี canonical */}
+    {!noindex && <link rel="canonical" href={pageUrl} />}
+    <meta property="og:url" content={pageUrl} />
+    {jsonLd && !noindex && <script type="application/ld+json" set:html={ldJson(jsonLd)} />}
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body class="flex min-h-dvh flex-col">
@@ -94,7 +105,7 @@ const nav = [
           </ul>
         </div>
       </div>
-      <p class="border-t border-line py-1 text-center text-xs text-muted">© {site.name} · สงวนลิขสิทธิ์ · <a class="inline-flex min-h-11 items-center underline" href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
+      <p class:list={['border-t border-line py-1 text-center text-xs text-muted', line && 'pb-20 md:pb-1']}>© {site.name} · สงวนลิขสิทธิ์ · <a class="inline-flex min-h-11 items-center underline" href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
     </footer>
 
     {line && (

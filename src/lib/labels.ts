@@ -27,3 +27,17 @@ export const eventLabel = {
 export const eventIcon = { honey_harvest: '🍯', queen_cell_taken: '👑', brood_split: '🪺', note: '📝', status_change: '🔄' } as const;
 
 export const baht = (n: number | null | undefined) => (n == null ? '???' : `${n.toLocaleString('th-TH')} บาท`);
+
+/**
+ * ที่มาของรังสำหรับหน้าสาธารณะ (ใช้ร่วมกัน: การ์ดรังขาย, หน้ารังขาย, สมุดพก)
+ * รังที่ซื้อมาแสดงแค่จังหวัด — ไม่เปิดชื่อผู้ขาย/ที่อยู่เต็ม
+ */
+export function originText(origin: string, province: string | null | undefined, farm: string): string {
+  switch (origin) {
+    case 'purchased': return province ? `ซื้อมาจากจังหวัด${province}` : 'ซื้อมาจากผู้เลี้ยงภายนอก';
+    case 'queen_bred': return `เพาะนางพญาเองที่ ${farm}`;
+    case 'split': return `ขยายรังเองที่ ${farm} (แยกจากรังแม่)`;
+    case 'natural': return 'ขยายเองตามธรรมชาติ';
+    default: return '';
+  }
+}

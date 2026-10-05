@@ -162,12 +162,15 @@ export async function getPublicProducts(db: Db, slug?: string): Promise<PublicPr
     .from(productVariants)
     .where(inArray(productVariants.productId, prods.map((p) => p.id)))
     .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
-  return prods.map(({ id, ...p }) => ({
-    ...p,
-    variants: variants
-      .filter((v) => v.productId === id)
-      .map((v) => ({ id: v.id, label: v.label, sizeMl: v.sizeMl, priceThb: v.priceThb, priceIsSample: !v.priceConfirmed, inStock: !!v.inStock, harvestYearBe: v.harvestYearBe })),
-  }));
+  return prods
+    .map(({ id, ...p }) => ({
+      ...p,
+      variants: variants
+        .filter((v) => v.productId === id)
+        .map((v) => ({ id: v.id, label: v.label, sizeMl: v.sizeMl, priceThb: v.priceThb, priceIsSample: !v.priceConfirmed, inStock: !!v.inStock, harvestYearBe: v.harvestYearBe })),
+    }))
+    // สินค้าที่ยังไม่มีตัวเลือก/ราคา ไม่แสดง (ไม่งั้น "ราคาเริ่มต้น" = Math.min() ของว่าง = ∞)
+    .filter((p) => p.variants.length > 0);
 }
 
 export interface SaleHiveCard {

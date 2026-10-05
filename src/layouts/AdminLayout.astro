@@ -34,7 +34,7 @@ const more = [
     <title>{title} · {site.name} หลังบ้าน</title>
   </head>
   <body class="min-h-dvh pb-24 md:pb-0 md:pl-60">
-    <!-- เมนูข้าง (คอม) -->
+    {/* เมนูข้าง (คอม) */}
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface p-4 md:flex">
       <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700">🐝 {site.name}</a>
       <nav class="flex flex-col gap-1" aria-label="เมนูหลัก">
@@ -68,7 +68,7 @@ const more = [
       <slot />
     </main>
 
-    <!-- เมนูล่าง (มือถือ) -->
+    {/* เมนูล่าง (มือถือ) */}
     <nav class="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="เมนูหลัก">
       {nav.map((n) => (
         <a href={n.href} aria-current={active === n.key ? 'page' : undefined}

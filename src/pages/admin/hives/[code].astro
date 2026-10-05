@@ -95,7 +95,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
     <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/edit`}>✏️ แก้ไขข้อมูลรัง{noteLines.some((l) => l.startsWith('???')) ? ' (มีข้อมูลที่ยังไม่ทราบ ???)' : ''}</a>
   </section>
 
-  <!-- ปุ่มบันทึกเร็ว -->
+  {/* ปุ่มบันทึกเร็ว */}
   <section aria-labelledby="act-h" class="mb-5 space-y-3">
     <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
 
@@ -150,7 +150,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
     </details>
   </section>
 
-  <!-- ข้อมูลรัง -->
+  {/* ข้อมูลรัง */}
   <section class="card mb-5" aria-labelledby="info-h">
     <h2 id="info-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
@@ -180,7 +180,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
     )}
   </section>
 
-  <!-- ตั้งขาย / เปลี่ยนสถานะ -->
+  {/* ตั้งขาย / เปลี่ยนสถานะ */}
   <section class="mb-5 space-y-3" aria-label="จัดการรัง">
     {hive.status === 'active' && (
       <details class="card" open={isOpen('sale')}>
@@ -211,7 +211,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
     </details>
   </section>
 
-  <!-- ไทม์ไลน์ -->
+  {/* ไทม์ไลน์ */}
   <section class="card" id="timeline" aria-labelledby="tl-h">
     <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
     {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
