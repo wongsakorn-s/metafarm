@@ -94,7 +94,9 @@ for (const [path, label, kind, saleHive] of pages) {
   if (!sm.includes('<urlset') || /\/admin|\/media\//.test(sm)) report('/sitemap.xml', 'sitemap ว่างหรือมี URL หลังบ้าน');
   for (const h of hives) if (!sm.includes(`/passport/${h.code}<`)) { report('/sitemap.xml', `ไม่มี /passport/${h.code}`); break; }
   for (const [secret, why] of secrets) if (sm.includes(secret)) report('/sitemap.xml', `พบข้อมูลลับ "${secret}" (${why})`);
-  if (!/Disallow: \/admin/.test(rb) || !/Sitemap: /.test(rb)) report('/robots.txt', 'robots.txt ไม่ปิด /admin หรือไม่ชี้ sitemap');
+  // โหมดทดลอง (ช่องทางติดต่อยังเป็นตัวอย่าง) ปิดทั้งเว็บด้วย "Disallow: /" ซึ่งครอบ /admin อยู่แล้ว
+  const previewMode = /^Disallow: \/\s*$/m.test(rb);
+  if (!previewMode && (!/Disallow: \/admin/.test(rb) || !/Sitemap: /.test(rb))) report('/robots.txt', 'robots.txt ไม่ปิด /admin หรือไม่ชี้ sitemap');
   // รังที่ไม่ได้เปิดขายต้องไม่อยู่ใน sitemap ส่วนสินค้า
   for (const h of hives.filter((x) => !saleHives.includes(x)).slice(0, 30)) if (sm.includes(`/products/hives/${h.code}<`)) { report('/sitemap.xml', `รัง ${h.code} ไม่ได้เปิดขายแต่อยู่ใน sitemap สินค้า`); break; }
 }
