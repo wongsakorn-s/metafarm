@@ -21,9 +21,9 @@ jobs:
       - name: Skip when Cloudflare secrets are not configured
         if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
         run: echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN — ข้ามการสำรอง"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         with:
           node-version-file: .nvmrc
