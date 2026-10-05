@@ -43,6 +43,12 @@
     outline-offset: 2px;
     box-shadow: 0 0 0 2px #fff;
   }
+  /* ช่องกรอก: วงโฟกัสชิดขอบช่อง (ไม่เว้นช่องว่าง) ดูเป็นกรอบเดียวกับช่อง */
+  :is(input, select, textarea):focus-visible {
+    outline-width: 2px;
+    outline-offset: 0;
+    box-shadow: none;
+  }
   /* ไม่ให้ iOS ซูมเข้าตอนแตะช่องกรอก */
   input, select, textarea {
     font-size: 16px;

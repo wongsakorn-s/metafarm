@@ -10,7 +10,7 @@ const db = getDb();
 const r = await getReadiness(db, await getSettings(db));
 ---
 
-<AdminLayout title="เตรียมเปิดเว็บ" active="readiness">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="เตรียมเปิดเว็บ" active="readiness">
   <section class="card mb-5" aria-labelledby="prog-h">
     <h2 id="prog-h" class="text-lg font-semibold">ความพร้อม {r.done}/{r.total} รายการ</h2>
     <div class="mt-2 h-3 overflow-hidden rounded-full bg-palm-50" role="progressbar" aria-valuenow={r.percent} aria-valuemin="0" aria-valuemax="100" aria-label="ความพร้อมก่อนเปิดเว็บ">

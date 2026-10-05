@@ -63,8 +63,7 @@ const hl = (k: string) => (needs.has(k) ? 'ring-2 ring-honey-400' : '');
 const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day';
 ---
 
-<AdminLayout title={`แก้ไขรัง ${hive.code}`} active="hives">
-  <p class="-mt-3 mb-4"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href={`/admin/hives/${hive.code}`}>← กลับหน้ารัง {hive.code}</a></p>
+<AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives">
 
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
 

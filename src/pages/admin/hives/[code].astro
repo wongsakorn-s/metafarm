@@ -70,8 +70,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
 const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
 ---
 
-<AdminLayout title={`รัง ${hive.code}`} active="hives">
-  <p class="-mt-3 mb-4"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href="/admin/hives">← รังทั้งหมด</a></p>
+<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title={`รัง ${hive.code}`} active="hives">
 
   {saved && savedLabel[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {savedLabel[saved]}</p>}
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
@@ -84,22 +83,26 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       {hive.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย {baht(hive.salePrice)}</span>}
       {hive.status === 'sold' && <span class="badge bg-honey-100 text-honey-700">ขายแล้ว {baht(hive.soldPrice)} · {formatThaiDate(hive.soldOn)}</span>}
     </div>
-    <div class="mt-3 grid grid-cols-2 gap-2">
-      {(photos.length ? photos.slice(0, 2) : [null, null]).map((p) => (
-        <img src={p?.r2Key ? thumbUrl(`/media/${p.r2Key}`) : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
+    {/* รูปย่อ 3 รูปแถวเดียว (เดิม 2 รูปแนวตั้งกินครึ่งจอ ต้องเลื่อนนานกว่าจะถึงปุ่มบันทึก) */}
+    <a href={`/admin/hives/${hive.code}/media`} class="mt-3 grid grid-cols-3 gap-2" aria-label={`รูปและวิดีโอของรัง ${hive.code}`}>
+      {(photos.length ? photos.slice(0, 3) : [null]).map((p) => (
+        <img src={p?.r2Key ? thumbUrl(`/media/${p.r2Key}`) : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} width="160" height="160" class="aspect-square w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
       ))}
-    </div>
+    </a>
     {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}
-    <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/media`}>📷 รูปและวิดีโอ — รูปสมุดพก {photos.length} · รูปขาย {salePhotos.length}/3 · วิดีโอ {video ? 1 : 0}/1</a>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      <a class="btn-ghost" href={`/admin/hives/${hive.code}/media`}>📷 รูป <span class="text-muted">{photos.length + salePhotos.length + (video ? 1 : 0)}</span></a>
+      <a class="btn-ghost" href={`/admin/hives/${hive.code}/edit`}>✏️ แก้ไขข้อมูล</a>
+    </div>
     {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint">รังนี้ตั้งขายอยู่ ควรเพิ่ม{salePhotos.length < 3 ? ` รูปขายอีก ${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' และ' : ''}{!video ? ' วิดีโอ 1 คลิป' : ''}</p>}
-    <a class="btn-ghost mt-3 w-full" href={`/admin/hives/${hive.code}/edit`}>✏️ แก้ไขข้อมูลรัง{noteLines.some((l) => l.startsWith('???')) ? ' (มีข้อมูลที่ยังไม่ทราบ ???)' : ''}</a>
+    {noteLines.some((l) => l.startsWith('???')) && <p class="hint text-honey-700">มีข้อมูลที่ยังไม่ทราบ (???) — แตะ "แก้ไขข้อมูล" เพื่อเติม</p>}
   </section>
 
   {/* ปุ่มบันทึกเร็ว */}
   <section aria-labelledby="act-h" class="mb-5 space-y-3">
     <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
 
-    <details class="card group" open={isOpen('honey')}>
+    <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
       <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">🍯 เก็บน้ำหวาน</summary>
       <form method="post" class="mt-3 space-y-3">
         <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
@@ -113,7 +116,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       </form>
     </details>
 
-    <details class="card" open={isOpen('queen')}>
+    <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
       <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">👑 เก็บไข่นางพญา</summary>
       <form method="post" class="mt-3 space-y-3">
         <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
@@ -127,7 +130,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       </form>
     </details>
 
-    <details class="card" open={isOpen('brood')}>
+    <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
       <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">🪺 แยกไข่อ่อน/ตัวงาน</summary>
       <form method="post" class="mt-3 space-y-3">
         <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
@@ -138,7 +141,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       </form>
     </details>
 
-    <details class="card" open={isOpen('note')}>
+    <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
       <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">📝 หมายเหตุ</summary>
       <form method="post" class="mt-3 space-y-3">
         <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
@@ -183,7 +186,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
   {/* ตั้งขาย / เปลี่ยนสถานะ */}
   <section class="mb-5 space-y-3" aria-label="จัดการรัง">
     {hive.status === 'active' && (
-      <details class="card" open={isOpen('sale')}>
+      <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
         <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">🏷️ ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
         <form method="post" class="mt-3 space-y-3">
           <input type="hidden" name="intent" value="sale" />
@@ -193,7 +196,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
         </form>
       </details>
     )}
-    <details class="card" open={isOpen('status')}>
+    <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
       <summary class="flex min-h-11 cursor-pointer items-center gap-2 text-lg font-semibold">🔄 เปลี่ยนสถานะรัง</summary>
       <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`}>
         <input type="hidden" name="intent" value="status" /><input type="hidden" name="idem" value={f.status.v('idem') || idem()} />

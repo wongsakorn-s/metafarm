@@ -24,7 +24,7 @@ if (Astro.request.method === 'POST') {
 }
 ---
 
-<AdminLayout title="บัญชีของฉัน" active="account">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="บัญชีของฉัน" active="account">
   <section class="card mb-5 max-w-xl">
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
       <dt class="text-muted">ชื่อ</dt><dd>{user.name}</dd>

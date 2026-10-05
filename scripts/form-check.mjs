@@ -268,6 +268,29 @@ console.log('\n8) SEO: รังที่ตั้งขาย / 404 / URL ต�
   check(nf.status() === 404 && nfInfo.lang === 'th' && nfInfo.nav && !nfInfo.canonical && /noindex/.test(nfInfo.robots ?? ''), 'หน้า 404 ภาษาไทย มีเมนู ไม่มี canonical และ noindex', `หน้า 404: ${nf.status()} ${JSON.stringify(nfInfo)}`);
 }
 
+console.log('\n9) เมนูมือถือ: บันทึกด่วน / เมนูเว็บสาธารณะ');
+{
+  await page.goto(BASE + '/admin/quick');
+  await page.fill('#code', '25');
+  await Promise.all([page.waitForURL(/\/admin\/hives\/A25\?do=honey/), page.click('button[value=honey]')]);
+  const open = await page.evaluate(() => document.getElementById('form-honey')?.open);
+  check(open === true, 'บันทึกด่วน: พิมพ์ 25 + เก็บน้ำหวาน → เปิดฟอร์มเก็บน้ำหวานของรัง A25', `ไม่ได้เปิดฟอร์ม (${page.url()})`);
+  await page.goto(BASE + '/admin/quick?code=99999&do=honey');
+  check(await page.isVisible('#code-err:has-text("ไม่พบรัง")'), 'เลขรังที่ไม่มี → แจ้ง "ไม่พบรัง"', 'ไม่แจ้งเมื่อไม่พบรัง');
+  const tabs = await page.$$eval('nav[aria-label="เมนูหลัก"] a', (as) => as.filter((a) => a.offsetParent).map((a) => a.textContent.trim()));
+  check(tabs.join('|') === 'ภาพรวม|รัง|บันทึก|สินค้า|เมนู', `แถบล่าง 5 ปุ่ม: ${tabs.join(' · ')}`, `แถบล่างไม่ถูกต้อง: ${tabs.join(' · ')}`);
+
+  await page.goto(BASE + '/');
+  const before = await page.isVisible('nav[aria-label="เมนูหลัก (มือถือ)"] a[href="/passport"]');
+  await page.click('[data-menu-toggle]');
+  const links = await page.$$eval('nav[aria-label="เมนูหลัก (มือถือ)"] a', (as) => as.map((a) => a.textContent.trim()));
+  check(!before && links.length === 7, `เมนูเว็บ: ซ่อนไว้ก่อน แตะแล้วเห็นครบ ${links.length} รายการ`, `เมนูเว็บไม่ถูกต้อง (ก่อนแตะเห็น=${before}, ${links.length} รายการ)`);
+  await page.mouse.click(200, 700);
+  check(!(await page.evaluate(() => document.querySelector('[data-site-menu]').open)), 'แตะนอกเมนู → เมนูปิด', 'แตะนอกเมนูแล้วเมนูไม่ปิด');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  check(overflow <= 0, 'หน้าเว็บไม่ล้นจอแนวนอน', `ล้นจอ ${overflow}px`);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

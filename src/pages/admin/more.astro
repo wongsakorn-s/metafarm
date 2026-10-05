@@ -1,0 +1,56 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
+
+// "เมนู" ของมือถือ: หน้ารองทั้งหมดรวมไว้ที่เดียว (เดิมตั้งค่า/บัญชี/ออกจากระบบ อัดอยู่แถบบนจนตัวอักษรตกบรรทัด)
+export const prerender = false;
+const user = Astro.locals.user!;
+
+const groups = [
+  {
+    title: 'งานรัง',
+    items: [
+      { href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรังใหม่' },
+      { href: '/admin/photos', icon: '📷', label: 'คิวถ่ายรูปรัง', hint: 'รังที่ยังไม่มีรูปสมุดพก' },
+      { href: '/admin/todo', icon: '📝', label: 'ข้อมูลที่ยังไม่ครบ (???)' },
+    ],
+  },
+  {
+    title: 'เว็บไซต์',
+    items: [
+      { href: '/admin/readiness', icon: '✅', label: 'เตรียมเปิดเว็บ', hint: 'สิ่งที่ยังต้องเติมก่อนเปิดจริง' },
+      { href: '/admin/settings', icon: '⚙️', label: 'ช่องทางติดต่อ และหลักสูตรอบรม' },
+      { href: '/', icon: '🌐', label: 'ดูหน้าเว็บสาธารณะ', external: true },
+    ],
+  },
+  {
+    title: 'บัญชี',
+    items: [{ href: '/admin/account', icon: '🔑', label: 'บัญชีและรหัสผ่าน', hint: user.email }],
+  },
+];
+---
+
+<AdminLayout title="เมนู" active="more">
+  <p class="mb-4 text-muted">เข้าสู่ระบบเป็น <strong class="text-ink">{user.name}</strong></p>
+  <div class="space-y-5">
+    {groups.map((g) => (
+      <section aria-labelledby={`g-${g.title}`}>
+        <h2 id={`g-${g.title}`} class="mb-2 px-1 text-sm font-semibold text-muted">{g.title}</h2>
+        <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+          {g.items.map((it) => (
+            <li>
+              <a href={it.href} target={it.external ? '_blank' : undefined} rel={it.external ? 'noopener' : undefined} class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+                <span class="text-xl" aria-hidden="true">{it.icon}</span>
+                <span class="min-w-0 flex-1"><span class="block font-medium">{it.label}</span>{it.hint && <span class="block truncate text-sm text-muted">{it.hint}</span>}</span>
+                <Icon name="chevron" class="size-5 shrink-0 text-muted" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+    <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?">
+      <button class="flex min-h-14 w-full items-center justify-center rounded-2xl border border-line bg-surface font-semibold text-danger active:bg-red-50" type="submit">ออกจากระบบ</button>
+    </form>
+  </div>
+</AdminLayout>

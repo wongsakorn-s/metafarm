@@ -1,0 +1,24 @@
+---
+// ไอคอนเส้น (SVG) สำหรับเมนู — ขนาด/สีตามข้อความรอบข้าง (currentColor) แทนอีโมจิที่สีไม่เข้าชุดและต่างกันในแต่ละเครื่อง
+interface Props {
+  name: 'dashboard' | 'hive' | 'plus' | 'cart' | 'menu' | 'back' | 'close' | 'chevron' | 'line' | 'phone';
+  class?: string;
+}
+const { name, class: cls = 'size-6' } = Astro.props;
+const paths: Record<Props['name'], string> = {
+  dashboard: 'M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z',
+  hive: 'M12 3 4.5 7.5v9L12 21l7.5-4.5v-9L12 3Zm0 6 3 1.8v3.4L12 16l-3-1.8v-3.4L12 9Z',
+  plus: 'M12 5v14M5 12h14',
+  cart: 'M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2M9 20.5h.01M17 20.5h.01',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  back: 'M15 5l-7 7 7 7',
+  close: 'M6 6l12 12M18 6 6 18',
+  chevron: 'M9 5l7 7-7 7',
+  line: 'M12 4C7 4 3 7.3 3 11.3c0 3.6 3.2 6.6 7.5 7.2l-.4 2.3 3.3-2.2c4.6-.5 7.6-3.6 7.6-7.3C21 7.3 17 4 12 4Z',
+  phone: 'M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z',
+};
+---
+
+<svg class={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d={paths[name]} />
+</svg>

@@ -389,6 +389,17 @@ export async function markUnknown(db: Db, user: SessionUser, hive: Hive, topic: 
   return { ok: true };
 }
 
+/** รังที่มีความเคลื่อนไหวล่าสุด (บันทึก/แก้ไข) สำหรับปุ่มลัดในหน้า "บันทึก" */
+export async function recentHiveCodes(db: Db, limit = 8): Promise<string[]> {
+  const rows = await db
+    .select({ code: hives.code })
+    .from(hives)
+    .where(eq(hives.status, 'active'))
+    .orderBy(desc(sql`coalesce((select max(e.created_at) from hive_events e where e.hive_id = ${hives.id}), ${hives.updatedAt})`), desc(hives.id))
+    .limit(limit);
+  return rows.map((r) => r.code);
+}
+
 /** รหัสรังถัดไป (A148 …) */
 export async function nextHiveCode(db: Db): Promise<string> {
   const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${hives.id}), 0)` }).from(hives);

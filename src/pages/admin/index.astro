@@ -1,5 +1,6 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
 import { getDashboard } from '../../server/hives.ts';
 import { baht, eventIcon, eventLabel, originLabel } from '../../lib/labels.ts';
@@ -13,9 +14,9 @@ const total = d.byStatus.reduce((n, x) => n + x.n, 0);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
 const stats = [
-  { label: 'รังทั้งหมด', value: total, href: '/admin/hives' },
+  { label: 'ทั้งหมด', value: total, href: '/admin/hives' },
   { label: 'ยังอยู่', value: count('active'), href: '/admin/hives?status=active' },
-  { label: 'ตั้งขายอยู่', value: d.sale?.n ?? 0, href: '/admin/hives?forSale=1' },
+  { label: 'ตั้งขาย', value: d.sale?.n ?? 0, href: '/admin/hives?forSale=1' },
   { label: 'ขายแล้ว', value: count('sold'), href: '/admin/hives?status=sold' },
   { label: 'ล่ม', value: count('collapsed'), href: '/admin/hives?status=collapsed' },
 ];
@@ -23,23 +24,31 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 ---
 
 <AdminLayout title="ภาพรวม" active="dashboard">
-  <section aria-label="สรุปจำนวนรัง" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+  {/* ตัวเลข 5 ตัวในการ์ดเดียว (เดิม 5 การ์ดใหญ่เต็มจอแรกของมือถือ) — แตะแต่ละตัวเพื่อดูรายการ */}
+  <section aria-label="สรุปจำนวนรัง" class="card grid grid-cols-5 divide-x divide-line !p-0">
     {stats.map((s) => (
-      <a href={s.href} class="card block text-center transition hover:border-palm-500">
-        <div class="text-3xl font-bold text-palm-700">{s.value.toLocaleString('th-TH')}</div>
-        <div class="text-sm text-muted">{s.label}</div>
+      <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
+        <span class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
+        <span class="text-xs leading-tight text-muted md:text-sm">{s.label}</span>
       </a>
     ))}
   </section>
 
-  {d.incomplete > 0 && (
-    <a href="/admin/todo" class="mt-4 flex items-center gap-3 rounded-2xl border border-honey-400 bg-honey-50 p-4 transition hover:bg-honey-100">
-      <span class="text-2xl" aria-hidden="true">❓</span>
-      <span><strong>{d.incomplete} รัง</strong> มีข้อมูลที่ยังไม่ทราบ (???) <span class="text-muted">— แตะเพื่อเติมข้อมูล หรือตั้งเป็น "ไม่ทราบจริง ๆ"</span></span>
-    </a>
-  )}
-
-  <a href="/admin/readiness" class="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 transition hover:border-palm-500"><span class="text-2xl" aria-hidden="true">✅</span><span><strong>เตรียมเปิดเว็บ</strong> <span class="text-muted">— ดูว่ายังเหลืออะไรให้เติม (รูป ข้อมูลติดต่อ ราคา) และแก้ไขทีหลังได้ทุกอย่าง</span></span></a>
+  {/* งานที่ค้าง: แถวสั้น ๆ แตะได้ทั้งแถว */}
+  <ul class="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+    {d.incomplete > 0 && (
+      <li><a href="/admin/todo" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
+        <span class="text-xl" aria-hidden="true">❓</span>
+        <span class="flex-1"><strong>{d.incomplete} รัง</strong> ข้อมูลยังไม่ครบ (???)</span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    )}
+    <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+      <span class="text-xl" aria-hidden="true">✅</span>
+      <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">สิ่งที่ยังต้องเติม</span></span>
+      <Icon name="chevron" class="size-5 text-muted" />
+    </a></li>
+  </ul>
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">

@@ -1,0 +1,69 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getDb } from '../../server/db.ts';
+import { recentHiveCodes } from '../../server/hives.ts';
+
+// บันทึกด่วนในสวน: พิมพ์เลขรัง (เช่น 25) แล้วเลือกงาน → ไปที่ฟอร์มนั้นของรังทันที ไม่ต้องค้นในรายการ 150 รัง
+export const prerender = false;
+
+const db = getDb();
+const ACTIONS = {
+  honey: { label: 'เก็บน้ำหวาน', icon: '🍯', to: (c: string) => `/admin/hives/${c}?do=honey#form-honey` },
+  photo: { label: 'ถ่ายรูป', icon: '📷', to: (c: string) => `/admin/hives/${c}/media` },
+  note: { label: 'หมายเหตุ', icon: '📝', to: (c: string) => `/admin/hives/${c}?do=note#form-note` },
+  view: { label: 'เปิดหน้ารัง', icon: '🔍', to: (c: string) => `/admin/hives/${c}` },
+} as const;
+type Action = keyof typeof ACTIONS;
+
+const sp = Astro.url.searchParams;
+const raw = (sp.get('code') ?? '').trim();
+let error = '';
+if (raw) {
+  const num = raw.replace(/^a/i, '');
+  const act = (sp.get('do') ?? 'view') as Action;
+  if (!/^\d{1,5}$/.test(num)) error = 'พิมพ์เฉพาะเลขรัง เช่น 25 หรือ A25';
+  else {
+    const code = `A${Number(num)}`;
+    const hive = await db.query.hives.findFirst({ where: (h, { eq }) => eq(h.code, code), columns: { code: true } });
+    if (!hive) error = `ไม่พบรัง ${code}`;
+    else return Astro.redirect((ACTIONS[act] ?? ACTIONS.view).to(code), 303);
+  }
+}
+const recent = await recentHiveCodes(db, 8);
+---
+
+<AdminLayout title="บันทึก" active="quick">
+  <form method="get" class="card space-y-4" role="search">
+    <div>
+      <label class="label text-base" for="code">เลขรัง</label>
+      <div class="flex items-stretch">
+        <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-canvas px-4 text-xl font-bold text-muted" aria-hidden="true">A</span>
+        <input class="field rounded-l-none text-2xl font-bold tracking-wide" id="code" name="code" inputmode="numeric" pattern="[Aa]?[0-9]{1,5}" autocomplete="off" enterkeyhint="go"
+          placeholder="25" value={raw.replace(/^a/i, '')} required autofocus aria-describedby={error ? 'code-err' : undefined} aria-invalid={error ? 'true' : undefined} />
+      </div>
+      {error && <p id="code-err" class="error" role="alert">{error}</p>}
+      <p class="hint">ดูเลขที่ป้ายบนตัวรัง แล้วเลือกงานด้านล่าง</p>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      {(Object.entries(ACTIONS) as [Action, (typeof ACTIONS)[Action]][]).map(([k, a], i) => (
+        <button class:list={['flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl text-base font-semibold', i === 0 ? 'bg-palm-600 text-white active:bg-palm-700' : 'border border-line bg-surface text-ink active:bg-canvas']} type="submit" name="do" value={k}>
+          <span class="text-2xl" aria-hidden="true">{a.icon}</span>{a.label}
+        </button>
+      ))}
+    </div>
+  </form>
+
+  {recent.length > 0 && (
+    <section class="mt-5" aria-labelledby="recent-h">
+      <h2 id="recent-h" class="mb-2 text-sm font-semibold text-muted">รังที่เพิ่งบันทึก — แตะเพื่อเปิด</h2>
+      <ul class="flex flex-wrap gap-2">
+        {recent.map((c) => <li><a class="inline-flex min-h-11 min-w-16 items-center justify-center rounded-full border border-line bg-surface px-4 font-semibold active:bg-palm-50" href={`/admin/hives/${c}`}>{c}</a></li>)}
+      </ul>
+    </section>
+  )}
+
+  <section class="mt-6 grid grid-cols-2 gap-3" aria-label="งานอื่น">
+    <a class="btn-ghost" href="/admin/hives/new">➕ เพิ่มรังใหม่</a>
+    <a class="btn-ghost" href="/admin/photos">📷 คิวถ่ายรูป</a>
+  </section>
+</AdminLayout>

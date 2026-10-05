@@ -27,13 +27,14 @@ const highlights = [
       <p class="mt-4 max-w-xl text-lg text-muted">
         {site.name} เป็นสวนปาล์มน้ำมัน 50 ไร่ ที่ {site.address} เริ่มเลี้ยงผึ้งชันโรงตั้งแต่ปี พ.ศ. {site.foundedYearBE}
       </p>
-      <div class="mt-6 flex flex-wrap gap-3">
+      <div class="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
         <a class="btn-primary" href="/products">🐝 ดูสินค้า</a>
-        <a class="btn-ghost" href="/passport">📒 ตรวจสอบสมุดพกรัง</a>
-        {line && <a class="btn-ghost" href={line} rel="noopener">💬 ทักไลน์สอบถาม</a>}
+        <a class="btn-ghost" href="/passport">📒 สมุดพกรัง</a>
+        {/* มือถือมีปุ่มไลน์ที่แถบล่างอยู่แล้ว */}
+        {line && <a class="btn-ghost hidden md:inline-flex" href={line} rel="noopener">💬 ทักไลน์สอบถาม</a>}
       </div>
     </div>
-    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto w-64 md:w-full md:max-w-sm" />
+    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto w-44 md:w-full md:max-w-sm" />
   </section>
 
   <section class="mt-12" aria-labelledby="story-h">

@@ -23,7 +23,7 @@ const PROFILES = [
   ['iPhone SE รุ่นแรก (จอเล็กสุด 320×568)', devices['iPhone SE']],
 ];
 const PUBLIC = ['/', '/stingless-bee', '/honey', '/products', '/training', '/passport', '/passport/A25', '/contact'];
-const ADMIN = ['/admin', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
+const ADMIN = ['/admin', '/admin/quick', '/admin/more', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
 
 /** ล็อกอินแบบที่ใช้จริงบนมือถือ: กรอกแล้วกด Enter (ไม่พึ่ง locator.tap ซึ่งค้างในโหมดจำลองจอแนวนอน) */
 async function login(page) {
@@ -148,12 +148,12 @@ if (FLOWS) {
   const page = await ctx.newPage();
   await login(page);
 
-  // แตะเมนูล่างด้วยนิ้ว (touch) ไปหน้าเตรียมเปิด → คิวถ่ายรูป
-  await tapAt(page, 'nav.fixed a[href="/admin/readiness"]');
-  await page.waitForURL('**/admin/readiness');
+  // แตะแถบล่างด้วยนิ้ว (touch): ปุ่มกลาง "บันทึก" → คิวถ่ายรูป
+  await tapAt(page, 'nav.fixed a[href="/admin/quick"]');
+  await page.waitForURL('**/admin/quick');
   await tapAt(page, 'main a[href="/admin/photos"]');
   await page.waitForURL('**/admin/photos');
-  ok('แตะเมนูล่าง → เตรียมเปิด → คิวถ่ายรูป ด้วยการสัมผัสได้');
+  ok('แตะแถบล่าง → บันทึก → คิวถ่ายรูป ด้วยการสัมผัสได้');
 
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Network.enable');

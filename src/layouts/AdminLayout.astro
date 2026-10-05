@@ -1,24 +1,43 @@
 ---
 import '../styles/global.css';
 import { site } from '../config/site.ts';
+import Icon from '../components/Icon.astro';
 
+type Key = 'dashboard' | 'hives' | 'quick' | 'products' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo';
 interface Props {
   title: string;
-  active?: 'dashboard' | 'hives' | 'new' | 'products' | 'readiness' | 'settings' | 'account';
+  active?: Key;
+  /** ลิงก์ย้อนกลับ (แสดงบนแถบบนของมือถือ และเหนือหัวข้อบนคอม) */
+  back?: { href: string; label: string };
 }
-const { title, active } = Astro.props;
+const { title, active, back } = Astro.props;
 const user = Astro.locals.user;
 
-// เมนูหลัก (แถบล่างบนมือถือ + แถบข้างบนคอม)
-const nav = [
+// แถบล่างบนมือถือ: 5 ปุ่ม — ปุ่มกลาง "บันทึก" เป็นงานที่ทำบ่อยที่สุดในสวน
+// หน้ารองทั้งหมด (ตั้งค่า บัญชี คิวถ่ายรูป ฯลฯ) อยู่ใต้ "เมนู" เพื่อให้ปุ่มหลักใหญ่และไม่แน่น
+const tabs = [
+  { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
+  { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รัง' },
+  { key: 'quick', href: '/admin/quick', icon: 'plus', label: 'บันทึก' },
+  { key: 'products', href: '/admin/products', icon: 'cart', label: 'สินค้า' },
+  { key: 'more', href: '/admin/more', icon: 'menu', label: 'เมนู' },
+] as const;
+// หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
+const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo'];
+const tabActive = (k: string) => active === k || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
+
+// แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
+const side = [
   { key: 'dashboard', href: '/admin', icon: '📊', label: 'ภาพรวม' },
   { key: 'hives', href: '/admin/hives', icon: '🐝', label: 'รัง' },
-  { key: 'products', href: '/admin/products', icon: '🛒', label: 'สินค้า' },
-  { key: 'readiness', href: '/admin/readiness', icon: '✅', label: 'เตรียมเปิด' },
-] as const;
-// เมนูรอง (แถบข้างบนคอม; บนมือถือเข้าจากปุ่มในหน้านั้น ๆ)
-const more = [
+  { key: 'quick', href: '/admin/quick', icon: '✍️', label: 'บันทึกด่วน' },
   { key: 'new', href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรัง' },
+  { key: 'products', href: '/admin/products', icon: '🛒', label: 'สินค้า' },
+] as const;
+const sideMore = [
+  { key: 'photos', href: '/admin/photos', icon: '📷', label: 'คิวถ่ายรูป' },
+  { key: 'todo', href: '/admin/todo', icon: '📝', label: 'ข้อมูลไม่ครบ' },
+  { key: 'readiness', href: '/admin/readiness', icon: '✅', label: 'เตรียมเปิดเว็บ' },
   { key: 'settings', href: '/admin/settings', icon: '⚙️', label: 'ตั้งค่า' },
 ] as const;
 ---
@@ -27,55 +46,77 @@ const more = [
 <html lang="th">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#0b7a3e" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>{title} · {site.name} หลังบ้าน</title>
   </head>
-  <body class="min-h-dvh pb-24 md:pb-0 md:pl-60">
+  <body class="min-h-dvh pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-60">
     {/* เมนูข้าง (คอม) */}
-    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface p-4 md:flex">
+    <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-y-auto border-r border-line bg-surface p-4 md:flex">
       <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700">🐝 {site.name}</a>
       <nav class="flex flex-col gap-1" aria-label="เมนูหลัก">
-        {nav.map((n) => (
+        {side.map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
             <span aria-hidden="true">{n.icon}</span>{n.label}
           </a>
         ))}
-              <hr class="my-2 border-line" />
-        {more.map((n) => (
+        <hr class="my-2 border-line" />
+        {sideMore.map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
             <span aria-hidden="true">{n.icon}</span>{n.label}
           </a>
         ))}
       </nav>
-      <form method="post" action="/admin/logout" class="mt-auto">
+      <form method="post" action="/admin/logout" class="mt-auto pt-4" data-confirm="ออกจากระบบใช่ไหม?">
         <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 block truncate text-sm text-muted underline">🔑 {user?.name} · บัญชี</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
     </aside>
 
-    <header class="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-1 backdrop-blur md:hidden">
-      <a href="/admin" class="inline-flex min-h-11 items-center font-bold text-palm-700">🐝 {site.name}</a>
-      <div class="flex items-center"><a href="/admin/settings" class="inline-flex min-h-11 items-center px-2 text-sm text-muted underline">⚙️ ตั้งค่า</a><a href="/admin/account" class="inline-flex min-h-11 items-center px-2 text-sm text-muted underline">🔑 บัญชี</a><form method="post" action="/admin/logout"><button class="inline-flex min-h-11 items-center px-2 text-sm text-muted underline" type="submit">ออกจากระบบ</button></form></div>
+    {/* แถบบน (มือถือ): ย้อนกลับ หรือชื่อฟาร์ม — ปุ่มตั้งค่า/ออกจากระบบย้ายไปอยู่ใน "เมนู" */}
+    <header class="sticky top-0 z-20 flex min-h-14 items-center gap-2 border-b border-line bg-surface/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
+      {back ? (
+        <a href={back.href} class="inline-flex min-h-11 min-w-0 items-center gap-1 rounded-xl px-2 font-medium text-palm-700 active:bg-palm-50">
+          <Icon name="back" class="size-5 shrink-0" /><span class="truncate">{back.label}</span>
+        </a>
+      ) : (
+        <a href="/admin" class="inline-flex min-h-11 items-center gap-2 px-2 text-lg font-bold text-palm-700">🐝 {site.name}</a>
+      )}
     </header>
 
-    <main class="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">
-      <h1 class="mb-5 text-2xl font-bold">{title}</h1>
+    <main class="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8">
+      {back && <p class="mb-1 hidden md:block"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href={back.href}>← {back.label}</a></p>}
+      <h1 class="mb-4 text-2xl font-bold md:mb-5">{title}</h1>
       <slot />
     </main>
 
-    {/* เมนูล่าง (มือถือ) */}
-    <nav class="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="เมนูหลัก">
-      {nav.map((n) => (
-        <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
-          class:list={['flex min-h-16 flex-col items-center justify-center gap-0.5 text-sm font-medium', active === n.key ? 'text-palm-700' : 'text-muted']}>
-          <span class="text-xl" aria-hidden="true">{n.icon}</span>{n.label}
-        </a>
-      ))}
+    {/* แถบล่าง (มือถือ) */}
+    <nav class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="เมนูหลัก">
+      <ul class="grid grid-cols-5">
+        {tabs.map((t) => {
+          const on = tabActive(t.key);
+          return t.key === 'quick' ? (
+            <li class="flex justify-center">
+              <a href={t.href} aria-current={on ? 'page' : undefined} class="flex min-h-16 flex-col items-center justify-end gap-0.5 pb-1.5 text-xs font-semibold text-palm-700">
+                <span class:list={['-mt-5 grid size-13 place-items-center rounded-full text-white shadow-lg ring-4 ring-surface', on ? 'bg-palm-900' : 'bg-palm-600']}><Icon name="plus" class="size-7" /></span>
+                {t.label}
+              </a>
+            </li>
+          ) : (
+            <li>
+              <a href={t.href} aria-current={on ? 'page' : undefined}
+                class:list={['flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs font-medium', on ? 'text-palm-700' : 'text-muted']}>
+                <span class:list={['grid h-8 w-14 place-items-center rounded-full transition', on && 'bg-palm-100']}><Icon name={t.icon} /></span>
+                {t.label}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   </body>
 </html>
@@ -84,4 +125,3 @@ const more = [
   // ยืนยันก่อนลบ/เปลี่ยนสถานะ · กันกดซ้ำ · เลื่อนไปช่องที่กรอกผิด (ทุกหน้าหลังบ้าน)
   import '../scripts/admin-forms';
 </script>
-
