@@ -88,7 +88,14 @@ $env:ADMIN_PASSWORD = $null
 - **สำรองอัตโนมัติ:** `.github/workflows/backup.yml` ทุกคืน 03:00 → R2 `metafarm-backups/d1/metafarm-YYYY-MM-DD.sql` (ข้ามเองถ้ายังไม่ตั้ง secret) — **กดรันเองครั้งแรกและเปิดไฟล์ดูว่ากู้ได้จริง**
 - **ย้อนเวอร์ชันโปรแกรม:** `npx wrangler rollback`
 - **ย้อนฐานข้อมูล:** D1 Time Travel (`npx wrangler d1 time-travel info metafarm-db` / `restore … --timestamp …`) ระยะเวลาย้อนหลังตามแผนของ Cloudflare
-- **กู้จากไฟล์สำรอง:** ดาวน์โหลดไฟล์ .sql จาก R2 แล้ว `npx wrangler d1 execute metafarm-db --remote --file <ไฟล์>` (ต้องล้างตารางก่อน)
+- **กู้จากไฟล์สำรอง:** ไฟล์จาก `d1 export` เรียงตารางตามตัวอักษร (audit_logs ก่อน users) นำเข้าตรง ๆ จะขึ้น `no such table: main.users` ต้องเรียงใหม่ก่อน (ทดสอบกู้จริงแล้ว 2026-10-05 ได้ข้อมูลครบ):
+  ```powershell
+  npx wrangler r2 object get metafarm-backups/d1/metafarm-YYYY-MM-DD.sql --file private/backup.sql --remote
+  npm run backup:prepare -- private/backup.sql            # → private/backup.restore.sql
+  # ทดสอบในฐานข้อมูลแยกก่อนเสมอ (ไม่แตะเว็บจริง/ข้อมูลในเครื่อง)
+  npx wrangler d1 execute metafarm-db --local --persist-to .wrangler/restore-test --file private/backup.restore.sql
+  ```
+  กู้ลงระบบจริงต้องใช้ฐานข้อมูลเปล่า (ไฟล์มี CREATE TABLE) — สร้าง D1 ใหม่ กู้ลงไป แล้วเปลี่ยน `database_id` ใน `wrangler.jsonc` และ deploy ใหม่ (ปลอดภัยกว่าล้างของเดิม)
 - กฎ migration: **เพิ่มอย่างเดียว** (เพิ่มตาราง/คอลัมน์) ห้ามลบ/เปลี่ยนชื่อในครั้งเดียวกับการ deploy โค้ด
 
 ## 5. ถ้าล็อกอินบนระบบจริงขึ้น error 1102 ("เกินเวลา CPU")
