@@ -18,4 +18,10 @@ describe('sitemap', () => {
     expect(r).toContain('Disallow: /media/');
     expect(r).toContain('Sitemap: http://localhost:4321/sitemap.xml');
   });
+  it('robots.txt โหมดทดลอง (ข้อมูลตัวอย่าง) ห้ามเก็บทั้งเว็บ และไม่ชี้ sitemap', () => {
+    const r = buildRobots('https://example.com', true);
+    expect(r).toContain('Disallow: /\n');
+    expect(r).not.toContain('Allow: /');
+    expect(r).not.toContain('Sitemap:');
+  });
 });

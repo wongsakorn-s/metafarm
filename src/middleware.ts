@@ -30,6 +30,9 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     // หน้าหลังบ้านห้ามถูก cache และห้ามถูกค้นหา
     res.headers.set('Cache-Control', 'private, no-store');
     res.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  } else if (ctx.locals.settings && !ctx.locals.settings.contact.confirmed) {
+    // ช่องทางติดต่อยังเป็นตัวอย่าง = เว็บทดลอง → ห้ามติดผลค้นหา (หายเองเมื่อเจ้าของติ๊กยืนยันที่ ⚙️ ตั้งค่า)
+    res.headers.set('X-Robots-Tag', 'noindex');
   }
   for (const [k, v] of Object.entries(securityHeaders({ prod: import.meta.env.PROD, https: ctx.url.protocol === 'https:' }))) res.headers.set(k, v);
   return res;
