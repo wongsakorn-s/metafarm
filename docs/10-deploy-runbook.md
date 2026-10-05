@@ -46,14 +46,14 @@
    ```powershell
    # ⚠️ seed.sql "ล้างข้อมูลรังทั้งหมดก่อนนำเข้า" ห้ามรันซ้ำหลังเริ่มใช้งานจริง ไม่งั้นข้อมูลที่บันทึกใหม่หาย
    npx wrangler d1 execute metafarm-db --remote --file private/import/seed.sql
-   npm run products:seed:local -- --sql > private/products.sql
+   # ⚠️ "> ไฟล์" ใน PowerShell 5.1 ได้ UTF-16 + หัวของ npm — รันใน Git Bash แทน: npm run -s products:seed:local -- --sql > private/products.sql
    npx wrangler d1 execute metafarm-db --remote --file private/products.sql
    npm run media:upload:remote -- --yes   # รูป 231 ไฟล์จาก Excel
    ```
 
    **ทั้งสองทาง — สร้างผู้ใช้เจ้าของบนระบบจริง** (ไม่ได้ส่งออกไปกับ snapshot):
    ```powershell
-   npm run user:create -- --email อีเมลเจ้าของ@ตัวอย่าง.com --name "ชื่อ" --generate --print-sql > private/owner.sql
+   npm run user:create -- --email อีเมลเจ้าของ@ตัวอย่าง.com --name "ชื่อ" --generate --print-sql   # เขียน private/owner.sql (UTF-8) ให้เอง — ห้ามใช้ "> ไฟล์" ใน PowerShell 5.1 (ได้ UTF-16 + หัวของ npm → wrangler รันไม่ได้ ผู้ใช้ไม่ถูกสร้าง)
    npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
    # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → เข้าระบบแล้วไปเมนู "🔑 บัญชี" เปลี่ยนรหัสทันที จากนั้นลบ owner.sql / prod-owner.txt / private/export
    ```
