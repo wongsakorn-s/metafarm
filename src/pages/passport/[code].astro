@@ -5,7 +5,7 @@ import { getDb } from '../../server/db.ts';
 import { getPublicHive } from '../../server/public.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 import { placeholder } from '../../lib/placeholders.ts';
-import { photoSrcset } from '../../lib/media.ts';
+import { photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import NotFound from '../../components/NotFound.astro';
 import { originText as originOf } from '../../lib/labels.ts';
@@ -53,42 +53,58 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
         {statusBadge && <span class:list={['badge text-sm', statusBadge[1]]}>{statusBadge[0]}</span>}
       </header>
 
-      <section aria-label="รูปรัง" class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {hive.photos.length ? hive.photos.map((p, i) => (
-          <img src={`/img/${p.key}`} srcset={photoSrcset(`/img/${p.key}`)} sizes="(min-width: 640px) 25vw, 50vw" width="480" height="640" alt={p.alt ?? `รูปรัง ${hive.code} (${i + 1})`} loading={i < 2 ? 'eager' : 'lazy'} class="aspect-[3/4] w-full rounded-2xl bg-palm-50 object-cover" />
-        )) : (
-          <div class="col-span-2 sm:col-span-4">
-            <img src={placeholder.hive} alt="" width="800" height="600" class="aspect-[4/3] w-full max-w-sm rounded-2xl" />
-            <p class="hint">ยังไม่มีรูปของรังนี้</p>
-          </div>
-        )}
-      </section>
-
-      <div class="grid gap-5 md:grid-cols-2">
-        <section class="card" aria-labelledby="facts-h">
-          <h2 id="facts-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-            <dt class="text-muted">สายพันธุ์</dt><dd>{hive.species}</dd>
-            {originText && <><dt class="text-muted">ที่มา</dt><dd>{originText}</dd></>}
-            {hive.acquiredOn && <><dt class="text-muted">{hive.origin === 'purchased' ? 'ได้มาเมื่อ' : 'เริ่มรังเมื่อ'}</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd></>}
-            {hive.queenBornOn && <><dt class="text-muted">นางพญาเกิด</dt><dd>{formatThaiDate(hive.queenBornOn)}</dd></>}
-          </dl>
-          {hive.publicNote && <p class="mt-3 rounded-xl bg-honey-50 p-3 text-sm">{hive.publicNote}</p>}
+      {/* คอม: รูปซ้าย (รูปหลักใหญ่ + รูปย่อ) · ข้อมูลขวา — เดิมรูปเดียววางกลางแถวโล่งครึ่งจอ
+          มือถือ: เรียงลงตามปกติ */}
+      <div class="grid gap-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start">
+        <section aria-label="รูปรัง" class="md:sticky md:top-24">
+          {hive.photos.length ? (
+            <>
+              <img src={`/img/${hive.photos[0]!.key}`} srcset={photoSrcset(`/img/${hive.photos[0]!.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="1200"
+                alt={hive.photos[0]!.alt ?? `รูปรัง ${hive.code}`} loading="eager" fetchpriority="high" class="aspect-[4/3] w-full rounded-3xl bg-palm-50 object-cover shadow-card md:aspect-[4/5]" />
+              {hive.photos.length > 1 && (
+                <ul class="mt-3 grid grid-cols-4 gap-2">
+                  {hive.photos.slice(1).map((ph, i) => (
+                    <li><a href={`/img/${ph.key}`} class="block overflow-hidden rounded-xl" aria-label={`ดูรูปรัง ${hive.code} รูปที่ ${i + 2} ขนาดเต็ม`}>
+                      <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-full bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105" />
+                    </a></li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <div class="rounded-3xl border border-dashed border-line bg-surface p-4 text-center">
+              <img src={placeholder.hive} alt="" width="800" height="600" class="mx-auto aspect-[4/3] w-full max-w-xs rounded-2xl" />
+              <p class="hint">ยังไม่มีรูปของรังนี้</p>
+            </div>
+          )}
         </section>
 
-        <section class="card" aria-labelledby="line-h">
-          <h2 id="line-h" class="mb-3 text-lg font-semibold">สายพันธุ์รัง</h2>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-            <dt class="text-muted">ไข่นางพญาจาก</dt><dd>{hive.queenSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.queenSource}`}>รัง {hive.queenSource}</a> : <span class="text-muted">–</span>}</dd>
-            <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{hive.broodSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.broodSource}`}>รัง {hive.broodSource}</a> : <span class="text-muted">–</span>}</dd>
-            <dt class="text-muted">รังลูก ({hive.children.length})</dt>
-            <dd>{hive.children.length ? (
-              <ul class="flex flex-wrap gap-2">
-                {hive.children.map((c) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
-              </ul>
-            ) : <span class="text-muted">–</span>}</dd>
-          </dl>
-        </section>
+        <div class="grid gap-5">
+          <section class="card" aria-labelledby="facts-h">
+            <h2 id="facts-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              <dt class="text-muted">สายพันธุ์</dt><dd>{hive.species}</dd>
+              {originText && <><dt class="text-muted">ที่มา</dt><dd>{originText}</dd></>}
+              {hive.acquiredOn && <><dt class="text-muted">{hive.origin === 'purchased' ? 'ได้มาเมื่อ' : 'เริ่มรังเมื่อ'}</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd></>}
+              {hive.queenBornOn && <><dt class="text-muted">นางพญาเกิด</dt><dd>{formatThaiDate(hive.queenBornOn)}</dd></>}
+            </dl>
+            {hive.publicNote && <p class="mt-3 rounded-xl bg-honey-50 p-3 text-sm">{hive.publicNote}</p>}
+          </section>
+
+          <section class="card" aria-labelledby="line-h">
+            <h2 id="line-h" class="mb-3 text-lg font-semibold">สายพันธุ์รัง</h2>
+            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+              <dt class="text-muted">ไข่นางพญาจาก</dt><dd>{hive.queenSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.queenSource}`}>รัง {hive.queenSource}</a> : <span class="text-muted">–</span>}</dd>
+              <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{hive.broodSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.broodSource}`}>รัง {hive.broodSource}</a> : <span class="text-muted">–</span>}</dd>
+              <dt class="text-muted">รังลูก ({hive.children.length})</dt>
+              <dd>{hive.children.length ? (
+                <ul class="flex flex-wrap gap-2">
+                  {hive.children.map((c) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
+                </ul>
+              ) : <span class="text-muted">–</span>}</dd>
+            </dl>
+          </section>
+        </div>
       </div>
 
       <section class="card mt-5" aria-labelledby="tl-h">

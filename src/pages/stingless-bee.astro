@@ -1,4 +1,5 @@
 ---
+import Article from '../components/Article.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { getPage } from '../lib/content.ts';
@@ -13,7 +14,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <PublicLayout title={fm.title} description={fm.description} active="stingless-bee" lineMessage="สนใจรังชันโรงขนเงิน">
   <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
   <p class="mt-1 italic text-muted">Tetragonula pagdeni Schwarz</p>
-  <div class="prose-mf mt-6"><Content /></div>
+  <Article headings={page.getHeadings()}><Content /></Article>
   <div class="mt-10 flex flex-wrap gap-3">
     <a class="btn-primary" href="/products/hives"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูรังสมบูรณ์ที่เปิดขาย</a>
     <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง</a>

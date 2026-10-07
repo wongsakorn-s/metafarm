@@ -35,7 +35,21 @@ const highlights = [
         {line && <a class="btn-ghost hidden md:inline-flex" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> ทักไลน์สอบถาม</a>}
       </div>
     </div>
-    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto w-44 md:w-full md:max-w-sm" />
+    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto hidden w-full max-w-sm md:block" />
+  </section>
+
+  {/* ตัวเลขจริงจากทะเบียนรัง — ความน่าเชื่อถือก่อนเล่าเรื่อง (Trust & Authority) */}
+  <section aria-label="ฟาร์มในตัวเลข" class="mt-8 grid grid-cols-3 divide-x divide-line rounded-3xl border border-line bg-surface shadow-card">
+    {[
+      [stats.total, 'รังในทะเบียน'],
+      [stats.active, 'ยังเลี้ยงอยู่'],
+      [stats.queenBred, 'เพาะนางพญาเอง'],
+    ].map(([n, label]) => (
+      <a href="/passport" class="flex flex-col items-center justify-center px-2 py-4 text-center transition-colors duration-(--duration-fast) first:rounded-l-3xl last:rounded-r-3xl hover:bg-palm-50 md:py-6">
+        <span data-num class="text-2xl font-bold text-palm-700 md:text-4xl">{Number(n).toLocaleString('th-TH')}</span>
+        <span class="text-xs text-muted md:text-sm">{label}</span>
+      </a>
+    ))}
   </section>
 
   <section class="mt-12" aria-labelledby="story-h">
@@ -50,10 +64,10 @@ const highlights = [
   <section class="mt-12" aria-label="จุดเด่น">
     <ul class="grid gap-4 md:grid-cols-3">
       {highlights.map((h) => (
-        <li class="card">
-          <div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
-          <h3 class="mt-2 text-lg font-semibold">{h.title}</h3>
-          <p class="mt-1 text-muted">{h.text}</p>
+        <li class="card flex gap-4 md:block">
+          <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
+          <div><h3 class="text-lg font-semibold md:mt-2">{h.title}</h3>
+          <p class="mt-1 text-muted">{h.text}</p></div>
         </li>
       ))}
     </ul>
@@ -62,9 +76,18 @@ const highlights = [
   <section class="mt-12" aria-labelledby="learn-h">
     <h2 id="learn-h" class="text-2xl font-bold">เรียนรู้และเลือกซื้อ</h2>
     <ul class="mt-4 grid gap-4 md:grid-cols-3">
-      <li><a href="/stingless-bee" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="hive" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">รู้จักชันโรงขนเงิน</h3><p class="text-muted">ลักษณะ โครงสร้างรัง และเหตุผลที่เราเลือกเลี้ยง</p></a></li>
-      <li><a href="/honey" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="honey" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">น้ำผึ้งชันโรง</h3><p class="text-muted">ต่างจากน้ำผึ้งทั่วไปอย่างไร พร้อมสรุปงานวิจัย</p></a></li>
-      <li><a href="/training" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="training" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">อบรม</h3><p class="text-muted">การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป</p></a></li>
+      {/* มือถือ: ไอคอนซ้าย ข้อความขวา (การ์ดเตี้ย เลื่อนน้อย) · คอม: 3 คอลัมน์ ไอคอนบน */}
+      {([
+        ['/stingless-bee', 'hive', 'รู้จักชันโรงขนเงิน', 'ลักษณะ โครงสร้างรัง และเหตุผลที่เราเลือกเลี้ยง'],
+        ['/honey', 'honey', 'น้ำผึ้งชันโรง', 'ต่างจากน้ำผึ้งทั่วไปอย่างไร พร้อมสรุปงานวิจัย'],
+        ['/training', 'training', 'อบรม', 'การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป'],
+      ] as const).map(([href, icon, title, text]) => (
+        <li><a href={href} class="card-link group flex h-full items-center gap-4 md:block">
+          <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={icon} class="size-6" /></div>
+          <div class="flex-1"><h3 class="text-lg font-semibold md:mt-2">{title}</h3><p class="text-muted">{text}</p></div>
+          <Icon name="chevron" class="size-5 text-muted transition-transform duration-(--duration-fast) group-hover:translate-x-0.5 md:hidden" />
+        </a></li>
+      ))}
     </ul>
   </section>
   <section class="mt-12 rounded-3xl bg-palm-50 p-6 md:p-8" aria-labelledby="pp-h">

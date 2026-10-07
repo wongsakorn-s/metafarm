@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
@@ -21,7 +22,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
   <ul class="mt-6 grid gap-4 md:grid-cols-2">
     {courses.map((c) => (
       <li>
-        <a href={`/training/${c.slug}`} class="card-link flex h-full flex-col">
+        <a href={`/training/${c.slug}`} class="card-link group flex h-full flex-col">
+          <span class="mb-3 grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="training" class="size-6" /></span>
           <h2 class="text-xl font-bold">{c.title}</h2>
           <p class="mt-1 flex-1 text-muted">{c.summary}</p>
           <p class="mt-3 flex flex-wrap items-center gap-2 text-sm">
@@ -29,10 +31,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
             <span class="font-semibold text-palm-700">{formatPrice(c.priceThb)}</span>
             {c.priceIsSample && <SampleBadge />}
           </p>
+          <span class="mt-3 inline-flex items-center gap-1 font-medium text-palm-700">ดูรายละเอียดหลักสูตร<Icon name="chevron" class="size-4 transition-transform duration-(--duration-fast) group-hover:translate-x-0.5" /></span>
         </a>
       </li>
     ))}
   </ul>
   <p class="mt-4 text-sm text-muted">วันและรอบอบรมแจ้งทางไลน์ ยังไม่มีระบบรับสมัครออนไลน์</p>
-  <div class="mt-10"><HowToOrder message="สนใจหลักสูตรอบรม" /></div>
+  <div class="mt-10"><HowToOrder kind="training" /></div>
 </PublicLayout>

@@ -2,25 +2,41 @@
 import Icon from './Icon.astro';
 import { lineChatUrl } from '../lib/settings.ts';
 
-interface Props { message?: string }
-const { message = 'สนใจสั่งซื้อสินค้า' } = Astro.props;
+// ขั้นตอนสั่งซื้อ/สมัครอบรม (ทุกอย่างผ่าน LINE) — kind="training" ใช้ถ้อยคำของหลักสูตร ไม่ใช่การซื้อสินค้า
+interface Props { message?: string; kind?: 'order' | 'training' }
+const { kind = 'order', message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
 const line = lineChatUrl(Astro.locals.settings!.contact, message);
-const steps = [
-  ['1', 'ทักไลน์', 'บอกสินค้าที่สนใจ ระบบจะใส่ข้อความให้ในแชตอัตโนมัติ'],
-  ['2', 'ยืนยันรายละเอียด', 'แจ้งราคา สต็อก และวิธีรับ-ส่ง (รังเป็นสิ่งมีชีวิต สอบถามวิธีรับส่งที่เหมาะสมทางไลน์)'],
-  ['3', 'ชำระเงินและรับสินค้า', 'ชำระเงินตามที่ตกลงกันทางไลน์ แล้วรับสินค้าตามที่นัดหมาย'],
-];
+const copy = {
+  order: {
+    title: 'วิธีสั่งซื้อ',
+    button: 'ทักไลน์สั่งซื้อ',
+    steps: [
+      ['ทักไลน์', 'บอกสินค้าที่สนใจ ระบบจะใส่ข้อความให้ในแชตอัตโนมัติ'],
+      ['ยืนยันรายละเอียด', 'แจ้งราคา สต็อก และวิธีรับ-ส่ง (รังเป็นสิ่งมีชีวิต สอบถามวิธีรับส่งที่เหมาะสมทางไลน์)'],
+      ['ชำระเงินและรับสินค้า', 'ชำระเงินตามที่ตกลงกันทางไลน์ แล้วรับสินค้าตามที่นัดหมาย'],
+    ],
+  },
+  training: {
+    title: 'วิธีสมัครอบรม',
+    button: 'ทักไลน์สมัครอบรม',
+    steps: [
+      ['ทักไลน์', 'บอกหลักสูตรที่สนใจ ระบบจะใส่ข้อความให้ในแชตอัตโนมัติ'],
+      ['เลือกรอบอบรม', 'แจ้งวันที่สะดวกและจำนวนผู้เรียน ฟาร์มจะยืนยันรอบและค่าอบรม'],
+      ['ชำระเงินและมาเรียนที่ฟาร์ม', 'ชำระค่าอบรมตามที่ตกลง แล้วมาเรียนที่ฟาร์มตามวันนัด'],
+    ],
+  },
+}[kind];
 ---
 
 <section class="rounded-3xl bg-palm-50 p-6" aria-labelledby="order-h">
-  <h2 id="order-h" class="text-xl font-bold text-palm-900">วิธีสั่งซื้อ</h2>
+  <h2 id="order-h" class="text-xl font-bold text-palm-900">{copy.title}</h2>
   <ol class="mt-3 grid gap-3 md:grid-cols-3">
-    {steps.map(([n, t, d]) => (
+    {copy.steps.map(([t, d], i) => (
       <li class="flex gap-3">
-        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-600 font-bold text-white" aria-hidden="true">{n}</span>
+        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-600 font-bold text-white" aria-hidden="true">{i + 1}</span>
         <div><p class="font-semibold">{t}</p><p class="text-sm text-muted">{d}</p></div>
       </li>
     ))}
   </ol>
-  {line && <a class="btn-primary mt-4" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> ทักไลน์สั่งซื้อ</a>}
+  {line && <a class="btn-primary mt-4" href={line} rel="noopener"><Icon name="line" class="size-5" />{copy.button}</a>}
 </section>

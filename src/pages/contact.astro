@@ -24,7 +24,7 @@ const channels = [
   <h1 class="text-3xl font-bold md:text-4xl">ติดต่อเรา</h1>
   <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ได้ตามช่องทางด้านล่าง</p>
 
-  <ul class="mt-6 grid gap-4 sm:grid-cols-2">
+  <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {channels.map((ch) => (
       <li>
         <a href={ch.href} rel="noopener" class="card-link flex items-center gap-4">
@@ -35,11 +35,13 @@ const channels = [
     ))}
   </ul>
 
-  <section class="mt-8 card max-w-xl" aria-labelledby="addr-h">
-    <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
-    <p class="mt-1">{site.name} · {site.tagline}</p>
-    <p>{site.address}</p>
-    {c.mapUrl && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="inline-block size-[1.15em] align-[-0.2em]" /> เปิดแผนที่</a>}
-    <p class="hint mt-3">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
+  <section class="card mt-6 flex flex-col gap-4 md:flex-row md:items-center" aria-labelledby="addr-h">
+    <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="pin" class="size-6" /></span>
+    <div class="flex-1">
+      <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
+      <p>{site.name} · {site.address}</p>
+      <p class="hint">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
+    </div>
+    {c.mapUrl && <a class="btn-ghost shrink-0" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="size-5" />เปิดแผนที่</a>}
   </section>
 </PublicLayout>

@@ -1,4 +1,5 @@
 ---
+import Article from '../../components/Article.astro';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
@@ -45,6 +46,6 @@ const jsonLd = course
     </dl>
     {line && <a class="btn-primary mt-4" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> สอบถามและสมัครทางไลน์</a>}
 
-    <div class="prose-mf mt-8"><course.Content /></div>
+    <Article headings={course.getHeadings()} class="mt-8"><course.Content /></Article>
   </PublicLayout>
 )}

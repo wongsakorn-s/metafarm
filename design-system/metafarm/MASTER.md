@@ -74,7 +74,8 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 | `skip-link` | "ข้ามไปเนื้อหาหลัก" link. Already in both layouts |
 
 Components:
-- `Icon`, `NotFound`, `HiveCard`, `HowToOrder`, `SampleBadge`
+- `Icon`, `NotFound`, `HiveCard`, `HowToOrder` (`kind="training"` for courses), `SampleBadge`
+- `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile)
 - Layouts: `PublicLayout` (`canonical`, `ogImage`, `jsonLd`) and `AdminLayout` (`back`)
 
 ## 6. Icons
@@ -136,6 +137,14 @@ Components:
    - The admin bottom bar has at most 5 items (ภาพรวม · รัง · ➕ บันทึก · สินค้า · เมนู).
    - Back links go in the top bar.
    - Deep links use `?do=…#form-…`.
+
+## 8b. Public-page patterns (round 2)
+
+- **Home page** follows the Trust & Authority pattern: hero → real numbers from the hive register → story → highlights → learn/buy cards → passport CTA.
+- **Card lists on mobile:** icon on the left, text on the right, with a `>` arrow if clickable. On desktop (`md:`), switch to columns with the icon on top.
+- **Detail pages with photos** (passport, for-sale hive): photos on the left (main photo + thumbnails), details on the right on desktop. Stacked on mobile.
+- **Empty states:** icon in a dashed-border box + a short explanation + next-step buttons (e.g. "จองคิวทางไลน์", "ดูสมุดพกรัง").
+- **Footer:** brand · menu (2 columns) · contact (with icons). Links are 44px tall on mobile and 36px on desktop.
 
 ## 9. Checklist before shipping a new page
 

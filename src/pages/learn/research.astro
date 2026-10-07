@@ -1,11 +1,13 @@
 ---
+import Article from '../../components/Article.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getLearn } from '../../lib/content.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 
 export const prerender = false;
 
-const { Content, frontmatter: fm } = getLearn('research')!;
+const page = getLearn('research')!;
+const { Content, frontmatter: fm } = page;
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 ---
 
@@ -13,6 +15,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <PublicLayout title={fm.title} description={fm.description} active="honey">
   <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/honey">← น้ำผึ้งชันโรง</a></p>
   <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
-  <div class="prose-mf mt-6"><Content /></div>
+  <Article headings={page.getHeadings()}><Content /></Article>
   {fm.checkedOn && <p class="mt-8 text-sm text-muted">ตรวจอ้างอิงล่าสุด {formatThaiDate(String(fm.checkedOn).slice(0, 10))}</p>}
 </PublicLayout>
