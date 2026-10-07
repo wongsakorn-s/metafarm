@@ -292,6 +292,21 @@ console.log('\n9) เมนูมือถือ: บันทึกด่วน
   check(overflow <= 0, 'หน้าเว็บไม่ล้นจอแนวนอน', `ล้นจอ ${overflow}px`);
 }
 
+console.log('\n10) หลังบ้านบนคอม: ตารางรังเรียงได้ / ปุ่มหลักปุ่มเดียว');
+{
+  const firstRow = async (sort) => page.evaluate(async (u) => {
+    const html = await (await fetch(u)).text();
+    return new DOMParser().parseFromString(html, 'text/html').querySelector('tbody th[scope=row]')?.textContent.trim();
+  }, `/admin/hives?sort=${sort}`);
+  const [oldest, newest] = [await firstRow('old'), await firstRow('new')];
+  check(oldest === 'A1' && newest !== 'A1', `เรียงตามรหัส: น้อยก่อน = ${oldest} · ใหม่ก่อน = ${newest}`, `เรียงไม่ถูก (old=${oldest}, new=${newest})`);
+  const recent = await firstRow('recent');
+  check(!!recent, `เรียงตามบันทึกล่าสุด: แถวแรก ${recent}`, 'เรียงตามบันทึกล่าสุดไม่มีข้อมูล');
+  await page.goto(BASE + '/admin/readiness');
+  const primaries = await page.locator('main .btn-primary').count();
+  check(primaries <= 1, `หน้าเตรียมเปิดเว็บมีปุ่มหลัก ${primaries} ปุ่ม`, `ปุ่มหลักมากเกินไป (${primaries})`);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

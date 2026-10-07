@@ -71,6 +71,8 @@ const err = (k: string) => errors[k];
     <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} /></div>
     <div><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
 
-    <button class="btn-primary w-full" type="submit">สร้างรัง {nextCode}</button>
+    <div class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <button class="btn-primary w-full" type="submit">สร้างรัง {nextCode}</button>
+    </div>
   </form>
 </AdminLayout>

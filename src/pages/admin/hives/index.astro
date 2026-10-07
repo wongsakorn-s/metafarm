@@ -2,7 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
 import { getDb } from '../../../server/db.ts';
-import { listHives } from '../../../server/hives.ts';
+import { HIVE_SORTS, listHives, type HiveSort } from '../../../server/hives.ts';
 import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
@@ -18,6 +18,7 @@ const filter = {
   forSale: sp.get('forSale') === '1',
   incomplete: sp.get('incomplete') === '1',
   page: Math.max(1, Number(sp.get('page')) || 1),
+  sort: (HIVE_SORTS as readonly string[]).includes(sp.get('sort') ?? '') ? (sp.get('sort') as HiveSort) : 'new',
 };
 const { rows, total, page, pages } = await listHives(getDb(), filter);
 const activeFilters = [filter.status, filter.origin, filter.forSale, filter.incomplete].filter(Boolean).length;
@@ -27,6 +28,14 @@ const link = (p: number) => {
   u.set('page', String(p));
   return `?${u}`;
 };
+// หัวตาราง: กดเพื่อเรียง (กลับไปหน้า 1)
+const sortLink = (sort: HiveSort) => {
+  const u = new URLSearchParams(sp);
+  u.set('sort', sort);
+  u.delete('page');
+  return `?${u}`;
+};
+const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.sort === sort });
 ---
 
 <AdminLayout title="รังทั้งหมด" active="hives">
@@ -71,24 +80,68 @@ const link = (p: number) => {
   {rows.length === 0 ? (
     <div class="card text-center text-muted">ไม่พบรังที่ตรงกับเงื่อนไข</div>
   ) : (
-    <ul class="grid gap-3 sm:grid-cols-2">
-      {rows.map((h) => (
-        <li>
-          <a href={`/admin/hives/${h.code}`} class="card-link flex gap-3">
-            <img src={h.photoKey ? thumbUrl(`/media/${h.photoKey}`) : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="text-lg font-bold">{h.code}</span>
-                <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
-                {h.forSale && <span class="badge bg-honey-400 text-ink">ขาย {baht(h.salePrice)}</span>}
+    <>
+      {/* มือถือ/แท็บเล็ต: การ์ด (แตะง่าย) */}
+      <ul class="grid gap-3 sm:grid-cols-2 lg:hidden">
+        {rows.map((h) => (
+          <li>
+            <a href={`/admin/hives/${h.code}`} class="card-link flex gap-3">
+              <img src={h.photoKey ? thumbUrl(`/media/${h.photoKey}`) : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg font-bold">{h.code}</span>
+                  <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
+                  {h.forSale && <span class="badge bg-honey-400 text-ink">ขาย {baht(h.salePrice)}</span>}
+                </div>
+                <p class="truncate text-sm text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</p>
+                <p class="text-sm text-muted">ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
               </div>
-              <p class="truncate text-sm text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</p>
-              <p class="text-sm text-muted">ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
-            </div>
-          </a>
-        </li>
-      ))}
-    </ul>
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      {/* คอม: ตาราง — เห็นทีละมาก เรียงลำดับได้ แถวกดได้ทั้งแถว */}
+      <div class="hidden overflow-hidden rounded-2xl border border-line bg-surface shadow-card lg:block">
+        <table class="w-full text-left text-sm">
+          <caption class="sr-only">รายการรัง {total} รัง เรียงตาม{({ new: 'รังใหม่ก่อน', old: 'รหัสน้อยก่อน', recent: 'บันทึกล่าสุด', acquired: 'วันที่ได้มา' })[filter.sort]}</caption>
+          <thead class="border-b border-line bg-canvas text-xs font-semibold text-muted">
+            <tr>
+              <th scope="col" class="w-14 px-3 py-2"><span class="sr-only">รูป</span></th>
+              {[sortHead('รหัส', filter.sort === 'new' ? 'old' : 'new')].map((hd) => (
+                <th scope="col" class="px-3 py-2" aria-sort={filter.sort === 'new' ? 'descending' : filter.sort === 'old' ? 'ascending' : undefined}>
+                  <a class="inline-flex min-h-9 items-center gap-1 hover:text-palm-700" href={sortLink(hd.sort)}>รหัส {filter.sort === 'new' ? '↓' : filter.sort === 'old' ? '↑' : ''}</a>
+                </th>
+              ))}
+              <th scope="col" class="px-3 py-2">สถานะ</th>
+              <th scope="col" class="px-3 py-2">ที่มา</th>
+              {[sortHead('ได้มา', 'acquired'), sortHead('บันทึกล่าสุด', 'recent')].map((hd) => (
+                <th scope="col" class="px-3 py-2" aria-sort={hd.on ? 'descending' : undefined}>
+                  <a class:list={['inline-flex min-h-9 items-center gap-1 hover:text-palm-700', hd.on && 'text-palm-700']} href={sortLink(hd.sort)}>{hd.label} {hd.on ? '↓' : ''}</a>
+                </th>
+              ))}
+              <th scope="col" class="px-3 py-2 text-right">ตั้งขาย</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line">
+            {rows.map((h) => (
+              <tr class="group relative transition-colors duration-(--duration-fast) hover:bg-palm-50">
+                <td class="px-3 py-2"><img src={h.photoKey ? thumbUrl(`/media/${h.photoKey}`) : placeholder.hive} alt="" width="40" height="40" loading="lazy" class="size-10 rounded-lg bg-palm-50 object-cover" /></td>
+                <th scope="row" class="px-3 py-2 text-base font-bold">
+                  {/* ลิงก์ยืดเต็มแถว: กดตรงไหนของแถวก็เปิดรังได้ */}
+                  <a class="after:absolute after:inset-0 group-hover:text-palm-700" href={`/admin/hives/${h.code}`}>{h.code}</a>
+                </th>
+                <td class="px-3 py-2"><span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span></td>
+                <td class="max-w-56 truncate px-3 py-2 text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</td>
+                <td data-num class="whitespace-nowrap px-3 py-2">{formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}</td>
+                <td data-num class="whitespace-nowrap px-3 py-2 text-muted">{h.lastEventOn ? formatThaiDate(h.lastEventOn) : '–'}</td>
+                <td data-num class="whitespace-nowrap px-3 py-2 text-right">{h.forSale ? <span class="badge bg-honey-400 text-ink">{baht(h.salePrice)}</span> : <span class="text-muted">–</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )}
 
   {pages > 1 && (

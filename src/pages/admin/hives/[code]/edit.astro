@@ -147,7 +147,8 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือข้อมูลที่ยังไม่ทราบ ระบบจะลบให้เองเมื่อเติมข้อมูลนั้นแล้ว ลบเองก็ได้</p>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    {/* มือถือ: ปุ่มบันทึกติดเหนือแถบเมนูล่างตลอด (ฟอร์มยาว ไม่ต้องเลื่อนลงไปหา) */}
+    <div class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none grid grid-cols-2 gap-3">
       <a class="btn-ghost" href={`/admin/hives/${hive.code}`}>ยกเลิก</a>
       <button class="btn-primary" type="submit">บันทึกการแก้ไข</button>
     </div>

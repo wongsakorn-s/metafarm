@@ -36,9 +36,24 @@ export interface ListFilter {
   /** รังที่ยังมีข้อมูล ??? ค้างอยู่ */
   incomplete?: boolean;
   page?: number;
+  /** ลำดับ: new = รังใหม่ก่อน (ค่าเริ่มต้น) · old = รหัสน้อยก่อน · recent = บันทึกล่าสุดก่อน · acquired = ได้มาล่าสุดก่อน */
+  sort?: HiveSort;
 }
+export const HIVE_SORTS = ['new', 'old', 'recent', 'acquired'] as const;
+export type HiveSort = (typeof HIVE_SORTS)[number];
 
 const hasUnknownNote = sql`${hives.notes} LIKE '%???%'`;
+
+const lastEventSql = sql`(select max(occurred_on) from hive_events e where e.hive_id = ${hives.id})`;
+function sortOrder(sort: HiveSort = 'new'): SQL[] {
+  switch (sort) {
+    case 'old': return [asc(hives.id)];
+    // ค่าว่าง (ไม่เคยบันทึก/ไม่ทราบวันที่) ไปท้ายสุด
+    case 'recent': return [sql`${lastEventSql} is null`, desc(lastEventSql), desc(hives.id)];
+    case 'acquired': return [sql`${hives.acquiredOn} is null`, desc(hives.acquiredOn), desc(hives.id)];
+    default: return [desc(hives.id)];
+  }
+}
 
 export async function listHives(db: Db, f: ListFilter) {
   const q = f.q?.replace(/[%_\\]/g, '').trim();
@@ -65,11 +80,11 @@ export async function listHives(db: Db, f: ListFilter) {
         forSale: hives.forSale,
         salePrice: hives.salePrice,
         photoKey: sql<string | null>`(select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' order by m.sort_order, m.id limit 1)`,
-        lastEventOn: sql<string | null>`(select max(occurred_on) from hive_events e where e.hive_id = ${hives.id})`,
+        lastEventOn: sql<string | null>`${lastEventSql}`,
       })
       .from(hives)
       .where(where)
-      .orderBy(desc(hives.id))
+      .orderBy(...sortOrder(f.sort))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
     db.select({ total: sql<number>`count(*)` }).from(hives).where(where),

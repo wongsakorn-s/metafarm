@@ -146,6 +146,15 @@ Components:
 - **Empty states:** icon in a dashed-border box + a short explanation + next-step buttons (e.g. "จองคิวทางไลน์", "ดูสมุดพกรัง").
 - **Footer:** brand · menu (2 columns) · contact (with icons). Links are 44px tall on mobile and 36px on desktop.
 
+## 8c. Admin patterns (round 3)
+
+- **Lists:** cards on mobile/tablet; a **table from `lg`** with sortable column headers (`?sort=`) and rows clickable across the whole row (a stretched link on the code cell).
+- **Detail pages with a lot of content** (hive page): two columns from **`xl` (≥ 1280px)**. Data and history on the left; record/manage panel on the right, sticky. On mobile, use `display: contents` + `order-*` to keep the field-work order.
+- **Long forms:** on mobile, the save button bar sticks above the bottom menu (see the edit/add hive pages).
+- **One primary button per screen:** the rest use `btn-ghost` (e.g. readiness highlights the most important pending task).
+- **File inputs** use `field-file`.
+- **Admin content width:** `max-w-6xl`.
+
 ## 9. Checklist before shipping a new page
 
 - [ ] Checked at 375, 768, 1024 and 1440px. No horizontal scroll.

@@ -156,6 +156,10 @@
 @utility field {
   @apply block w-full min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;
 }
+/* ช่องเลือกไฟล์: ปุ่ม "เลือกไฟล์" ของเบราว์เซอร์ให้เข้าชุดกับปุ่มของเว็บ (เดิมเป็นปุ่มเทาของระบบ) */
+@utility field-file {
+  @apply field cursor-pointer py-1.5 text-sm text-muted file:mr-3 file:min-h-8 file:cursor-pointer file:rounded-lg file:border-0 file:bg-palm-50 file:px-3 file:font-medium file:text-palm-700 file:transition-colors hover:file:bg-palm-100;
+}
 @utility label {
   @apply mb-1 block text-sm font-medium text-ink;
 }

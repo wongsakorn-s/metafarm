@@ -26,7 +26,7 @@ const msg = Astro.url.searchParams.get('msg');
   {rows.length === 0 ? (
     <div class="card text-center"><Icon name="celebrate" class="mx-auto size-10 text-palm-600" /><p class="mt-1 text-lg font-semibold">ทุกรังมีรูปสมุดพกแล้ว</p></div>
   ) : (
-    <ul class="grid gap-3 sm:grid-cols-2" id="queue">
+    <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" id="queue">
       {rows.map((h) => (
         <li class="card space-y-3" data-code={h.code}>
           <div class="flex flex-wrap items-center gap-2">

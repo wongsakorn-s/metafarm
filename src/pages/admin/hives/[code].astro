@@ -77,166 +77,174 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   {!errors._ && fieldErrors && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">ยังไม่ได้บันทึก — มีช่องที่กรอกไม่ถูกต้อง (ดูข้อความสีแดงในฟอร์มด้านล่าง)</p>}
 
-  <section class="card mb-5">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class:list={['badge text-sm', statusClass[hive.status]]}>{statusLabel[hive.status]}</span>
-      <span class="badge bg-canvas text-ink">{originLabel[hive.origin]}</span>
-      {hive.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย {baht(hive.salePrice)}</span>}
-      {hive.status === 'sold' && <span class="badge bg-honey-100 text-honey-700">ขายแล้ว {baht(hive.soldPrice)} · {formatThaiDate(hive.soldOn)}</span>}
+  {/* มือถือ: เรียงลงตามลำดับงาน (รูป → บันทึก → ข้อมูล → จัดการ → ประวัติ)
+      คอม (lg): ซ้าย = รูป ข้อมูล ประวัติ · ขวา = แผงบันทึก/จัดการ ติดจอขณะเลื่อน
+      ใช้ display:contents บนมือถือ เพื่อให้ order ของแต่ละส่วนจัดลำดับข้ามสองคอลัมน์ได้ */}
+  <div class="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] xl:items-start xl:gap-6">
+    <div class="contents xl:block">
+    <section class="order-1 xl:order-none card mb-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class:list={['badge text-sm', statusClass[hive.status]]}>{statusLabel[hive.status]}</span>
+        <span class="badge bg-canvas text-ink">{originLabel[hive.origin]}</span>
+        {hive.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย {baht(hive.salePrice)}</span>}
+        {hive.status === 'sold' && <span class="badge bg-honey-100 text-honey-700">ขายแล้ว {baht(hive.soldPrice)} · {formatThaiDate(hive.soldOn)}</span>}
+      </div>
+      {/* รูปย่อ 3 รูปแถวเดียว (เดิม 2 รูปแนวตั้งกินครึ่งจอ ต้องเลื่อนนานกว่าจะถึงปุ่มบันทึก) */}
+      <a href={`/admin/hives/${hive.code}/media`} class="mt-3 grid grid-cols-3 gap-2" aria-label={`รูปและวิดีโอของรัง ${hive.code}`}>
+        {(photos.length ? photos.slice(0, 3) : [null]).map((p) => (
+          <img src={p?.r2Key ? thumbUrl(`/media/${p.r2Key}`) : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} width="160" height="160" class="aspect-square w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
+        ))}
+      </a>
+      {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}
+      <div class="mt-3 grid grid-cols-2 gap-2">
+        <a class="btn-ghost" href={`/admin/hives/${hive.code}/media`}><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> รูป <span class="text-muted">{photos.length + salePhotos.length + (video ? 1 : 0)}</span></a>
+        <a class="btn-ghost" href={`/admin/hives/${hive.code}/edit`}><Icon name="pencil" class="inline-block size-[1.15em] align-[-0.2em]" /> แก้ไขข้อมูล</a>
+      </div>
+      {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint">รังนี้ตั้งขายอยู่ ควรเพิ่ม{salePhotos.length < 3 ? ` รูปขายอีก ${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' และ' : ''}{!video ? ' วิดีโอ 1 คลิป' : ''}</p>}
+      {noteLines.some((l) => l.startsWith('???')) && <p class="hint text-honey-700">มีข้อมูลที่ยังไม่ทราบ (???) — แตะ "แก้ไขข้อมูล" เพื่อเติม</p>}
+    </section>
+
+    {/* ข้อมูลรัง */}
+    <section class="order-3 xl:order-none card mb-5" aria-labelledby="info-h">
+      <h2 id="info-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        <dt class="text-muted">สายพันธุ์</dt><dd>{detail.species}</dd>
+        <dt class="text-muted">ที่มา</dt><dd>{originLabel[hive.origin]}{hive.originPlace ? ` · ${hive.originPlace}` : ''}</dd>
+        <dt class="text-muted">ได้มา</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd>
+        <dt class="text-muted">นางพญาเกิด</dt><dd>{hive.origin === 'queen_bred' ? formatThaiDate(hive.queenBornOn) : '–'}</dd>
+        <dt class="text-muted">ไข่นางจาก</dt><dd>{detail.queenSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.queenSource}`}>{detail.queenSource}</a> : ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')}</dd>
+        <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{detail.broodSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.broodSource}`}>{detail.broodSource}</a> : ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')}</dd>
+        <dt class="text-muted">กล่องรัง</dt><dd>{boxLabel[hive.boxType]}</dd>
+        <dt class="text-muted">รังลูก</dt>
+        <dd>{children.length ? children.map((c, i) => (<><a class="text-palm-700 underline" href={`/admin/hives/${c.code}`}>{c.code}</a>{i < children.length - 1 ? ', ' : ''}</>)) : '–'}</dd>
+        <dt class="text-muted">รวมที่เก็บได้</dt>
+        <dd>{totals.honeyMl.toLocaleString('th-TH')} มล. · ชัน {totals.propolisG.toLocaleString('th-TH')} กรัม · ไข่นางพญา {totals.queenCells} ใบ</dd>
+      </dl>
+
+      <h3 class="mt-5 text-sm font-semibold text-muted"><Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /> ข้อมูลภายใน (ไม่แสดงบนเว็บสาธารณะ)</h3>
+      <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        {hive.origin === 'purchased' && <><dt class="text-muted">ราคาซื้อ</dt><dd>{baht(hive.purchasePrice)}</dd></>}
+        {detail.supplierName && <><dt class="text-muted">คู่ค้า</dt><dd>{detail.supplierName}{detail.supplierPhone ? ` · ${detail.supplierPhone}` : ''}</dd></>}
+        {hive.status === 'collapsed' && <><dt class="text-muted">สาเหตุที่ล่ม</dt><dd>{hive.collapseReason ?? UNKNOWN}</dd></>}
+      </dl>
+      {noteLines.length > 0 && (
+        <ul class="mt-3 space-y-1 text-sm">
+          {noteLines.map((l) => <li class:list={[l.startsWith('???') && 'font-semibold text-honey-700']}>{l}</li>)}
+        </ul>
+      )}
+    </section>
+
+    {/* ไทม์ไลน์ */}
+    <section class="order-5 xl:order-none card" id="timeline" aria-labelledby="tl-h">
+      <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
+      {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
+        <ol class="divide-y divide-line">
+          {events.map(({ e, targetCode }) => (
+            <li class="flex gap-3 py-3">
+              <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
+              <div class="min-w-0 flex-1">
+                <p class="font-medium">{eventLabel[e.type]}
+                  {e.honeyMl ? <span class="text-honey-700"> {e.honeyMl.toLocaleString('th-TH')} มล.</span> : null}
+                  {e.propolisG ? <span class="text-honey-700"> ชัน {e.propolisG.toLocaleString('th-TH')} ก.</span> : null}
+                  {e.queenCells ? <span> {e.queenCells} ใบ</span> : null}
+                  {e.type === 'status_change' && e.toStatus ? <span> → {statusLabel[e.toStatus]}</span> : null}
+                  {targetCode && <span> → <a class="text-palm-700 underline" href={`/admin/hives/${targetCode}`}>{targetCode}</a></span>}
+                </p>
+                {e.note && <p class="break-words text-sm text-muted">{e.note}</p>}
+              </div>
+              <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
     </div>
-    {/* รูปย่อ 3 รูปแถวเดียว (เดิม 2 รูปแนวตั้งกินครึ่งจอ ต้องเลื่อนนานกว่าจะถึงปุ่มบันทึก) */}
-    <a href={`/admin/hives/${hive.code}/media`} class="mt-3 grid grid-cols-3 gap-2" aria-label={`รูปและวิดีโอของรัง ${hive.code}`}>
-      {(photos.length ? photos.slice(0, 3) : [null]).map((p) => (
-        <img src={p?.r2Key ? thumbUrl(`/media/${p.r2Key}`) : placeholder.hive} alt={p ? `รูปรัง ${hive.code}` : ''} width="160" height="160" class="aspect-square w-full rounded-xl bg-palm-50 object-cover" loading="lazy" />
-      ))}
-    </a>
-    {photos.length === 0 && <p class="hint">ยังไม่มีรูปของรังนี้ (กำลังแสดงรูปชั่วคราว)</p>}
-    <div class="mt-3 grid grid-cols-2 gap-2">
-      <a class="btn-ghost" href={`/admin/hives/${hive.code}/media`}><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> รูป <span class="text-muted">{photos.length + salePhotos.length + (video ? 1 : 0)}</span></a>
-      <a class="btn-ghost" href={`/admin/hives/${hive.code}/edit`}><Icon name="pencil" class="inline-block size-[1.15em] align-[-0.2em]" /> แก้ไขข้อมูล</a>
-    </div>
-    {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint">รังนี้ตั้งขายอยู่ ควรเพิ่ม{salePhotos.length < 3 ? ` รูปขายอีก ${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' และ' : ''}{!video ? ' วิดีโอ 1 คลิป' : ''}</p>}
-    {noteLines.some((l) => l.startsWith('???')) && <p class="hint text-honey-700">มีข้อมูลที่ยังไม่ทราบ (???) — แตะ "แก้ไขข้อมูล" เพื่อเติม</p>}
-  </section>
+    <div class="contents xl:sticky xl:top-6 xl:block xl:max-h-[calc(100dvh-3rem)] xl:space-y-5 xl:overflow-y-auto xl:pb-2 xl:[&>section]:mb-0">
+    {/* ปุ่มบันทึกเร็ว */}
+    <section aria-labelledby="act-h" class="order-2 xl:order-none mb-5 space-y-3">
+      <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
 
-  {/* ปุ่มบันทึกเร็ว */}
-  <section aria-labelledby="act-h" class="mb-5 space-y-3">
-    <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
-
-    <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
-      <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
-      <form method="post" class="mt-3 space-y-3">
-        <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
-        <div><label class="label" for="h-date">วันที่</label><input class="field" id="h-date" name="occurredOn" type="date" max={today} value={f.honey.v('occurredOn', today)} required />{f.honey.err('occurredOn') && <p class="error">{f.honey.err('occurredOn')}</p>}</div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="label" for="h-ml">น้ำผึ้ง (มล.)</label><input class="field" id="h-ml" name="honeyMl" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('honeyMl')} />{f.honey.err('honeyMl') && <p class="error">{f.honey.err('honeyMl')}</p>}</div>
-          <div><label class="label" for="h-g">ชัน (กรัม)</label><input class="field" id="h-g" name="propolisG" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('propolisG')} />{f.honey.err('propolisG') && <p class="error">{f.honey.err('propolisG')}</p>}</div>
-        </div>
-        <div><label class="label" for="h-note">หมายเหตุ (ไม่บังคับ)</label><input class="field" id="h-note" name="note" maxlength="1000" value={f.honey.v('note')} /></div>
-        <button class="btn-primary w-full" type="submit">บันทึกการเก็บน้ำหวาน</button>
-      </form>
-    </details>
-
-    <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
-      <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
-      <form method="post" class="mt-3 space-y-3">
-        <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
-        <div><label class="label" for="q-date">วันที่</label><input class="field" id="q-date" name="occurredOn" type="date" max={today} value={f.queen.v('occurredOn', today)} required />{f.queen.err('occurredOn') && <p class="error">{f.queen.err('occurredOn')}</p>}</div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="label" for="q-n">จำนวน (ใบ)</label><input class="field" id="q-n" name="queenCells" type="number" inputmode="numeric" min="1" value={f.queen.v('queenCells', '1')} required />{f.queen.err('queenCells') && <p class="error">{f.queen.err('queenCells')}</p>}</div>
-          <div><label class="label" for="q-t">นำไปทำรัง (ถ้ามี)</label><input class="field" id="q-t" name="targetCode" placeholder="เช่น A148" value={f.queen.v('targetCode')} />{f.queen.err('targetCode') && <p class="error">{f.queen.err('targetCode')}</p>}</div>
-        </div>
-        <div><label class="label" for="q-note">หมายเหตุ</label><input class="field" id="q-note" name="note" maxlength="1000" value={f.queen.v('note')} /></div>
-        <button class="btn-primary w-full" type="submit">บันทึกการเก็บไข่นางพญา</button>
-      </form>
-    </details>
-
-    <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
-      <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
-      <form method="post" class="mt-3 space-y-3">
-        <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
-        <div><label class="label" for="b-date">วันที่</label><input class="field" id="b-date" name="occurredOn" type="date" max={today} value={f.brood.v('occurredOn', today)} required />{f.brood.err('occurredOn') && <p class="error">{f.brood.err('occurredOn')}</p>}</div>
-        <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น A148" value={f.brood.v('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}</div>
-        <div><label class="label" for="b-note">หมายเหตุ</label><input class="field" id="b-note" name="note" maxlength="1000" value={f.brood.v('note')} /></div>
-        <button class="btn-primary w-full" type="submit">บันทึกการแยกรัง</button>
-      </form>
-    </details>
-
-    <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
-      <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
-      <form method="post" class="mt-3 space-y-3">
-        <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
-        <div><label class="label" for="n-date">วันที่</label><input class="field" id="n-date" name="occurredOn" type="date" max={today} value={f.note.v('occurredOn', today)} required />{f.note.err('occurredOn') && <p class="error">{f.note.err('occurredOn')}</p>}</div>
-        <div><label class="label" for="n-note">ข้อความ</label><textarea class="field" id="n-note" name="note" rows="3" maxlength="1000" required>{f.note.v('note')}</textarea>{f.note.err('note') && <p class="error">{f.note.err('note')}</p>}</div>
-        <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="isPublic" checked={f.note.v('isPublic') === 'on'} /> แสดงในสมุดพก (สาธารณะ)</label>
-        <button class="btn-primary w-full" type="submit">บันทึกหมายเหตุ</button>
-      </form>
-    </details>
-  </section>
-
-  {/* ข้อมูลรัง */}
-  <section class="card mb-5" aria-labelledby="info-h">
-    <h2 id="info-h" class="mb-3 text-lg font-semibold">ข้อมูลรัง</h2>
-    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-      <dt class="text-muted">สายพันธุ์</dt><dd>{detail.species}</dd>
-      <dt class="text-muted">ที่มา</dt><dd>{originLabel[hive.origin]}{hive.originPlace ? ` · ${hive.originPlace}` : ''}</dd>
-      <dt class="text-muted">ได้มา</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd>
-      <dt class="text-muted">นางพญาเกิด</dt><dd>{hive.origin === 'queen_bred' ? formatThaiDate(hive.queenBornOn) : '–'}</dd>
-      <dt class="text-muted">ไข่นางจาก</dt><dd>{detail.queenSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.queenSource}`}>{detail.queenSource}</a> : ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')}</dd>
-      <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{detail.broodSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.broodSource}`}>{detail.broodSource}</a> : ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')}</dd>
-      <dt class="text-muted">กล่องรัง</dt><dd>{boxLabel[hive.boxType]}</dd>
-      <dt class="text-muted">รังลูก</dt>
-      <dd>{children.length ? children.map((c, i) => (<><a class="text-palm-700 underline" href={`/admin/hives/${c.code}`}>{c.code}</a>{i < children.length - 1 ? ', ' : ''}</>)) : '–'}</dd>
-      <dt class="text-muted">รวมที่เก็บได้</dt>
-      <dd>{totals.honeyMl.toLocaleString('th-TH')} มล. · ชัน {totals.propolisG.toLocaleString('th-TH')} กรัม · ไข่นางพญา {totals.queenCells} ใบ</dd>
-    </dl>
-
-    <h3 class="mt-5 text-sm font-semibold text-muted"><Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /> ข้อมูลภายใน (ไม่แสดงบนเว็บสาธารณะ)</h3>
-    <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-      {hive.origin === 'purchased' && <><dt class="text-muted">ราคาซื้อ</dt><dd>{baht(hive.purchasePrice)}</dd></>}
-      {detail.supplierName && <><dt class="text-muted">คู่ค้า</dt><dd>{detail.supplierName}{detail.supplierPhone ? ` · ${detail.supplierPhone}` : ''}</dd></>}
-      {hive.status === 'collapsed' && <><dt class="text-muted">สาเหตุที่ล่ม</dt><dd>{hive.collapseReason ?? UNKNOWN}</dd></>}
-    </dl>
-    {noteLines.length > 0 && (
-      <ul class="mt-3 space-y-1 text-sm">
-        {noteLines.map((l) => <li class:list={[l.startsWith('???') && 'font-semibold text-honey-700']}>{l}</li>)}
-      </ul>
-    )}
-  </section>
-
-  {/* ตั้งขาย / เปลี่ยนสถานะ */}
-  <section class="mb-5 space-y-3" aria-label="จัดการรัง">
-    {hive.status === 'active' && (
-      <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
-        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
+      <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
+        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
         <form method="post" class="mt-3 space-y-3">
-          <input type="hidden" name="intent" value="sale" />
-          <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="forSale" checked={isOpen('sale') && 'intent' in values ? values.forSale === 'on' : hive.forSale} /> ตั้งขายรังนี้ (แสดงในหน้าสินค้า/รังสมบูรณ์)</label>
-          <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
-          <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>
+          <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
+          <div><label class="label" for="h-date">วันที่</label><input class="field" id="h-date" name="occurredOn" type="date" max={today} value={f.honey.v('occurredOn', today)} required />{f.honey.err('occurredOn') && <p class="error">{f.honey.err('occurredOn')}</p>}</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="h-ml">น้ำผึ้ง (มล.)</label><input class="field" id="h-ml" name="honeyMl" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('honeyMl')} />{f.honey.err('honeyMl') && <p class="error">{f.honey.err('honeyMl')}</p>}</div>
+            <div><label class="label" for="h-g">ชัน (กรัม)</label><input class="field" id="h-g" name="propolisG" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('propolisG')} />{f.honey.err('propolisG') && <p class="error">{f.honey.err('propolisG')}</p>}</div>
+          </div>
+          <div><label class="label" for="h-note">หมายเหตุ (ไม่บังคับ)</label><input class="field" id="h-note" name="note" maxlength="1000" value={f.honey.v('note')} /></div>
+          <button class="btn-primary w-full" type="submit">บันทึกการเก็บน้ำหวาน</button>
         </form>
       </details>
-    )}
-    <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
-      <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="status" class="size-6 text-palm-700" />เปลี่ยนสถานะรัง</summary>
-      <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`}>
-        <input type="hidden" name="intent" value="status" /><input type="hidden" name="idem" value={f.status.v('idem') || idem()} />
-        <div><label class="label" for="st-s">สถานะใหม่</label>
-          <select class="field" id="st-s" name="status" required>
-            {/* ไม่เลือกอะไรไว้ก่อน — กันกดยืนยันแล้วรังกลายเป็น "ขายแล้ว" โดยไม่ตั้งใจ */}
-            <option value="" disabled selected={!f.status.v('status')}>เลือกสถานะ…</option>
-            {(['active', 'sold', 'collapsed'] as const).filter((s) => s !== hive.status).map((s) => <option value={s} selected={f.status.v('status') === s}>{statusLabel[s]}</option>)}
-          </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}</div>
-        <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
-        <div><label class="label" for="st-p">ราคาขายจริง (บาท) — ถ้าเลือก "ขายแล้ว"</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>
-        <div><label class="label" for="st-r">สาเหตุ (ถ้าล่ม)</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}</div>
-        <button class="btn-danger w-full" type="submit">ยืนยันเปลี่ยนสถานะ</button>
-      </form>
-    </details>
-  </section>
 
-  {/* ไทม์ไลน์ */}
-  <section class="card" id="timeline" aria-labelledby="tl-h">
-    <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
-    {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
-      <ol class="divide-y divide-line">
-        {events.map(({ e, targetCode }) => (
-          <li class="flex gap-3 py-3">
-            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
-            <div class="min-w-0 flex-1">
-              <p class="font-medium">{eventLabel[e.type]}
-                {e.honeyMl ? <span class="text-honey-700"> {e.honeyMl.toLocaleString('th-TH')} มล.</span> : null}
-                {e.propolisG ? <span class="text-honey-700"> ชัน {e.propolisG.toLocaleString('th-TH')} ก.</span> : null}
-                {e.queenCells ? <span> {e.queenCells} ใบ</span> : null}
-                {e.type === 'status_change' && e.toStatus ? <span> → {statusLabel[e.toStatus]}</span> : null}
-                {targetCode && <span> → <a class="text-palm-700 underline" href={`/admin/hives/${targetCode}`}>{targetCode}</a></span>}
-              </p>
-              {e.note && <p class="break-words text-sm text-muted">{e.note}</p>}
-            </div>
-            <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
-          </li>
-        ))}
-      </ol>
-    )}
-  </section>
+      <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
+        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
+        <form method="post" class="mt-3 space-y-3">
+          <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
+          <div><label class="label" for="q-date">วันที่</label><input class="field" id="q-date" name="occurredOn" type="date" max={today} value={f.queen.v('occurredOn', today)} required />{f.queen.err('occurredOn') && <p class="error">{f.queen.err('occurredOn')}</p>}</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="q-n">จำนวน (ใบ)</label><input class="field" id="q-n" name="queenCells" type="number" inputmode="numeric" min="1" value={f.queen.v('queenCells', '1')} required />{f.queen.err('queenCells') && <p class="error">{f.queen.err('queenCells')}</p>}</div>
+            <div><label class="label" for="q-t">นำไปทำรัง (ถ้ามี)</label><input class="field" id="q-t" name="targetCode" placeholder="เช่น A148" value={f.queen.v('targetCode')} />{f.queen.err('targetCode') && <p class="error">{f.queen.err('targetCode')}</p>}</div>
+          </div>
+          <div><label class="label" for="q-note">หมายเหตุ</label><input class="field" id="q-note" name="note" maxlength="1000" value={f.queen.v('note')} /></div>
+          <button class="btn-primary w-full" type="submit">บันทึกการเก็บไข่นางพญา</button>
+        </form>
+      </details>
+
+      <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
+        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
+        <form method="post" class="mt-3 space-y-3">
+          <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
+          <div><label class="label" for="b-date">วันที่</label><input class="field" id="b-date" name="occurredOn" type="date" max={today} value={f.brood.v('occurredOn', today)} required />{f.brood.err('occurredOn') && <p class="error">{f.brood.err('occurredOn')}</p>}</div>
+          <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น A148" value={f.brood.v('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}</div>
+          <div><label class="label" for="b-note">หมายเหตุ</label><input class="field" id="b-note" name="note" maxlength="1000" value={f.brood.v('note')} /></div>
+          <button class="btn-primary w-full" type="submit">บันทึกการแยกรัง</button>
+        </form>
+      </details>
+
+      <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
+        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
+        <form method="post" class="mt-3 space-y-3">
+          <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
+          <div><label class="label" for="n-date">วันที่</label><input class="field" id="n-date" name="occurredOn" type="date" max={today} value={f.note.v('occurredOn', today)} required />{f.note.err('occurredOn') && <p class="error">{f.note.err('occurredOn')}</p>}</div>
+          <div><label class="label" for="n-note">ข้อความ</label><textarea class="field" id="n-note" name="note" rows="3" maxlength="1000" required>{f.note.v('note')}</textarea>{f.note.err('note') && <p class="error">{f.note.err('note')}</p>}</div>
+          <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="isPublic" checked={f.note.v('isPublic') === 'on'} /> แสดงในสมุดพก (สาธารณะ)</label>
+          <button class="btn-primary w-full" type="submit">บันทึกหมายเหตุ</button>
+        </form>
+      </details>
+    </section>
+
+    {/* ตั้งขาย / เปลี่ยนสถานะ */}
+    <section class="order-4 xl:order-none mb-5 space-y-3" aria-label="จัดการรัง">
+      {hive.status === 'active' && (
+        <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
+          <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
+          <form method="post" class="mt-3 space-y-3">
+            <input type="hidden" name="intent" value="sale" />
+            <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="forSale" checked={isOpen('sale') && 'intent' in values ? values.forSale === 'on' : hive.forSale} /> ตั้งขายรังนี้ (แสดงในหน้าสินค้า/รังสมบูรณ์)</label>
+            <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
+            <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>
+          </form>
+        </details>
+      )}
+      <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
+        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="status" class="size-6 text-palm-700" />เปลี่ยนสถานะรัง</summary>
+        <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`}>
+          <input type="hidden" name="intent" value="status" /><input type="hidden" name="idem" value={f.status.v('idem') || idem()} />
+          <div><label class="label" for="st-s">สถานะใหม่</label>
+            <select class="field" id="st-s" name="status" required>
+              {/* ไม่เลือกอะไรไว้ก่อน — กันกดยืนยันแล้วรังกลายเป็น "ขายแล้ว" โดยไม่ตั้งใจ */}
+              <option value="" disabled selected={!f.status.v('status')}>เลือกสถานะ…</option>
+              {(['active', 'sold', 'collapsed'] as const).filter((s) => s !== hive.status).map((s) => <option value={s} selected={f.status.v('status') === s}>{statusLabel[s]}</option>)}
+            </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}</div>
+          <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
+          <div><label class="label" for="st-p">ราคาขายจริง (บาท) — ถ้าเลือก "ขายแล้ว"</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>
+          <div><label class="label" for="st-r">สาเหตุ (ถ้าล่ม)</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}</div>
+          <button class="btn-danger w-full" type="submit">ยืนยันเปลี่ยนสถานะ</button>
+        </form>
+      </details>
+    </section>
+    </div>
+  </div>
 </AdminLayout>

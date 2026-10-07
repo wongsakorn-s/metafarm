@@ -92,7 +92,7 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
             <p class="text-sm font-medium">{p.imageKey ? 'รูปสินค้า (รูปจริง)' : 'ยังใช้รูปชั่วคราวอยู่ — อัปโหลดรูปจริงได้เลย (เปลี่ยนได้ทุกเมื่อ)'}</p>
             <form method="post" enctype="multipart/form-data" data-resize class="flex flex-wrap items-center gap-2">
               <input type="hidden" name="intent" value="image" /><input type="hidden" name="productId" value={p.id} />
-              <input class="field min-w-0 flex-1" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" required aria-label={`เลือกรูปสินค้า ${p.name}`} />
+              <input class="field-file min-w-0 flex-1" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" required aria-label={`เลือกรูปสินค้า ${p.name}`} />
               <button class="btn-primary" type="submit">{p.imageKey ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}</button>
             </form>
             {p.imageKey && (
