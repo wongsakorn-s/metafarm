@@ -85,12 +85,12 @@ for (const input of document.querySelectorAll<HTMLInputElement>('input[type=date
   const wrap = document.createElement('span');
   wrap.className = 'date-wrap';
   input.replaceWith(wrap);
-  wrap.append(input);
+  wrap.appendChild(input);
   const ph = document.createElement('span');
   ph.className = 'date-placeholder';
   ph.setAttribute('aria-hidden', 'true');
   ph.textContent = input.required ? 'เลือกวันที่' : 'ยังไม่ระบุ';
-  wrap.append(ph);
+  wrap.appendChild(ph);
   const sync = () => input.toggleAttribute('data-empty', !input.value);
   sync();
   input.addEventListener('input', sync);
