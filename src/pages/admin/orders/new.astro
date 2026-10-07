@@ -1,0 +1,181 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import { getDb } from '../../../server/db.ts';
+import { createOrder, orderFormOptions } from '../../../server/orders.ts';
+import { channelLabel, newOrderSchema, parseOrderItems, payMethodLabel, shipMethodLabel } from '../../../lib/orders.ts';
+import { todayBangkok } from '../../../lib/validation.ts';
+import { ORDER_CHANNELS, PAY_METHODS, SHIP_METHODS } from '../../../db/schema.ts';
+
+// จดออเดอร์หลังตอบแชตเสร็จ — หน้าเดียวจบบนมือถือ (เลือกลูกค้า → ใส่จำนวนสินค้า → การส่ง/ชำระ → บันทึก)
+export const prerender = false;
+
+const db = getDb();
+const user = Astro.locals.user!;
+const today = todayBangkok();
+let errors: Record<string, string> = {};
+let values: Record<string, string> = {};
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const { items, errors: itemErrors } = parseOrderItems(values);
+  const p = newOrderSchema.safeParse({
+    ...values,
+    // ช่องลูกค้าใหม่ตรวจเฉพาะเมื่อเลือก "ลูกค้าใหม่" (ช่องที่ซ่อนอยู่ไม่ทำให้บันทึกไม่ได้)
+    customer: values.customerMode === 'new' ? { name: values.c_name, phone: values.c_phone, lineName: values.c_line, address: values.c_address } : undefined,
+    items,
+  });
+  if (p.success && Object.keys(itemErrors).length === 0) {
+    const r = await createOrder(db, user, p.data);
+    if (r.ok) return Astro.redirect(`/admin/orders/${r.code}?saved=created`, 303);
+    errors._ = r.error;
+  } else {
+    errors = { ...itemErrors };
+    const FIELD: Record<string, string> = { name: 'c_name', phone: 'c_phone', lineName: 'c_line', address: 'c_address', 'customer.name': 'c_name' };
+    if (!p.success) for (const i of p.error.issues) {
+      const k = i.path[0] === 'customer' ? (FIELD[String(i.path[1])] ?? 'c_name') : (FIELD[String(i.path[0])] && String(i.path[0]).startsWith('customer') ? FIELD[String(i.path[0])]! : String(i.path[0] ?? '_'));
+      errors[k] ??= i.message;
+    }
+    if (errors.items) errors._ = errors.items;
+  }
+}
+
+const opts = await orderFormOptions(db);
+const v = (k: string, d = '') => values[k] ?? d;
+const posted = Object.keys(values).length > 0;
+const preHive = (Astro.url.searchParams.get('hive') ?? '').toUpperCase();
+const mode = v('customerMode', opts.customers.length ? 'existing' : 'new');
+const forSale = opts.hives.filter((h) => h.forSale);
+const others = opts.hives.filter((h) => !h.forSale);
+const hiveChecked = (h: { id: number; code: string }) => (posted ? values[`hive_${h.id}`] === 'on' : h.code === preHive);
+const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none';
+---
+
+<AdminLayout back={{ href: '/admin/orders', label: 'ขาย' }} title="ออเดอร์ใหม่" active="orders">
+  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+  {!errors._ && Object.keys(errors).length > 0 && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">ยังไม่ได้บันทึก — มีช่องที่กรอกไม่ถูกต้อง (ดูข้อความสีแดงด้านล่าง)</p>}
+
+  <form method="post" class="max-w-2xl space-y-5" id="order-form">
+    <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />
+
+    <section class="card space-y-3" aria-labelledby="c-h">
+      <h2 id="c-h" class="text-lg font-semibold">1. ลูกค้า</h2>
+      <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="ประเภทลูกค้า">
+        <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 has-[:checked]:border-palm-600 has-[:checked]:bg-palm-50 has-[:disabled]:opacity-50">
+          <input class="size-5 accent-palm-600" type="radio" name="customerMode" value="existing" checked={mode === 'existing'} disabled={opts.customers.length === 0} /> ลูกค้าเดิม
+        </label>
+        <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 has-[:checked]:border-palm-600 has-[:checked]:bg-palm-50">
+          <input class="size-5 accent-palm-600" type="radio" name="customerMode" value="new" checked={mode === 'new'} /> ลูกค้าใหม่
+        </label>
+      </div>
+      <div data-when="existing">
+        <label class="label" for="customerId">เลือกลูกค้า (ซื้อล่าสุดอยู่บนสุด)</label>
+        <select class="field" id="customerId" name="customerId">
+          <option value="">เลือก…</option>
+          {opts.customers.map((c) => <option value={c.id} selected={v('customerId') === String(c.id)}>{c.name}{c.phone ? ` · ${c.phone}` : ''}</option>)}
+        </select>
+        {errors['customerId'] && <p class="error">{errors['customerId']}</p>}
+      </div>
+      <div data-when="new" class="grid gap-3 sm:grid-cols-2">
+        <div><label class="label" for="c_name">ชื่อลูกค้า</label><input class="field" id="c_name" name="c_name" maxlength="100" value={v('c_name')} autocomplete="off" />{errors['c_name'] && <p class="error">{errors['c_name']}</p>}</div>
+        <div><label class="label" for="c_phone">เบอร์โทร</label><input class="field" id="c_phone" name="c_phone" type="tel" inputmode="tel" value={v('c_phone')} autocomplete="off" />{errors['c_phone'] && <p class="error">{errors['c_phone']}</p>}</div>
+        <div><label class="label" for="c_line">ชื่อ LINE (ไม่บังคับ)</label><input class="field" id="c_line" name="c_line" maxlength="60" value={v('c_line')} autocomplete="off" /></div>
+        <div class="sm:col-span-2"><label class="label" for="c_address">ที่อยู่จัดส่ง (ถ้าส่งของ)</label><textarea class="field" id="c_address" name="c_address" rows="2" maxlength="500">{v('c_address')}</textarea></div>
+      </div>
+    </section>
+
+    <section class="card space-y-3" aria-labelledby="i-h">
+      <h2 id="i-h" class="text-lg font-semibold">2. สินค้า</h2>
+      <p class="hint -mt-2">ใส่จำนวนเฉพาะที่ลูกค้าสั่ง · ราคาแก้ได้ (เช่น ลดให้ลูกค้าประจำ)</p>
+      <ul class="divide-y divide-line">
+        {opts.variants.map((x) => (
+          <li class="grid grid-cols-2 items-end gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_5rem_6.5rem] sm:py-2">
+            <div class="col-span-2 min-w-0 self-center sm:col-span-1">
+              <p class="font-medium">{x.product}</p>
+              <p class="text-sm text-muted">{x.label}{x.sizeMl ? ` · ${x.sizeMl} มล.` : ''} · สต็อก <span data-num>{x.stock}</span>{x.stock === 0 && ' (ทำตามสั่งได้)'}</p>
+            </div>
+            <div><label class="label text-xs" for={`qty_v${x.id}`}>จำนวน</label><input class="field text-center" id={`qty_v${x.id}`} name={`qty_v${x.id}`} type="number" inputmode="numeric" min="0" step="1" value={v(`qty_v${x.id}`)} placeholder="0" data-qty={x.id} />{errors[`qty_v${x.id}`] && <p class="error">{errors[`qty_v${x.id}`]}</p>}</div>
+            <div><label class="label text-xs" for={`price_v${x.id}`}>ราคา/ชิ้น</label><input class="field" id={`price_v${x.id}`} name={`price_v${x.id}`} type="number" inputmode="numeric" min="0" value={v(`price_v${x.id}`, String(x.price))} data-price={`v${x.id}`} />{errors[`price_v${x.id}`] && <p class="error">{errors[`price_v${x.id}`]}</p>}</div>
+          </li>
+        ))}
+      </ul>
+
+      <h3 class="pt-2 font-semibold">รังสมบูรณ์</h3>
+      {opts.hives.length === 0 ? <p class="text-sm text-muted">ไม่มีรังที่ขายได้ตอนนี้</p> : (
+        <>
+          {forSale.length === 0 && <p class="text-sm text-muted">ยังไม่มีรังที่ตั้งขาย — เลือกจากรังอื่นที่ยังอยู่ด้านล่างได้</p>}
+          <ul class="divide-y divide-line">
+            {forSale.map((h) => (
+              <li class="grid grid-cols-[minmax(0,1fr)_6.5rem] items-end gap-2 py-2">
+                <label class="flex min-h-11 items-center gap-2 self-center"><input class="size-5 accent-palm-600" type="checkbox" name={`hive_${h.id}`} checked={hiveChecked(h)} data-hive={h.id} /> <span class="font-medium">รัง {h.code}</span> <span class="badge bg-honey-400 text-ink">ตั้งขาย</span></label>
+                <div><label class="label text-xs" for={`price_h${h.id}`}>ราคา</label><input class="field" id={`price_h${h.id}`} name={`price_h${h.id}`} type="number" inputmode="numeric" min="0" value={v(`price_h${h.id}`, String(h.salePrice ?? ''))} data-price={`h${h.id}`} />{errors[`price_h${h.id}`] && <p class="error">{errors[`price_h${h.id}`]}</p>}</div>
+              </li>
+            ))}
+          </ul>
+          {others.length > 0 && (
+            <details class="rounded-xl border border-line" open={others.some(hiveChecked)}>
+              <summary class="disclosure min-h-11 px-3 text-sm font-medium">รังอื่นที่ยังอยู่ (ไม่ได้ตั้งขาย) · {others.length} รัง</summary>
+              <ul class="max-h-80 divide-y divide-line overflow-y-auto px-3">
+                {others.map((h) => (
+                  <li class="grid grid-cols-[minmax(0,1fr)_6.5rem] items-end gap-2 py-2">
+                    <label class="flex min-h-11 items-center gap-2 self-center"><input class="size-5 accent-palm-600" type="checkbox" name={`hive_${h.id}`} checked={hiveChecked(h)} data-hive={h.id} /> รัง {h.code}</label>
+                    <div><label class="sr-only" for={`price_h${h.id}`}>ราคารัง {h.code}</label><input class="field" id={`price_h${h.id}`} name={`price_h${h.id}`} type="number" inputmode="numeric" min="0" value={v(`price_h${h.id}`, String(h.salePrice ?? ''))} placeholder="ราคา" data-price={`h${h.id}`} />{errors[`price_h${h.id}`] && <p class="error">{errors[`price_h${h.id}`]}</p>}</div>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <p class="hint">รังที่อยู่ในออเดอร์จะถูกเอาออกจากหน้าขายทันที และเปลี่ยนเป็น "ขายแล้ว" เมื่อบันทึกว่าชำระแล้ว</p>
+        </>
+      )}
+    </section>
+
+    <section class="card space-y-3" aria-labelledby="s-h">
+      <h2 id="s-h" class="text-lg font-semibold">3. การส่งและการชำระเงิน</h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div><label class="label" for="channel">ลูกค้าสั่งทาง</label>
+          <select class="field" id="channel" name="channel">{ORDER_CHANNELS.map((c) => <option value={c} selected={v('channel', 'line') === c}>{channelLabel[c]}</option>)}</select></div>
+        <div><label class="label" for="orderedOn">วันที่สั่ง</label><input class="field" id="orderedOn" name="orderedOn" type="date" max={today} required value={v('orderedOn', today)} />{errors['orderedOn'] && <p class="error">{errors['orderedOn']}</p>}</div>
+        <div><label class="label" for="shipMethod">การรับสินค้า</label>
+          <select class="field" id="shipMethod" name="shipMethod">{SHIP_METHODS.map((c) => <option value={c} selected={v('shipMethod', 'pickup') === c}>{shipMethodLabel[c]}</option>)}</select></div>
+        <div><label class="label" for="shipFee">ค่าส่ง (บาท)</label><input class="field" id="shipFee" name="shipFee" type="number" inputmode="numeric" min="0" value={v('shipFee')} placeholder="0" />{errors['shipFee'] && <p class="error">{errors['shipFee']}</p>}</div>
+      </div>
+      <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="paidNow" id="paidNow" checked={v('paidNow') === 'on'} /> ลูกค้าชำระเงินแล้ว</label>
+      <div data-when-paid>
+        <label class="label" for="payMethod">ชำระทาง</label>
+        <select class="field" id="payMethod" name="payMethod"><option value="">เลือก…</option>{PAY_METHODS.map((c) => <option value={c} selected={v('payMethod') === c}>{payMethodLabel[c]}</option>)}</select>
+        {errors['payMethod'] && <p class="error">{errors['payMethod']}</p>}
+      </div>
+      <div><label class="label" for="note">หมายเหตุ (ไม่บังคับ)</label><textarea class="field" id="note" name="note" rows="2" maxlength="1000" placeholder="เช่น นัดรับวันเสาร์ / ขอใบเสร็จ">{v('note')}</textarea></div>
+    </section>
+
+    <div class={`${STICKY} flex items-center gap-3`}>
+      <p class="min-w-0 flex-1 text-sm text-muted">รวม <strong data-num id="total" class="block text-xl text-ink">0 บาท</strong></p>
+      <button class="btn-primary flex-1 md:flex-none" type="submit"><Icon name="check" class="size-5" />บันทึกออเดอร์</button>
+    </div>
+  </form>
+</AdminLayout>
+
+<script>
+  // แสดงช่องลูกค้าตามประเภท · ช่องวิธีชำระเมื่อติ๊กชำระแล้ว · ยอดรวมสด (เซิร์ฟเวอร์คำนวณยอดจริงอีกครั้งตอนบันทึก)
+  const form = document.getElementById('order-form') as HTMLFormElement;
+  const sync = () => {
+    const mode = (form.querySelector('input[name=customerMode]:checked') as HTMLInputElement | null)?.value ?? 'new';
+    form.querySelectorAll<HTMLElement>('[data-when]').forEach((el) => (el.hidden = el.dataset.when !== mode));
+    const paid = (document.getElementById('paidNow') as HTMLInputElement).checked;
+    (form.querySelector('[data-when-paid]') as HTMLElement).hidden = !paid;
+    let total = Number((document.getElementById('shipFee') as HTMLInputElement).value) || 0;
+    form.querySelectorAll<HTMLInputElement>('[data-qty]').forEach((q) => {
+      const price = Number((form.querySelector(`[data-price="v${q.dataset.qty}"]`) as HTMLInputElement).value) || 0;
+      total += (Number(q.value) || 0) * price;
+    });
+    form.querySelectorAll<HTMLInputElement>('[data-hive]').forEach((h) => {
+      if (h.checked) total += Number((form.querySelector(`[data-price="h${h.dataset.hive}"]`) as HTMLInputElement).value) || 0;
+    });
+    document.getElementById('total')!.textContent = `${total.toLocaleString('th-TH')} บาท`;
+  };
+  form.addEventListener('input', sync);
+  form.addEventListener('change', sync);
+  sync();
+</script>

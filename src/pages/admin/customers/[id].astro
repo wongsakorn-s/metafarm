@@ -1,0 +1,82 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import { getDb } from '../../../server/db.ts';
+import { getCustomer, updateCustomer } from '../../../server/orders.ts';
+import { customerSchema, orderStatusClass, orderStatusLabel } from '../../../lib/orders.ts';
+import { fieldErrors } from '../../../lib/validation.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { baht } from '../../../lib/labels.ts';
+import { telHref } from '../../../lib/settings.ts';
+
+export const prerender = false;
+const db = getDb();
+const id = Number(Astro.params.id);
+if (!Number.isInteger(id) || id < 1) return new Response('ไม่พบลูกค้า', { status: 404 });
+let errors: Record<string, string> = {};
+let values: Record<string, string> = {};
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const p = customerSchema.safeParse(values);
+  if (!p.success) errors = fieldErrors(p.error);
+  else {
+    const r = await updateCustomer(db, Astro.locals.user!, id, p.data);
+    if (r.ok) return Astro.redirect(`/admin/customers/${id}?saved=1`, 303);
+    errors._ = r.error;
+  }
+}
+const got = await getCustomer(db, id);
+if (!got) return new Response('ไม่พบลูกค้า', { status: 404 });
+const { customer: c, orders } = got;
+const valid = orders.filter((o) => o.status !== 'cancelled');
+const spent = valid.reduce((s, o) => s + o.total, 0);
+const v = (k: 'name' | 'phone' | 'lineName' | 'address' | 'notes') => values[k] ?? c[k] ?? '';
+const tel = c.phone ? telHref(c.phone) : null;
+const editing = Object.keys(values).length > 0;
+---
+
+<AdminLayout back={{ href: '/admin/customers', label: 'ลูกค้า' }} title={c.name} active="customers">
+  {Astro.url.searchParams.get('saved') && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">บันทึกข้อมูลลูกค้าแล้ว</p>}
+  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+    <section class="space-y-3" aria-labelledby="ord-h">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="ord-h" class="font-semibold">ประวัติการซื้อ <span class="font-normal text-muted">· {valid.length} ออเดอร์ · รวม <span data-num>{baht(spent)}</span></span></h2>
+        <a class="btn-primary" href="/admin/orders/new"><Icon name="plus" class="size-5" />ออเดอร์ใหม่</a>
+      </div>
+      {orders.length === 0 ? <p class="card text-muted">ยังไม่มีออเดอร์</p> : (
+        <ul class="space-y-3">
+          {orders.map((o) => (
+            <li><a href={`/admin/orders/${o.code}`} class="card-link flex flex-col gap-1">
+              <span class="flex flex-wrap items-center gap-2"><span data-num class="font-bold">{o.code}</span><span class:list={['badge', orderStatusClass[o.status]]}>{orderStatusLabel[o.status]}</span><span data-num class="ml-auto font-bold text-palm-700">{baht(o.total)}</span></span>
+              <span class="text-sm text-muted">{formatThaiDate(o.orderedOn)} · {o.items}</span>
+            </a></li>
+          ))}
+        </ul>
+      )}
+    </section>
+    <section class="card space-y-3" aria-labelledby="info-h">
+      <h2 id="info-h" class="font-semibold">ข้อมูลลูกค้า</h2>
+      {tel && <a class="btn-ghost w-full" href={tel}><Icon name="phone" class="size-5" />โทร {c.phone}</a>}
+      {!editing && (c.address || c.notes || c.lineName) && (
+        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          {c.lineName && <><dt class="text-muted">LINE</dt><dd>{c.lineName}</dd></>}
+          {c.address && <><dt class="text-muted">ที่อยู่</dt><dd class="whitespace-pre-line">{c.address}</dd></>}
+          {c.notes && <><dt class="text-muted">หมายเหตุ</dt><dd class="whitespace-pre-line">{c.notes}</dd></>}
+        </dl>
+      )}
+      <details open={editing}>
+        <summary class="disclosure min-h-11 font-medium">แก้ไขข้อมูล</summary>
+        <form method="post" class="mt-2 space-y-3">
+          <div><label class="label" for="name">ชื่อ</label><input class="field" id="name" name="name" required maxlength="100" value={v('name')} />{errors.name && <p class="error">{errors.name}</p>}</div>
+          <div><label class="label" for="phone">เบอร์โทร</label><input class="field" id="phone" name="phone" type="tel" inputmode="tel" value={v('phone')} />{errors.phone && <p class="error">{errors.phone}</p>}</div>
+          <div><label class="label" for="lineName">ชื่อ LINE</label><input class="field" id="lineName" name="lineName" maxlength="60" value={v('lineName')} /></div>
+          <div><label class="label" for="address">ที่อยู่จัดส่ง</label><textarea class="field" id="address" name="address" rows="3" maxlength="500">{v('address')}</textarea></div>
+          <div><label class="label" for="notes">หมายเหตุ</label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000" placeholder="เช่น ชอบขวดใหญ่">{v('notes')}</textarea></div>
+          <button class="btn-primary w-full" type="submit">บันทึก</button>
+        </form>
+      </details>
+    </section>
+  </div>
+</AdminLayout>

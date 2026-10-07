@@ -226,6 +226,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
             <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
             <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>
           </form>
+          <a class="btn-ghost mt-3 w-full" href={`/admin/orders/new?hive=${hive.code}`}><Icon name="receipt" class="size-5" />มีลูกค้าสั่งรังนี้ — จดออเดอร์</a>
         </details>
       )}
       <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>

@@ -31,7 +31,7 @@ const queueLine = lineChatUrl(Astro.locals.settings!.contact, 'สนใจจ�
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <h2 id="hives-h" class="text-2xl font-bold"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> รังสมบูรณ์ชันโรงขนเงิน</h2>
-      {saleHives.length > 0 && <a class="text-palm-700 underline" href="/products/hives">ดูทั้งหมด ({saleHives.length} รัง) →</a>}
+      {saleHives.length > 0 && <a class="inline-flex min-h-11 items-center text-palm-700 underline" href="/products/hives">ดูทั้งหมด ({saleHives.length} รัง) →</a>}
     </div>
     <p class="mt-1 text-muted">รังที่มีชันโรงพร้อมเลี้ยง ทุกรังมีสมุดพกให้ตรวจสอบประวัติ</p>
     {saleHives.length === 0 ? (

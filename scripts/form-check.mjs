@@ -279,7 +279,7 @@ console.log('\n9) เมนูมือถือ: บันทึกด่วน
   await page.goto(BASE + '/admin/quick?code=99999&do=honey');
   check(await page.isVisible('#code-err:has-text("ไม่พบรัง")'), 'เลขรังที่ไม่มี → แจ้ง "ไม่พบรัง"', 'ไม่แจ้งเมื่อไม่พบรัง');
   const tabs = await page.$$eval('nav[aria-label="เมนูหลัก"] a', (as) => as.filter((a) => a.offsetParent).map((a) => a.textContent.trim()));
-  check(tabs.join('|') === 'ภาพรวม|รัง|บันทึก|สินค้า|เมนู', `แถบล่าง 5 ปุ่ม: ${tabs.join(' · ')}`, `แถบล่างไม่ถูกต้อง: ${tabs.join(' · ')}`);
+  check(tabs.join('|') === 'ภาพรวม|รัง|บันทึก|ขาย|เมนู', `แถบล่าง 5 ปุ่ม: ${tabs.join(' · ')}`, `แถบล่างไม่ถูกต้อง: ${tabs.join(' · ')}`);
 
   await page.goto(BASE + '/');
   const before = await page.isVisible('nav[aria-label="เมนูหลัก (มือถือ)"] a[href="/passport"]');
@@ -320,6 +320,134 @@ console.log('\n11) ผลผลิต + สภาพอากาศ');
   check(sameMonth, `ชี้เดือนในกราฟฝน → ทุกกราฟแสดงเดือนเดียวกัน (${tips[0]?.split(':')[0]})`, `ค่าที่แสดงไม่ตรงเดือน: ${tips.join(' | ')}`);
   const rainRows = await page.locator('details:has(#tbl-h) tbody tr').count();
   check(rainRows === 24, 'ตารางข้อมูลรายเดือนครบ 24 แถว (สำหรับโปรแกรมอ่านหน้าจอ)', `ตารางมี ${rainRows} แถว`);
+}
+
+console.log('\n12) ขาย: ออเดอร์ → ชำระ → ส่ง · ยกเลิกคืนสต็อก/คืนรัง');
+{
+  const tag = 'ทดสอบ' + Date.now().toString().slice(-6);
+  // สินค้าตัวแรก + สต็อกตั้งต้น
+  await page.goto(BASE + '/admin/products');
+  const vid = await page.$eval('input[id^="st-"]', (e) => e.id.slice(3));
+  const stockOf = async () => { await page.goto(BASE + '/admin/products'); return Number(await page.inputValue('#st-' + vid)); };
+  const setStock = async (n) => {
+    await page.goto(BASE + '/admin/products');
+    await page.fill('#st-' + vid, String(n));
+    await Promise.all([page.waitForURL(/saved=variant/), page.locator('li:has(#st-' + vid + ') button:has-text("บันทึก")').click()]);
+  };
+  await setStock(5);
+  const stock0 = await stockOf();
+  // ออเดอร์ใหม่: ลูกค้าใหม่ · สินค้า 2 ชิ้น · รังที่ตั้งขาย/ยังอยู่ 1 รัง · ค่าส่ง 50
+  await page.goto(BASE + '/admin/orders/new');
+  await page.check('input[name=customerMode][value=new]');
+  await page.fill('#c_name', 'คุณ' + tag);
+  await page.fill('#c_phone', '081-555-0' + tag.slice(-3));
+  await page.fill('#c_address', 'บ้านเลขที่ ' + tag + ' ต.ทดสอบ');
+  await page.fill('#qty_v' + vid, '2');
+  const unit = Number(await page.inputValue('#price_v' + vid));
+  const hiveBox = page.locator('input[data-hive]').first();
+  const hiveId = await hiveBox.getAttribute('data-hive');
+  await page.locator('details:has(input[data-hive])').evaluateAll((ds) => ds.forEach((d) => (d.open = true)));
+  await hiveBox.check();
+  await page.fill('#price_h' + hiveId, '1500');
+  await page.fill('#shipFee', '50');
+  const shown = await page.textContent('#total');
+  const fields = await page.$eval('#order-form', (f) => Object.fromEntries([...new FormData(f)].filter(([, v]) => typeof v === 'string')));
+  await Promise.all([page.waitForURL(/\/admin\/orders\/S\d{4}-\d+\?saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+  const code = page.url().match(/orders\/(S\d{4}-\d+)/)[1];
+  const expect = unit * 2 + 1500 + 50;
+  check(shown?.replace(/[^\d]/g, '') === String(expect), 'ยอดรวมสดในฟอร์ม = ' + shown, 'ยอดรวมในฟอร์มไม่ตรง ' + shown + ' (คาด ' + expect + ')');
+  const summary = await page.inputValue('#summary');
+  check(summary.includes(code) && summary.includes(expect.toLocaleString('th-TH')), 'สร้าง ' + code + ' ข้อความสรุปมีรหัสและยอด ' + expect.toLocaleString('th-TH') + ' บาท', 'ข้อความสรุปไม่ถูกต้อง: ' + summary.slice(0, 120));
+  // ส่งฟอร์มเดิมซ้ำ (กดสองครั้ง/เน็ตหลุด) → ได้ออเดอร์เดิม
+  const again = await post('/admin/orders/new', fields);
+  check(again.url.includes(code), 'ส่งฟอร์มเดิมซ้ำ → ได้ออเดอร์ ' + code + ' เดิม ไม่สร้างใหม่', 'ส่งซ้ำได้ออเดอร์ใหม่: ' + again.url);
+  // รังถูกเอาออกจากหน้าขาย และไม่ให้เลือกซ้ำในออเดอร์อื่น
+  await page.goto(BASE + '/admin/orders/new');
+  check((await page.locator('input[data-hive="' + hiveId + '"]').count()) === 0, 'รังในออเดอร์ค้างเลือกซ้ำในออเดอร์ใหม่ไม่ได้', 'รังในออเดอร์ค้างยังเลือกได้');
+  // ชำระแล้ว → ตัดสต็อก + รังขายแล้ว
+  await page.goto(BASE + '/admin/orders/' + code);
+  await page.selectOption('#payMethodSel', 'promptpay');
+  await Promise.all([page.waitForURL(/saved=pay/), page.click('button:has-text("บันทึกว่าชำระแล้ว")')]);
+  const stock1 = await stockOf();
+  check(stock0 === 5 && stock1 === 3, 'ชำระแล้ว → ตัดสต็อก 5 → 3', 'สต็อกไม่ถูกตัด (' + stock0 + ' → ' + stock1 + ')');
+  await page.goto(BASE + '/admin/orders/' + code);
+  const hiveCode = await page.locator('a[href^="/admin/hives/A"]').first().textContent().then((t) => t.match(/A\d+/)[0]);
+  await page.goto(BASE + '/admin/hives/' + hiveCode);
+  check(await page.isVisible('.badge:has-text("ขายแล้ว")'), 'รัง ' + hiveCode + ' เปลี่ยนเป็น "ขายแล้ว" เอง', 'รังไม่เปลี่ยนเป็นขายแล้ว');
+  // ส่งแล้ว
+  await page.goto(BASE + '/admin/orders/' + code);
+  await page.fill('#trackingNo', 'TH' + tag.slice(-6));
+  await Promise.all([page.waitForURL(/saved=fulfill/), page.click('button:has-text("บันทึกว่าส่งแล้ว")')]);
+  check(await page.isVisible('.badge:has-text("ส่งแล้ว")'), 'บันทึกว่าส่งแล้ว พร้อมเลขพัสดุ', 'สถานะไม่เป็นส่งแล้ว');
+  check((await page.locator('button:has-text("ยกเลิกออเดอร์")').count()) === 0, 'ออเดอร์ที่ส่งแล้วไม่มีปุ่มยกเลิก', 'ส่งแล้วยังยกเลิกได้');
+  // ออเดอร์ที่ 2: ชำระทันที แล้วยกเลิก → คืนสต็อก · ออเดอร์ที่ 3: สินค้าทำตามสั่ง (สต็อก 0) ยกเลิกแล้วต้องไม่เกิดสต็อกลอย
+  await page.goto(BASE + '/admin/orders/new');
+  await page.check('input[name=customerMode][value=existing]');
+  await page.selectOption('#customerId', { label: new RegExp('คุณ' + tag) }).catch(async () => {
+    const val = await page.$eval('#customerId', (s, t) => [...s.options].find((o) => o.text.includes(t))?.value, tag);
+    await page.selectOption('#customerId', val);
+  });
+  await page.fill('#qty_v' + vid, '1');
+  await page.check('#paidNow');
+  await page.selectOption('#payMethod', 'transfer');
+  await Promise.all([page.waitForURL(/saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+  const code2 = page.url().match(/orders\/(S\d{4}-\d+)/)[1];
+  const stock2 = await stockOf();
+  await page.goto(BASE + '/admin/orders/' + code2);
+  let asked = '';
+  page.once('dialog', (d) => { asked = d.message(); d.accept(); });
+  await Promise.all([page.waitForURL(/status=cancelled/), page.click('button:has-text("ยกเลิกออเดอร์")')]);
+  const stock3 = await stockOf();
+  check(asked.includes(code2) && stock2 === 2 && stock3 === 3, 'ยกเลิก ' + code2 + ' (ถามยืนยัน) → คืนสต็อก 2 → 3', 'ยกเลิกแล้วสต็อกไม่ถูก (' + stock2 + ' → ' + stock3 + ', ถาม: ' + asked + ')');
+  await setStock(0);
+  const made = await page.evaluate(async ({ vid, tag }) => {
+    const html = await (await fetch('/admin/orders/new')).text();
+    const cid = new DOMParser().parseFromString(html, 'text/html').querySelector('#customerId option:not([value=""])')?.value;
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ customerMode: 'existing', customerId: cid, channel: 'farm', orderedOn: new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10), shipMethod: 'pickup', shipFee: '0', paidNow: 'on', payMethod: 'cash', ['qty_v' + vid]: '2', ['price_v' + vid]: '100', idem: crypto.randomUUID() })) fd.append(k, v);
+    const r = await fetch('/admin/orders/new', { method: 'POST', body: fd });
+    return r.url.match(/orders\/(S\d{4}-\d+)/)?.[1];
+  }, { vid, tag });
+  const madeStock = await stockOf();
+  await page.goto(BASE + '/admin/orders/' + made);
+  page.once('dialog', (d) => d.accept());
+  await Promise.all([page.waitForURL(/status=cancelled/), page.click('button:has-text("ยกเลิกออเดอร์")')]);
+  const afterCancel = await stockOf();
+  check(madeStock === 0 && afterCancel === 0, 'สินค้าทำตามสั่ง (สต็อก 0): ชำระแล้วสต็อกไม่ติดลบ · ยกเลิกแล้วไม่เกิดสต็อกลอย (0 → 0)', 'สต็อกผิดหลังยกเลิกออเดอร์ทำตามสั่ง (' + madeStock + ' → ' + afterCancel + ')');
+  // รังที่ขายแล้ว (ชำระแล้ว) ถูกยกเลิก → กลับเป็น "ยังอยู่" และกลับไปตั้งขายตามเดิม
+  {
+    await page.goto(BASE + '/admin/orders/new');
+    const box = page.locator('input[data-hive]').first();
+    const hid = await box.getAttribute('data-hive');
+    const hcode = (await page.locator('label:has(input[data-hive="' + hid + '"])').textContent()).match(/A\d+/)[0];
+    await page.goto(BASE + '/admin/hives/' + hcode);
+    await page.click('summary:has-text("ตั้งขาย")');
+    await page.check('input[name=forSale]');
+    await page.fill('#s-price', '1700');
+    await Promise.all([page.waitForURL(/saved=sale/), page.click('button:has-text("บันทึกการตั้งขาย")')]);
+    await page.goto(BASE + '/admin/orders/new?hive=' + hcode);
+    await page.check('input[name=customerMode][value=existing]');
+    const cid = await page.$eval('#customerId', (s) => [...s.options].find((o) => o.value)?.value);
+    await page.selectOption('#customerId', cid);
+    await page.check('#paidNow');
+    await page.selectOption('#payMethod', 'cash');
+    await Promise.all([page.waitForURL(/saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+    const hc = page.url().match(/orders\/(S\d{4}-\d+)/)[1];
+    await page.goto(BASE + '/admin/hives/' + hcode);
+    const soldNow = await page.isVisible('.badge:has-text("ขายแล้ว")');
+    await page.goto(BASE + '/admin/orders/' + hc);
+    page.once('dialog', (d) => d.accept());
+    await Promise.all([page.waitForURL(/status=cancelled/), page.click('button:has-text("ยกเลิกออเดอร์")')]);
+    await page.goto(BASE + '/admin/hives/' + hcode);
+    const back = await page.isVisible('.badge:has-text("ยังอยู่")');
+    const forSaleAgain = await page.isVisible('.badge:has-text("ตั้งขาย")');
+    check(soldNow && back && forSaleAgain, 'รัง ' + hcode + ': ชำระแล้วเป็น "ขายแล้ว" → ยกเลิกแล้วกลับเป็น "ยังอยู่" และตั้งขายตามเดิม', 'รังไม่กลับสถานะเดิม (ขาย=' + soldNow + ' ยังอยู่=' + back + ' ตั้งขาย=' + forSaleAgain + ')');
+  }
+  // ลูกค้า: ประวัติ 1 ออเดอร์ที่ไม่ยกเลิก
+  await page.goto(BASE + '/admin/customers?q=' + encodeURIComponent(tag));
+  const card = await page.locator('main li').first().textContent();
+  check(card.includes('1 ออเดอร์') && card.includes(expect.toLocaleString('th-TH')), 'หน้าลูกค้า: 1 ออเดอร์ รวม ' + expect.toLocaleString('th-TH') + ' บาท (ไม่นับที่ยกเลิก)', 'สรุปลูกค้าไม่ถูก: ' + card.replace(/\s+/g, ' '));
+  console.log('   ℹ️ ข้อมูลทดสอบ: ลูกค้า คุณ' + tag + ' · ' + code + ', ' + code2);
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

@@ -1,0 +1,90 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import SalesTabs from '../../../components/SalesTabs.astro';
+import { getDb } from '../../../server/db.ts';
+import { listOrders, orderCounts, type OrderFilter } from '../../../server/orders.ts';
+import { channelLabel, orderStatusClass, orderStatusLabel, type OrderStatus } from '../../../lib/orders.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { baht } from '../../../lib/labels.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const sp = Astro.url.searchParams;
+const TABS = [
+  ['open', 'ค้างอยู่'],
+  ['awaiting_payment', 'รอชำระ'],
+  ['paid', 'รอส่ง'],
+  ['fulfilled', 'ส่งแล้ว'],
+  ['cancelled', 'ยกเลิก'],
+  ['all', 'ทั้งหมด'],
+] as const;
+type Tab = (typeof TABS)[number][0];
+const tab: Tab = (TABS.map((t) => t[0]) as string[]).includes(sp.get('status') ?? '') ? (sp.get('status') as Tab) : 'open';
+const q = sp.get('q') ?? '';
+const filter: OrderFilter = { status: tab === 'all' ? undefined : (tab as OrderStatus | 'open'), q };
+const [rows, counts] = await Promise.all([listOrders(db, filter), orderCounts(db)]);
+const saved = sp.get('saved');
+const countOf: Partial<Record<Tab, number>> = { open: counts.awaiting + counts.toShip, awaiting_payment: counts.awaiting, paid: counts.toShip };
+---
+
+<AdminLayout title="ขาย" active="orders">
+  <SalesTabs active="orders" />
+  {saved === 'cancelled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ยกเลิกออเดอร์แล้ว — คืนสต็อกและคืนรังเรียบร้อย</p>}
+
+  <section aria-label="สรุป" class="mb-4 grid grid-cols-2 gap-3">
+    <a href="?status=awaiting_payment" class="card-link !p-3">
+      <p class="flex items-center gap-1.5 text-sm text-muted"><Icon name="wallet" class="size-4 text-honey-700" />รอชำระ</p>
+      <p class="font-semibold"><span data-num class="text-2xl">{counts.awaiting}</span> ออเดอร์ {counts.awaitingTotal > 0 && <span data-num class="block text-sm font-normal text-muted">รวม {baht(counts.awaitingTotal)}</span>}</p>
+    </a>
+    <a href="?status=paid" class="card-link !p-3">
+      <p class="flex items-center gap-1.5 text-sm text-muted"><Icon name="truck" class="size-4 text-palm-700" />ชำระแล้ว รอส่ง</p>
+      <p class="font-semibold"><span data-num class="text-2xl">{counts.toShip}</span> ออเดอร์</p>
+    </a>
+  </section>
+
+  <div class="mb-3 flex flex-wrap items-center gap-2">
+    <a class="btn-primary" href="/admin/orders/new"><Icon name="plus" class="size-5" />ออเดอร์ใหม่</a>
+    <form method="get" role="search" class="flex min-w-0 flex-1 gap-2">
+      <input type="hidden" name="status" value={tab} />
+      <label class="sr-only" for="q">ค้นหาออเดอร์</label>
+      <input class="field min-w-0 flex-1" id="q" name="q" type="search" value={q} placeholder="ค้นหา รหัส / ชื่อ / เบอร์" enterkeyhint="search" />
+    </form>
+  </div>
+
+  <nav aria-label="สถานะ" class="mb-3 flex gap-1.5 overflow-x-auto pb-1">
+    {TABS.map(([k, label]) => (
+      <a href={`?status=${k}${q ? `&q=${encodeURIComponent(q)}` : ''}`} aria-current={tab === k ? 'page' : undefined}
+        class:list={['inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium', tab === k ? 'border-palm-600 bg-palm-600 text-white' : 'border-line bg-surface text-ink hover:bg-palm-50']}>
+        {label}{countOf[k] ? <span data-num class:list={['rounded-full px-1.5 text-xs', tab === k ? 'bg-white/20' : 'bg-palm-50 text-palm-700']}>{countOf[k]}</span> : null}
+      </a>
+    ))}
+  </nav>
+
+  {rows.length === 0 ? (
+    <div class="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-line bg-surface px-5 py-8 text-center">
+      <span class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="receipt" class="size-6" /></span>
+      <p class="font-semibold">{q ? 'ไม่พบออเดอร์ที่ค้นหา' : tab === 'open' ? 'ไม่มีออเดอร์ค้าง' : 'ยังไม่มีออเดอร์ในสถานะนี้'}</p>
+      <p class="max-w-sm text-sm text-muted">ตอบแชตลูกค้าเสร็จแล้ว กด "ออเดอร์ใหม่" เพื่อจดไว้ — ระบบจะช่วยตามว่าใครยังไม่โอน และอะไรยังไม่ได้ส่ง</p>
+      {tab !== 'all' && !q && <a class="btn-ghost" href="?status=all">ดูออเดอร์ทั้งหมด</a>}
+    </div>
+  ) : (
+    <ul class="grid gap-3 lg:grid-cols-2">
+      {rows.map((o) => (
+        <li>
+          <a href={`/admin/orders/${o.code}`} class="card-link flex flex-col gap-1">
+            <span class="flex flex-wrap items-center gap-2">
+              <span data-num class="font-bold">{o.code}</span>
+              <span class:list={['badge', orderStatusClass[o.status]]}>{orderStatusLabel[o.status]}</span>
+              <span data-num class="ml-auto text-lg font-bold text-palm-700">{baht(o.total)}</span>
+            </span>
+            <span class="font-medium">{o.customerName ?? 'ไม่ระบุลูกค้า'}</span>
+            <span class="line-clamp-2 text-sm text-muted">{o.items}</span>
+            <span class="text-xs text-muted">{formatThaiDate(o.orderedOn)} · {channelLabel[o.channel]}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</AdminLayout>

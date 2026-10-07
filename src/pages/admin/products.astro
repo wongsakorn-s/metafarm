@@ -1,6 +1,7 @@
 ---
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import SalesTabs from '../../components/SalesTabs.astro';
 import { getDb } from '../../server/db.ts';
 import { getMedia } from '../../server/db.ts';
 import { removeProductImage, setProductImage } from '../../server/media.ts';
@@ -64,6 +65,7 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
 ---
 
 <AdminLayout title="สินค้า" active="products">
+  <SalesTabs active="products" />
   {saved && savedText[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedText[saved]}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 

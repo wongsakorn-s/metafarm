@@ -1,0 +1,43 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import SalesTabs from '../../../components/SalesTabs.astro';
+import { getDb } from '../../../server/db.ts';
+import { listCustomers } from '../../../server/orders.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { baht } from '../../../lib/labels.ts';
+
+export const prerender = false;
+const q = Astro.url.searchParams.get('q') ?? '';
+const rows = await listCustomers(getDb(), q);
+---
+
+<AdminLayout title="ขาย" active="customers">
+  <SalesTabs active="customers" />
+  <form method="get" role="search" class="mb-3 flex gap-2">
+    <label class="sr-only" for="q">ค้นหาลูกค้า</label>
+    <input class="field min-w-0 flex-1" id="q" name="q" type="search" value={q} placeholder="ค้นหา ชื่อ / เบอร์" enterkeyhint="search" />
+    <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
+  </form>
+  <p class="mb-3 text-sm text-muted">ลูกค้า {rows.length} คน · เรียงจากซื้อบ่อยที่สุด · เพิ่มลูกค้าได้ตอนจดออเดอร์ใหม่</p>
+  {rows.length === 0 ? (
+    <div class="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-line bg-surface px-5 py-8 text-center">
+      <span class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="users" class="size-6" /></span>
+      <p class="font-semibold">{q ? 'ไม่พบลูกค้าที่ค้นหา' : 'ยังไม่มีลูกค้า'}</p>
+      <a class="btn-primary" href="/admin/orders/new"><Icon name="plus" class="size-5" />จดออเดอร์แรก</a>
+    </div>
+  ) : (
+    <ul class="grid gap-3 lg:grid-cols-2">
+      {rows.map((c) => (
+        <li><a href={`/admin/customers/${c.id}`} class="card-link flex items-center gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-palm-50 font-semibold text-palm-700" aria-hidden="true">{c.name.slice(0, 1)}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-semibold">{c.name}</span>
+            <span class="block text-sm text-muted">{c.phone ?? 'ไม่มีเบอร์'}{c.lastOrder && ` · ซื้อล่าสุด ${formatThaiDate(c.lastOrder)}`}</span>
+          </span>
+          <span class="shrink-0 text-right text-sm"><span data-num class="block font-semibold">{baht(c.spent)}</span><span class="text-muted">{c.orders} ออเดอร์</span></span>
+        </a></li>
+      ))}
+    </ul>
+  )}
+</AdminLayout>

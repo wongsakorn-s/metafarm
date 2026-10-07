@@ -242,7 +242,7 @@ export async function addNote(db: Db, user: SessionUser, hive: Hive, d: z.output
 }
 
 /** คำสั่งเปลี่ยนสถานะ (บันทึกเหตุการณ์ + อัปเดตรัง + audit) — แยกออกมาให้ fillMissing รวมเป็น batch เดียวได้ */
-function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>, key: string | null): BatchItem<'sqlite'>[] {
+export function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>, key: string | null): BatchItem<'sqlite'>[] {
   const sold = d.status === 'sold';
   return [
     db.insert(hiveEvents).values({ hiveId: hive.id, type: 'status_change', occurredOn: d.occurredOn, fromStatus: hive.status, toStatus: d.status, note: d.note ?? d.collapseReason, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),

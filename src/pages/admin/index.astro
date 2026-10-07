@@ -3,12 +3,14 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
 import { getDashboard } from '../../server/hives.ts';
+import { orderCounts } from '../../server/orders.ts';
 import { baht, eventIcon, eventLabel, originLabel } from '../../lib/labels.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 
 export const prerender = false;
 
 const d = await getDashboard(getDb());
+const oc = await orderCounts(getDb());
 const count = (s: string) => d.byStatus.find((x) => x.status === s)?.n ?? 0;
 const total = d.byStatus.reduce((n, x) => n + x.n, 0);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
@@ -36,6 +38,20 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 
   {/* งานที่ค้าง: แถวสั้น ๆ แตะได้ทั้งแถว */}
   <ul class="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+    {oc.awaiting > 0 && (
+      <li><a href="/admin/orders?status=awaiting_payment" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
+        <Icon name="wallet" class="size-6 text-honey-700" />
+        <span class="flex-1"><strong>{oc.awaiting} ออเดอร์</strong> รอชำระ <span data-num class="text-sm text-muted">· {baht(oc.awaitingTotal)}</span></span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    )}
+    {oc.toShip > 0 && (
+      <li><a href="/admin/orders?status=paid" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+        <Icon name="truck" class="size-6 text-palm-700" />
+        <span class="flex-1"><strong>{oc.toShip} ออเดอร์</strong> ชำระแล้ว รอส่ง</span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    )}
     {d.incomplete > 0 && (
       <li><a href="/admin/todo" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
         <Icon name="help" class="size-6 text-honey-700" />

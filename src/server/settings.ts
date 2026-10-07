@@ -2,7 +2,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import { auditLogs, settings } from '../db/schema.ts';
-import { contactToRows, courseToRows, locationToRows, parseSettingRows, type SiteSettings, type contactSchema, type courseSchema, type locationSchema } from '../lib/settings.ts';
+import { contactToRows, courseToRows, locationToRows, parseSettingRows, paymentToRows, type SiteSettings, type contactSchema, type courseSchema, type locationSchema, type paymentSchema } from '../lib/settings.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -28,3 +28,6 @@ export const saveCourse = (db: Db, user: SessionUser, d: z.output<typeof courseS
 
 export const saveLocation = (db: Db, user: SessionUser, d: z.output<typeof locationSchema>) =>
   save(db, user, 'settings.location', locationToRows(d), { changed: true });
+
+export const savePayment = (db: Db, user: SessionUser, d: z.output<typeof paymentSchema>) =>
+  save(db, user, 'settings.payment', paymentToRows(d), { set: d.paymentInfo !== '' });

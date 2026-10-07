@@ -3,9 +3,9 @@ import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
-import { getSettings, saveContact, saveCourse, saveLocation } from '../../server/settings.ts';
+import { getSettings, saveContact, saveCourse, saveLocation, savePayment } from '../../server/settings.ts';
 import { listTraining } from '../../lib/content.ts';
-import { contactSchema, courseSchema, effectiveCourse, lineChatUrl, locationSchema, telHref } from '../../lib/settings.ts';
+import { contactSchema, courseSchema, effectiveCourse, lineChatUrl, locationSchema, paymentSchema, telHref } from '../../lib/settings.ts';
 import { fieldErrors, type FieldErrors } from '../../lib/validation.ts';
 import { formatPrice } from '../../lib/products.ts';
 
@@ -30,6 +30,10 @@ if (Astro.request.method === 'POST') {
     const p = courseSchema.safeParse(values);
     if (p.success) { await saveCourse(db, user, p.data); return Astro.redirect(`/admin/settings?saved=course#c-${p.data.slug}`, 303); }
     errors = fieldErrors(p.error); errorWhere = `course:${values.slug}`;
+  } else if (intent === 'payment') {
+    const p = paymentSchema.safeParse(values);
+    if (p.success) { await savePayment(db, user, p.data); return Astro.redirect('/admin/settings?saved=payment#payment', 303); }
+    errors = fieldErrors(p.error); errorWhere = 'payment';
   } else if (intent === 'location') {
     const p = locationSchema.safeParse(values);
     if (p.success) { await saveLocation(db, user, p.data); return Astro.redirect('/admin/settings?saved=location#location', 303); }
@@ -75,6 +79,18 @@ const line = lineChatUrl(c, 'ทดสอบข้อความจากหล
       {telHref(c.phone) && <a class="inline-flex min-h-11 items-center text-sm underline" href={telHref(c.phone)!}>ทดสอบเบอร์โทร</a>}
       <a class="inline-flex min-h-11 items-center text-sm underline" href="/contact" target="_blank" rel="noopener">ดูหน้า "ติดต่อเรา" บนเว็บ</a>
     </div>
+  </form>
+
+  <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="payment">
+    <input type="hidden" name="intent" value="payment" />
+    <h2 class="text-lg font-semibold">ช่องทางชำระเงิน (สำหรับข้อความสรุปออเดอร์)</h2>
+    <p class="hint">ใส่ท้ายข้อความสรุปออเดอร์ที่ "รอชำระ" เวลากดคัดลอกไปส่งให้ลูกค้าทาง LINE — ไม่แสดงบนเว็บสาธารณะ</p>
+    <div>
+      <label class="label" for="paymentInfo">เลขบัญชี / พร้อมเพย์</label>
+      <textarea class="field" id="paymentInfo" name="paymentInfo" rows="3" maxlength="500" placeholder="เช่น ธ.กสิกรไทย 123-4-56789-0 ชื่อบัญชี … / พร้อมเพย์ 08x-xxx-xxxx">{errorWhere === 'payment' ? (values.paymentInfo ?? '') : settings.paymentInfo}</textarea>
+      {err('paymentInfo', 'payment') && <p class="error">{err('paymentInfo', 'payment')}</p>}
+    </div>
+    <button class="btn-primary" type="submit">บันทึกช่องทางชำระเงิน</button>
   </form>
 
   <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="location">

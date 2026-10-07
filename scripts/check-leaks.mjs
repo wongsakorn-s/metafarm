@@ -12,7 +12,9 @@ const all = async (sql) => (await env.DB.prepare(sql).all()).results;
 const hives = await all('SELECT code, origin_place, notes, collapse_reason, purchase_price, sold_price, sale_price, for_sale, status FROM hives ORDER BY id');
 const variants = await all('SELECT v.stock_qty, p.slug FROM product_variants v JOIN products p ON p.id = v.product_id');
 const suppliers = await all('SELECT name, phone, notes FROM suppliers');
-const customers = await all('SELECT name, phone FROM customers');
+const customers = await all('SELECT name, phone, line_name, address, notes FROM customers');
+const orderRows = await all('SELECT code, note, tracking_no FROM orders');
+const payInfo = await all("SELECT value FROM settings WHERE key = 'payment.info'");
 await dispose();
 
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -20,7 +22,13 @@ const secrets = new Map(); // ข้อความลับ → ที่มา
 const add = (text, why, min = 4) => { const t = norm(text); if (t.length >= min && !secrets.has(t)) secrets.set(t, why); };
 
 for (const s of suppliers) { add(s.name, 'ชื่อคู่ค้า'); add(s.phone, 'เบอร์คู่ค้า', 8); (s.notes ?? '').split('\n').forEach((l) => add(l, 'หมายเหตุคู่ค้า', 6)); }
-for (const c of customers) { add(c.name, 'ชื่อลูกค้า'); add(c.phone, 'เบอร์ลูกค้า', 8); }
+for (const c of customers) {
+  add(c.name, 'ชื่อลูกค้า'); add(c.phone, 'เบอร์ลูกค้า', 8); add(c.line_name, 'LINE ลูกค้า');
+  (c.address ?? '').split(/\n/).forEach((l) => add(l, 'ที่อยู่ลูกค้า', 6)); (c.notes ?? '').split(/\n/).forEach((l) => add(l, 'หมายเหตุลูกค้า', 6));
+}
+// ออเดอร์: รหัส หมายเหตุ เลขพัสดุ — ห้ามโผล่บนหน้าสาธารณะ · ช่องทางชำระเงิน (เลขบัญชี) ใช้เฉพาะข้อความถึงลูกค้า
+for (const o of orderRows) { add(o.code, 'รหัสออเดอร์'); (o.note ?? '').split(/\n/).forEach((l) => add(l, 'หมายเหตุออเดอร์', 6)); add(o.tracking_no, 'เลขพัสดุ', 6); }
+for (const p of payInfo) (p.value ?? '').split(/\n/).forEach((l) => add(l, 'ช่องทางชำระเงิน', 6));
 const FARM_TOKENS = new Set(['ปลวกแดง', 'หนองไร่', 'ระยอง']);
 for (const h of hives) {
   (h.notes ?? '').split('\n').forEach((l) => add(l, `หมายเหตุภายใน ${h.code}`, 6));

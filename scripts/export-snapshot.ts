@@ -12,9 +12,9 @@ import { getPlatformProxy } from 'wrangler';
 
 const OUT = 'private/export';
 // ลำดับนำเข้า (ตารางที่ถูกอ้างถึงมาก่อน) · ลบย้อนลำดับนี้
-const TABLES = ['species', 'suppliers', 'customers', 'products', 'product_variants', 'hives', 'hive_events', 'hive_media', 'settings'] as const;
+const TABLES = ['species', 'suppliers', 'customers', 'products', 'product_variants', 'hives', 'hive_events', 'hive_media', 'settings', 'orders', 'order_items', 'weather_daily'] as const;
 // คอลัมน์ที่อ้างถึงตาราง users ซึ่งไม่ส่งออก → ตั้งเป็น NULL
-const NULL_COLS: Record<string, string[]> = { hive_events: ['created_by'] };
+const NULL_COLS: Record<string, string[]> = { hive_events: ['created_by'], orders: ['created_by'] };
 // คอลัมน์อ้างถึงแถวอื่นในตารางเดียวกัน → ใส่ NULL ก่อน แล้ว UPDATE หลังนำเข้าครบ (รังแม่อาจมีเลขมากกว่ารังลูก)
 const SELF_REFS: Record<string, string[]> = { hives: ['queen_source_hive_id', 'brood_source_hive_id'] };
 

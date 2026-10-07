@@ -272,3 +272,67 @@ export const weatherDaily = sqliteTable('weather_daily', {
   source: text('source').notNull().default('nasa-power'),
   fetchedAt: text('fetched_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
 });
+
+// ---------- ขาย (Phase 4.2) — ข้อมูลหลังบ้านทั้งหมด ห้ามแสดงบนเว็บสาธารณะ ----------
+export const ORDER_STATUSES = ['awaiting_payment', 'paid', 'fulfilled', 'cancelled'] as const;
+export const ORDER_CHANNELS = ['line', 'facebook', 'farm', 'other'] as const;
+export const PAY_METHODS = ['transfer', 'promptpay', 'cash', 'other'] as const;
+export const SHIP_METHODS = ['pickup', 'farm_delivery', 'thaipost', 'courier', 'other'] as const;
+
+/** ออเดอร์ · สถานะ: รอชำระ → ชำระแล้ว → ส่งแล้ว (หรือยกเลิก) · ตัดสต็อก/ขายรังตอน "ชำระแล้ว" */
+export const orders = sqliteTable(
+  'orders',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** S2569-001 (พ.ศ. + ลำดับในปี) */
+    code: text('code').notNull(),
+    customerId: integer('customer_id').references(() => customers.id),
+    channel: text('channel', { enum: ORDER_CHANNELS }).notNull().default('line'),
+    orderedOn: text('ordered_on').notNull(),
+    status: text('status', { enum: ORDER_STATUSES }).notNull().default('awaiting_payment'),
+    paidOn: text('paid_on'),
+    payMethod: text('pay_method', { enum: PAY_METHODS }),
+    shipMethod: text('ship_method', { enum: SHIP_METHODS }).notNull().default('pickup'),
+    shipFee: integer('ship_fee').notNull().default(0),
+    trackingNo: text('tracking_no'),
+    fulfilledOn: text('fulfilled_on'),
+    note: text('note'),
+    /** ตัดสต็อก/ขายรังไปแล้วหรือยัง (กันตัดซ้ำ และรู้ว่าต้องคืนตอนยกเลิก) */
+    stockApplied: integer('stock_applied', { mode: 'boolean' }).notNull().default(false),
+    /** กันสร้างออเดอร์ซ้ำจากการกดสองครั้ง */
+    createKey: text('create_key'),
+    createdBy: integer('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('orders_code_uq').on(t.code),
+    uniqueIndex('orders_create_key_uq').on(t.createKey),
+    index('orders_status_idx').on(t.status, t.orderedOn),
+    index('orders_customer_idx').on(t.customerId),
+    check('orders_ship_fee_nonneg', sql`${t.shipFee} >= 0`),
+  ],
+);
+
+/** รายการในออเดอร์ · ชื่อ/ราคาเก็บไว้ ณ ตอนขาย (แก้ชื่อหรือราคาสินค้าทีหลัง ออเดอร์เก่าไม่เปลี่ยน) */
+export const orderItems = sqliteTable(
+  'order_items',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    orderId: integer('order_id').notNull().references(() => orders.id),
+    kind: text('kind', { enum: ['variant', 'hive'] }).notNull(),
+    variantId: integer('variant_id').references(() => productVariants.id),
+    hiveId: integer('hive_id').references(() => hives.id),
+    label: text('label').notNull(),
+    qty: integer('qty').notNull().default(1),
+    unitPrice: integer('unit_price').notNull(),
+    /** รังที่ตั้งขายอยู่ก่อนถูกจอง — คืนค่านี้เมื่อยกเลิก */
+    prevForSale: integer('prev_for_sale', { mode: 'boolean' }),
+    /** จำนวนที่ตัดสต็อกจริงตอนชำระ (สินค้าทำตามสั่งที่สต็อก 0 ตัดได้ 0) — ยกเลิกแล้วคืนเท่านี้ ไม่สร้างสต็อกเกินจริง */
+    stockTaken: integer('stock_taken').notNull().default(0),
+  },
+  (t) => [
+    index('order_items_order_idx').on(t.orderId),
+    index('order_items_hive_idx').on(t.hiveId),
+    check('order_items_qty_pos', sql`${t.qty} > 0 and ${t.unitPrice} >= 0`),
+  ],
+);

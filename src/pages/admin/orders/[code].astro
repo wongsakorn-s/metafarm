@@ -1,0 +1,183 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import { getDb } from '../../../server/db.ts';
+import { getSettings } from '../../../server/settings.ts';
+import { cancelOrder, fulfillOrder, getOrder, payOrder, updateOrderNote } from '../../../server/orders.ts';
+import { channelLabel, fulfillOrderSchema, NEXT, orderStatusClass, orderStatusLabel, orderSummaryText, orderTotal, payMethodLabel, payOrderSchema, shipMethodLabel } from '../../../lib/orders.ts';
+import { fieldErrors, todayBangkok } from '../../../lib/validation.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { baht } from '../../../lib/labels.ts';
+import { telHref } from '../../../lib/settings.ts';
+import { site } from '../../../config/site.ts';
+import { PAY_METHODS } from '../../../db/schema.ts';
+
+export const prerender = false;
+
+const db = getDb();
+const user = Astro.locals.user!;
+const code = (Astro.params.code ?? '').toUpperCase();
+if (!/^S\d{4}-\d{3,}$/.test(code)) return new Response('ไม่พบออเดอร์', { status: 404 });
+const today = todayBangkok();
+let errors: Record<string, string> = {};
+let values: Record<string, string> = {};
+let openForm = '';
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const intent = String(values.intent ?? '');
+  openForm = intent;
+  let r: { ok: boolean; error?: string } | null = null;
+  if (intent === 'pay') {
+    const p = payOrderSchema.safeParse(values);
+    if (!p.success) errors = fieldErrors(p.error); else r = await payOrder(db, user, code, p.data);
+  } else if (intent === 'fulfill') {
+    const p = fulfillOrderSchema.safeParse(values);
+    if (!p.success) errors = fieldErrors(p.error); else r = await fulfillOrder(db, user, code, p.data);
+  } else if (intent === 'cancel') {
+    r = await cancelOrder(db, user, code, today);
+    if (r.ok) return Astro.redirect('/admin/orders?status=cancelled&saved=cancelled', 303);
+  } else if (intent === 'note') {
+    r = await updateOrderNote(db, user, code, (values.note ?? '').trim().slice(0, 1000) || undefined);
+  }
+  if (r?.ok) return Astro.redirect(`/admin/orders/${code}?saved=${intent}`, 303);
+  if (r && !r.ok) errors._ = r.error ?? 'บันทึกไม่สำเร็จ';
+}
+
+const got = await getOrder(db, code);
+if (!got) return new Response('ไม่พบออเดอร์', { status: 404 });
+const { order: o, items, customer } = got;
+const settings = await getSettings(db);
+const total = orderTotal(items, o.shipFee);
+const summary = orderSummaryText(o, items, site.name, settings.paymentInfo);
+const saved = Astro.url.searchParams.get('saved');
+const savedText: Record<string, string> = {
+  created: 'บันทึกออเดอร์แล้ว — กด "คัดลอกข้อความสรุป" เพื่อส่งให้ลูกค้าทาง LINE',
+  pay: 'บันทึกว่าชำระแล้ว — ตัดสต็อกและเปลี่ยนรังเป็น "ขายแล้ว" เรียบร้อย',
+  fulfill: 'บันทึกว่าส่งของแล้ว',
+  note: 'บันทึกหมายเหตุแล้ว',
+};
+const next = NEXT[o.status];
+const v = (k: string, d = '') => values[k] ?? d;
+const tel = customer?.phone ? telHref(customer.phone) : null;
+---
+
+<AdminLayout back={{ href: '/admin/orders', label: 'ขาย' }} title={`ออเดอร์ ${o.code}`} active="orders">
+  {saved && savedText[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedText[saved]}</p>}
+  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+
+  <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start">
+    <div class="space-y-5">
+      <section class="card" aria-labelledby="items-h">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <span class:list={['badge text-sm', orderStatusClass[o.status]]}>{orderStatusLabel[o.status]}</span>
+          <span class="text-sm text-muted">สั่งเมื่อ {formatThaiDate(o.orderedOn)} · ทาง {channelLabel[o.channel]}</span>
+        </div>
+        <h2 id="items-h" class="sr-only">รายการสินค้า</h2>
+        <table class="w-full text-sm">
+          <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">รายการ</th><th scope="col" class="text-right">จำนวน</th><th scope="col" class="text-right">รวม</th></tr></thead>
+          <tbody class="divide-y divide-line" data-num>
+            {items.map((i) => (
+              <tr>
+                <td class="py-2 pr-2">{i.hiveCode ? <a class="font-medium text-palm-700 underline" href={`/admin/hives/${i.hiveCode}`}>{i.label}</a> : i.label}<span class="block text-xs text-muted">{baht(i.unitPrice)} / ชิ้น</span></td>
+                <td class="text-right">{i.qty}</td>
+                <td class="text-right">{baht(i.qty * i.unitPrice)}</td>
+              </tr>
+            ))}
+            {o.shipFee > 0 && <tr><td class="py-2">ค่าส่ง</td><td></td><td class="text-right">{baht(o.shipFee)}</td></tr>}
+          </tbody>
+          <tfoot><tr class="border-t-2 border-line"><th scope="row" class="py-2 text-left">รวมทั้งหมด</th><td></td><td data-num class="text-right text-lg font-bold text-palm-700">{baht(total)}</td></tr></tfoot>
+        </table>
+      </section>
+
+      <section class="card" aria-labelledby="sum-h">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="sum-h" class="font-semibold">ข้อความสรุปสำหรับส่งทาง LINE</h2>
+          <button type="button" class="btn-primary" id="copy-btn"><Icon name="copy" class="size-5" />คัดลอกข้อความสรุป</button>
+        </div>
+        <textarea id="summary" class="field mt-3 min-h-40 font-[inherit] text-sm" readonly aria-label="ข้อความสรุปออเดอร์">{summary}</textarea>
+        <p class="hint" id="copy-status" role="status" aria-live="polite">
+          {o.status === 'awaiting_payment' && !settings.paymentInfo && <>ยังไม่มีเลขบัญชีในข้อความ — ใส่ได้ที่ <a class="underline" href="/admin/settings#payment">ตั้งค่า → ช่องทางชำระเงิน</a></>}
+        </p>
+      </section>
+    </div>
+
+    <div class="space-y-5 xl:sticky xl:top-6">
+      <section class="card" aria-labelledby="cust-h">
+        <h2 id="cust-h" class="mb-1 font-semibold">ลูกค้า</h2>
+        {customer ? (
+          <>
+            <a class="text-lg font-semibold text-palm-700 underline" href={`/admin/customers/${customer.id}`}>{customer.name}</a>
+            {customer.phone && <p>{tel ? <a class="inline-flex min-h-11 items-center gap-2 underline" href={tel}><Icon name="phone" class="size-4" />{customer.phone}</a> : customer.phone}</p>}
+            {customer.lineName && <p class="text-sm text-muted">LINE: {customer.lineName}</p>}
+            {customer.address && <p class="mt-1 whitespace-pre-line text-sm">{customer.address}</p>}
+          </>
+        ) : <p class="text-muted">ไม่ระบุ</p>}
+        <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t border-line pt-3 text-sm">
+          <dt class="text-muted">การรับสินค้า</dt><dd>{shipMethodLabel[o.shipMethod]}</dd>
+          {o.paidOn && <><dt class="text-muted">ชำระเมื่อ</dt><dd>{formatThaiDate(o.paidOn)}{o.payMethod && ` · ${payMethodLabel[o.payMethod]}`}</dd></>}
+          {o.fulfilledOn && <><dt class="text-muted">ส่งเมื่อ</dt><dd>{formatThaiDate(o.fulfilledOn)}</dd></>}
+          {o.trackingNo && <><dt class="text-muted">เลขพัสดุ</dt><dd data-num>{o.trackingNo}</dd></>}
+        </dl>
+      </section>
+
+      {next.includes('paid') && (
+        <form method="post" class="card space-y-3" id="pay">
+          <input type="hidden" name="intent" value="pay" />
+          <h2 class="flex items-center gap-2 font-semibold"><Icon name="wallet" class="size-5 text-palm-700" />ลูกค้าชำระเงินแล้ว</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="paidOn">วันที่ชำระ</label><input class="field" id="paidOn" name="paidOn" type="date" max={today} required value={v('paidOn', today)} />{errors.paidOn && <p class="error">{errors.paidOn}</p>}</div>
+            <div><label class="label" for="payMethodSel">ชำระทาง</label><select class="field" id="payMethodSel" name="payMethod" required><option value="">เลือก…</option>{PAY_METHODS.map((m) => <option value={m} selected={v('payMethod') === m}>{payMethodLabel[m]}</option>)}</select>{errors.payMethod && <p class="error">{errors.payMethod}</p>}</div>
+          </div>
+          <button class="btn-primary w-full" type="submit">บันทึกว่าชำระแล้ว</button>
+          <p class="hint">ระบบจะตัดสต็อกสินค้า และเปลี่ยนรังในออเดอร์เป็น "ขายแล้ว" ให้เอง</p>
+        </form>
+      )}
+
+      {next.includes('fulfilled') && (
+        <form method="post" class="card space-y-3" id="fulfill">
+          <input type="hidden" name="intent" value="fulfill" />
+          <h2 class="flex items-center gap-2 font-semibold"><Icon name="truck" class="size-5 text-palm-700" />ส่งของ / ลูกค้ารับแล้ว</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="fulfilledOn">วันที่</label><input class="field" id="fulfilledOn" name="fulfilledOn" type="date" max={today} required value={v('fulfilledOn', today)} />{errors.fulfilledOn && <p class="error">{errors.fulfilledOn}</p>}</div>
+            <div><label class="label" for="trackingNo">เลขพัสดุ (ถ้ามี)</label><input class="field" id="trackingNo" name="trackingNo" maxlength="60" value={v('trackingNo')} autocomplete="off" /></div>
+          </div>
+          <button class="btn-primary w-full" type="submit">บันทึกว่าส่งแล้ว</button>
+        </form>
+      )}
+
+      <form method="post" class="card space-y-2">
+        <input type="hidden" name="intent" value="note" />
+        <label class="label" for="note">หมายเหตุ</label>
+        <textarea class="field" id="note" name="note" rows="2" maxlength="1000">{v('note', o.note ?? '')}</textarea>
+        <button class="btn-ghost" type="submit">บันทึกหมายเหตุ</button>
+      </form>
+
+      {next.includes('cancelled') && (
+        <form method="post" data-confirm={`ยกเลิกออเดอร์ ${o.code} ใช่ไหม? ${o.stockApplied ? 'ระบบจะคืนสต็อก และเปลี่ยนรังกลับเป็น "ยังอยู่"' : 'รังในออเดอร์จะกลับไปตั้งขายตามเดิม'}`}>
+          <input type="hidden" name="intent" value="cancel" />
+          <button class="btn-danger w-full" type="submit"><Icon name="ban" class="size-5" />ยกเลิกออเดอร์</button>
+        </form>
+      )}
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  // คัดลอกข้อความสรุป — ถ้าคัดลอกอัตโนมัติไม่ได้ เลือกข้อความให้กดคัดลอกเอง
+  const btn = document.getElementById('copy-btn');
+  const box = document.getElementById('summary') as HTMLTextAreaElement | null;
+  const status = document.getElementById('copy-status');
+  btn?.addEventListener('click', async () => {
+    if (!box || !status) return;
+    try {
+      await navigator.clipboard.writeText(box.value);
+      status.textContent = 'คัดลอกแล้ว — เปิดแชต LINE ของลูกค้าแล้ววางได้เลย';
+    } catch {
+      box.focus();
+      box.select();
+      status.textContent = 'คัดลอกอัตโนมัติไม่ได้ — ข้อความถูกเลือกไว้แล้ว กดคัดลอกเองได้เลย';
+    }
+  });
+</script>

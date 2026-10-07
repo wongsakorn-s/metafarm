@@ -21,6 +21,8 @@ export interface SiteSettings {
   courses: Record<string, CourseOverride>;
   /** พิกัดฟาร์มสำหรับข้อมูลสภาพอากาศ · isDefault = ยังเป็นพิกัดประมาณ อ.ปลวกแดง */
   farm: FarmLocation & { isDefault: boolean };
+  /** ช่องทางชำระเงิน (เลขบัญชี/พร้อมเพย์) ใส่ท้ายข้อความสรุปออเดอร์ที่ส่งให้ลูกค้าทาง LINE — หลังบ้านเท่านั้น */
+  paymentInfo: string;
 }
 
 /** ค่าเริ่มต้น (ตัวอย่าง) ใช้จนกว่าเจ้าของฟาร์มจะบันทึกค่าจริง */
@@ -57,6 +59,7 @@ export function parseSettingRows(rows: { key: string; value: string }[]): SiteSe
       confirmed: get('contact.confirmed', '0') === '1',
     },
     courses,
+    paymentInfo: map.get('payment.info') ?? '',
     farm: (() => {
       const lat = Number(map.get('farm.lat'));
       const lng = Number(map.get('farm.lng'));
@@ -173,3 +176,6 @@ export function locationToRows(d: z.output<typeof locationSchema>): { key: strin
     { key: 'farm.lng', value: String(d.coords.lng) },
   ];
 }
+
+export const paymentSchema = z.object({ paymentInfo: z.preprocess(blank, z.string().max(500, 'ยาวเกินไป (ไม่เกิน 500 ตัวอักษร)')) });
+export const paymentToRows = (d: z.output<typeof paymentSchema>) => [{ key: 'payment.info', value: d.paymentInfo }];

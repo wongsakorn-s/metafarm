@@ -57,6 +57,13 @@
       "when": 1791386735183,
       "tag": "0007_weather_daily",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791388595957,
+      "tag": "0008_orders",
+      "breakpoints": true
     }
   ]
 }

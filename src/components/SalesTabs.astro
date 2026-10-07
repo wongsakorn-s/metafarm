@@ -1,0 +1,17 @@
+---
+// แถบย่อยของหมวด "ขาย": ออเดอร์ · ลูกค้า · สินค้า (มือถือเข้าจากแท็บล่าง "ขาย")
+interface Props { active: 'orders' | 'customers' | 'products' }
+const { active } = Astro.props;
+const tabs = [
+  { key: 'orders', href: '/admin/orders', label: 'ออเดอร์' },
+  { key: 'customers', href: '/admin/customers', label: 'ลูกค้า' },
+  { key: 'products', href: '/admin/products', label: 'สินค้า / ราคา / สต็อก' },
+] as const;
+---
+
+<nav aria-label="หมวดขาย" class="-mt-1 mb-4 flex gap-1 overflow-x-auto border-b border-line">
+  {tabs.map((t) => (
+    <a href={t.href} aria-current={active === t.key ? 'page' : undefined}
+      class:list={['-mb-px inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 font-medium', active === t.key ? 'border-palm-600 text-palm-700' : 'border-transparent text-muted hover:text-ink']}>{t.label}</a>
+  ))}
+</nav>
