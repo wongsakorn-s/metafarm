@@ -59,6 +59,7 @@
         "drizzle-kit": "^0.31.11",
         "fast-xml-parser": "^5.11.2",
         "fflate": "^0.8.3",
+        "lucide-static": "^1.52.0",
         "playwright-core": "^1.63.0",
         "typescript": "^6.0.3",
         "vitest": "^5.0.3"

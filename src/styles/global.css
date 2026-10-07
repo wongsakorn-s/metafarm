@@ -1,7 +1,8 @@
 @import '@fontsource-variable/noto-sans-thai';
 @import 'tailwindcss';
 
-/* สีหลักจากโลโก้ MetaFarm: เขียวปาล์ม + เหลืองน้ำผึ้ง */
+/* Design tokens — ที่มาและกฎการใช้: design-system/metafarm/MASTER.md
+   สีหลักจากโลโก้ MetaFarm: เขียวปาล์ม + เหลืองน้ำผึ้ง (สไตล์ Organic Biophilic ตามที่ ui-ux-pro-max แนะนำ) */
 @theme {
   --font-sans: 'Noto Sans Thai Variable', ui-sans-serif, system-ui, sans-serif;
 
@@ -24,6 +25,15 @@
   --color-surface: #ffffff;
   --color-canvas: #f6f8f6;
   --color-danger: #b42318;
+
+  /* เงา: นุ่มแบบธรรมชาติ 2 ระดับ (การ์ดปกติ / ยกขึ้นเมื่อชี้หรือเป็นแถบลอย) */
+  --shadow-card: 0 1px 2px rgb(5 58 30 / 0.05), 0 1px 3px rgb(5 58 30 / 0.06);
+  --shadow-raised: 0 4px 12px rgb(5 58 30 / 0.08), 0 2px 4px rgb(5 58 30 / 0.06);
+
+  /* การเคลื่อนไหว: เร็ว (กด/ชี้) และปกติ (เปิด-ปิด) — เข้าแบบชะลอปลาย ออกเร็วกว่าเข้า */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
 }
 
 @layer base {
@@ -31,6 +41,13 @@
     color: var(--color-ink);
     background: var(--color-canvas);
     -webkit-text-size-adjust: 100%;
+    /* แถบบน/ล่างที่ติดจอ ต้องไม่บังช่องที่เลื่อนไปหรือที่โฟกัสอยู่ (WCAG 2.2 focus-not-obscured) */
+    scroll-padding-top: 5rem;
+    scroll-padding-bottom: 6rem;
+    interpolate-size: allow-keywords;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
   }
   body {
     font-family: var(--font-sans);
@@ -53,26 +70,88 @@
   input, select, textarea {
     font-size: 16px;
   }
+  /* แตะแล้วตอบทันที (ไม่มีหน่วง 300ms รอดับเบิลแตะ) และเคอร์เซอร์มือบนทุกอย่างที่กดได้
+     (Tailwind 4 ตั้งปุ่มเป็น cursor: default) */
+  a, button, summary, label, select, [role='button'] {
+    touch-action: manipulation;
+  }
+  button:not(:disabled), summary, label[for], [role='button'], select {
+    cursor: pointer;
+  }
+  /* หัวข้อสั้นตัดบรรทัดสมดุล ไม่เหลือคำเดียวค้างบรรทัดล่าง (เบราว์เซอร์ที่ไม่รองรับก็ตัดตามปกติ) */
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  /* ตัวเลขที่เทียบกัน (สถิติ ราคา) กว้างเท่ากัน ไม่กระตุกเมื่อเปลี่ยน */
+  [data-num] { font-variant-numeric: tabular-nums; }
+
+  /* <details>: ใช้ลูกศรของเราแทนสามเหลี่ยมของเบราว์เซอร์ (ดู @utility disclosure) */
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+}
+
+/* เปิด/ปิด <details> แบบนุ่ม (Chrome/Edge รุ่นใหม่) — เบราว์เซอร์อื่นเปิดทันทีตามเดิม ไม่มีอะไรเสีย */
+@media (prefers-reduced-motion: no-preference) {
+  details::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition: block-size var(--duration-base) var(--ease-out-soft), content-visibility var(--duration-base) allow-discrete;
+  }
+  details[open]::details-content { block-size: auto; }
+}
+
+/* ผู้ใช้ที่ตั้งเครื่องให้ "ลดการเคลื่อนไหว": ตัดแอนิเมชัน/ทรานสิชันเกือบทั้งหมด */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* คลาสสำเร็จรูป: ใน Tailwind 4 ต้องประกาศด้วย @utility จึงจะใช้ซ้อนกันด้วย @apply ได้ */
 @utility card {
-  @apply rounded-2xl border border-line bg-surface p-4 shadow-sm;
+  @apply rounded-2xl border border-line bg-surface p-4 shadow-card;
 }
+/* การ์ดที่กดได้ทั้งใบ: ยกขึ้นเล็กน้อยเมื่อชี้ (คอม) และยุบเมื่อกด (มือถือ) */
+@utility card-link {
+  @apply card block transition-[border-color,box-shadow,transform] duration-(--duration-fast) hover:border-palm-500 hover:shadow-raised active:scale-[0.99];
+}
+/* ปุ่ม: เปลี่ยนสีเมื่อชี้ ยุบเล็กน้อยเมื่อกด (ตอบสนองภายใน 100ms) จางลงเมื่อปิดใช้ */
 @utility btn {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium transition-colors;
+  @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-(--duration-fast) active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60;
 }
 @utility btn-primary {
-  @apply btn bg-palm-600 text-white hover:bg-palm-700;
+  @apply btn bg-palm-600 text-white shadow-card hover:bg-palm-700 active:bg-palm-900;
 }
 @utility btn-honey {
-  @apply btn bg-honey-400 text-ink hover:bg-honey-500;
+  @apply btn bg-honey-400 text-ink shadow-card hover:bg-honey-500;
 }
 @utility btn-ghost {
-  @apply btn border border-line bg-surface text-ink hover:bg-palm-50;
+  @apply btn border border-line bg-surface text-ink hover:border-palm-500 hover:bg-palm-50 active:bg-palm-100;
 }
 @utility btn-danger {
-  @apply btn border border-danger/40 bg-surface text-danger hover:bg-red-50;
+  @apply btn border border-danger/40 bg-surface text-danger hover:bg-red-50 active:bg-red-100;
+}
+/* หัวของ <details> ที่พับ/กางได้: ลูกศรด้านขวา หมุนเมื่อกาง */
+@utility disclosure {
+  @apply flex cursor-pointer items-center gap-2;
+  &::after {
+    content: '';
+    margin-left: auto;
+    flex-shrink: 0;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    background: currentColor;
+    opacity: 0.55;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: transform var(--duration-base) var(--ease-out-soft);
+  }
+  details[open] > &::after { transform: rotate(180deg); }
+}
+/* ลิงก์ "ข้ามไปเนื้อหาหลัก" สำหรับผู้ใช้คีย์บอร์ด: ซ่อนจนกว่าจะกด Tab */
+@utility skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-xl focus:bg-palm-900 focus:px-4 focus:py-3 focus:font-semibold focus:text-white focus:shadow-raised;
 }
 @utility field {
   @apply block w-full min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;

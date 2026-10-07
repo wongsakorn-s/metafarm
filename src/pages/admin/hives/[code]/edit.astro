@@ -1,4 +1,5 @@
 ---
+import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb } from '../../../../server/db.ts';
 import { getHiveDetail, updateHive } from '../../../../server/hives.ts';
@@ -125,11 +126,11 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
 
     <div class="grid grid-cols-2 gap-3">
       <div><label class="label" for="place">สถานที่ซื้อ</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
-      <div><label class="label" for="price">ราคาซื้อ (บาท) 🔒</label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>
+      <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>
     </div>
 
     {hive.status === 'collapsed' && (
-      <div><label class="label" for="cr">สาเหตุที่ล่ม 🔒</label><input class="field" id="cr" name="collapseReason" maxlength="300" value={v('collapseReason')} /></div>
+      <div><label class="label" for="cr">สาเหตุที่ล่ม <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="cr" name="collapseReason" maxlength="300" value={v('collapseReason')} /></div>
     )}
 
     <div>
@@ -140,7 +141,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     </div>
 
     <div>
-      <label class="label" for="notes">หมายเหตุภายใน 🔒</label>
+      <label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label>
       <textarea class="field" id="notes" name="notes" rows="5" maxlength="2000">{v('notes')}</textarea>
       {err('notes') && <p class="error">{err('notes')}</p>}
       <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือข้อมูลที่ยังไม่ทราบ ระบบจะลบให้เองเมื่อเติมข้อมูลนั้นแล้ว ลบเองก็ได้</p>

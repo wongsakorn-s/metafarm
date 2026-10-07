@@ -1,4 +1,5 @@
 ---
+import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
@@ -13,9 +14,9 @@ const line = lineChatUrl(Astro.locals.settings!.contact, 'สนใจสอบ�
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const highlights = [
-  { icon: '🪵', title: 'รังไม้สักออกแบบเอง', text: 'รัง 2 ห้องแนวนอน ทำจากไม้สักทั้งหลัง เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
-  { icon: '👑', title: 'เพาะนางพญาเอง', text: `ขยายรังจากรังแม่พันธุ์ของฟาร์มเอง ปัจจุบันมีรังที่เพาะเอง ${stats.queenBred.toLocaleString('th-TH')} รัง` },
-  { icon: '📒', title: 'ทุกรังมีสมุดพก', text: 'ตรวจสอบที่มา วันเกิดนางพญา สายพันธุ์รังแม่ และประวัติการดูแลได้ด้วยรหัสรัง' },
+  { icon: 'wood' as const, title: 'รังไม้สักออกแบบเอง', text: 'รัง 2 ห้องแนวนอน ทำจากไม้สักทั้งหลัง เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
+  { icon: 'queen' as const, title: 'เพาะนางพญาเอง', text: `ขยายรังจากรังแม่พันธุ์ของฟาร์มเอง ปัจจุบันมีรังที่เพาะเอง ${stats.queenBred.toLocaleString('th-TH')} รัง` },
+  { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'ตรวจสอบที่มา วันเกิดนางพญา สายพันธุ์รังแม่ และประวัติการดูแลได้ด้วยรหัสรัง' },
 ];
 ---
 
@@ -28,10 +29,10 @@ const highlights = [
         {site.name} เป็นสวนปาล์มน้ำมัน 50 ไร่ ที่ {site.address} เริ่มเลี้ยงผึ้งชันโรงตั้งแต่ปี พ.ศ. {site.foundedYearBE}
       </p>
       <div class="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-        <a class="btn-primary" href="/products">🐝 ดูสินค้า</a>
-        <a class="btn-ghost" href="/passport">📒 สมุดพกรัง</a>
+        <a class="btn-primary" href="/products"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูสินค้า</a>
+        <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกรัง</a>
         {/* มือถือมีปุ่มไลน์ที่แถบล่างอยู่แล้ว */}
-        {line && <a class="btn-ghost hidden md:inline-flex" href={line} rel="noopener">💬 ทักไลน์สอบถาม</a>}
+        {line && <a class="btn-ghost hidden md:inline-flex" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> ทักไลน์สอบถาม</a>}
       </div>
     </div>
     <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto w-44 md:w-full md:max-w-sm" />
@@ -50,7 +51,7 @@ const highlights = [
     <ul class="grid gap-4 md:grid-cols-3">
       {highlights.map((h) => (
         <li class="card">
-          <div class="text-3xl" aria-hidden="true">{h.icon}</div>
+          <div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
           <h3 class="mt-2 text-lg font-semibold">{h.title}</h3>
           <p class="mt-1 text-muted">{h.text}</p>
         </li>
@@ -61,15 +62,15 @@ const highlights = [
   <section class="mt-12" aria-labelledby="learn-h">
     <h2 id="learn-h" class="text-2xl font-bold">เรียนรู้และเลือกซื้อ</h2>
     <ul class="mt-4 grid gap-4 md:grid-cols-3">
-      <li><a href="/stingless-bee" class="card block h-full transition hover:border-palm-500"><div class="text-3xl" aria-hidden="true">🐝</div><h3 class="mt-2 text-lg font-semibold">รู้จักชันโรงขนเงิน</h3><p class="text-muted">ลักษณะ โครงสร้างรัง และเหตุผลที่เราเลือกเลี้ยง</p></a></li>
-      <li><a href="/honey" class="card block h-full transition hover:border-palm-500"><div class="text-3xl" aria-hidden="true">🍯</div><h3 class="mt-2 text-lg font-semibold">น้ำผึ้งชันโรง</h3><p class="text-muted">ต่างจากน้ำผึ้งทั่วไปอย่างไร พร้อมสรุปงานวิจัย</p></a></li>
-      <li><a href="/training" class="card block h-full transition hover:border-palm-500"><div class="text-3xl" aria-hidden="true">🎓</div><h3 class="mt-2 text-lg font-semibold">อบรม</h3><p class="text-muted">การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป</p></a></li>
+      <li><a href="/stingless-bee" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="hive" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">รู้จักชันโรงขนเงิน</h3><p class="text-muted">ลักษณะ โครงสร้างรัง และเหตุผลที่เราเลือกเลี้ยง</p></a></li>
+      <li><a href="/honey" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="honey" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">น้ำผึ้งชันโรง</h3><p class="text-muted">ต่างจากน้ำผึ้งทั่วไปอย่างไร พร้อมสรุปงานวิจัย</p></a></li>
+      <li><a href="/training" class="card-link h-full"><div class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="training" class="size-6" /></div><h3 class="mt-2 text-lg font-semibold">อบรม</h3><p class="text-muted">การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป</p></a></li>
     </ul>
   </section>
   <section class="mt-12 rounded-3xl bg-palm-50 p-6 md:p-8" aria-labelledby="pp-h">
     <div class="grid items-center gap-6 md:grid-cols-[1fr_auto]">
       <div>
-        <h2 id="pp-h" class="text-2xl font-bold text-palm-900">📒 สมุดพกชันโรง {site.name}</h2>
+        <h2 id="pp-h" class="text-2xl font-bold text-palm-900"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง {site.name}</h2>
         <p class="mt-2 max-w-2xl">ทะเบียน {stats.total.toLocaleString('th-TH')} รัง เลี้ยงอยู่ {stats.active.toLocaleString('th-TH')} รัง ทุกรังบันทึกที่มา สายพันธุ์รังแม่ และประวัติการขยายรัง เปิดดูได้ฟรีด้วยรหัสรัง</p>
       </div>
       <a class="btn-primary" href="/passport">เปิดสมุดพก</a>

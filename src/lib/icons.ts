@@ -1,0 +1,60 @@
+// ไอคอนชุดเดียวทั้งเว็บ (Lucide, ISC license — lucide.dev) แทนอีโมจิที่สีไม่เข้าชุดและแสดงต่างกันในแต่ละเครื่อง
+// ใช้ "ชื่อตามความหมาย" (honey, queen, passport …) → เปลี่ยนรูปไอคอนได้ที่ตารางนี้ที่เดียว
+// ⚠️ เพิ่มชื่อไฟล์ใหม่ใน import.meta.glob ของ src/components/Icon.astro ด้วย (เทสต์ icons.test.ts ตรวจให้)
+export const ICONS = {
+  // เมนู/นำทาง
+  dashboard: 'layout-dashboard',
+  hive: 'hexagon',
+  plus: 'plus',
+  cart: 'shopping-cart',
+  menu: 'menu',
+  back: 'chevron-left',
+  chevron: 'chevron-right',
+  close: 'x',
+  home: 'house',
+  search: 'search',
+  notFound: 'search-x',
+  logout: 'log-out',
+  globe: 'globe',
+  // งานรัง/ข้อมูลฟาร์ม
+  honey: 'droplets',
+  queen: 'crown',
+  brood: 'egg',
+  note: 'sticky-note',
+  status: 'refresh-cw',
+  passport: 'notebook-tabs',
+  book: 'book-open',
+  training: 'graduation-cap',
+  wood: 'trees',
+  sprout: 'sprout',
+  // สื่อ
+  camera: 'camera',
+  image: 'image',
+  video: 'video',
+  // การกระทำ
+  edit: 'square-pen',
+  pencil: 'pencil',
+  tag: 'tag',
+  trash: 'trash-2',
+  retry: 'rotate-ccw',
+  settings: 'settings',
+  key: 'key-round',
+  lock: 'lock',
+  checklist: 'list-checks',
+  // ติดต่อ
+  line: 'message-circle',
+  phone: 'phone',
+  pin: 'map-pin',
+  map: 'map',
+  thumbs: 'thumbs-up',
+  // สถานะ/ข้อความ
+  check: 'circle-check',
+  warning: 'triangle-alert',
+  alert: 'circle-alert',
+  help: 'circle-help',
+  info: 'info',
+  pending: 'circle-dashed',
+  celebrate: 'party-popper',
+} as const;
+
+export type IconName = keyof typeof ICONS;

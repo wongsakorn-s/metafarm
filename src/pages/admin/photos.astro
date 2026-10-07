@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { listHivesWithoutPhoto } from '../../server/hives.ts';
@@ -14,16 +15,16 @@ const msg = Astro.url.searchParams.get('msg');
 ---
 
 <AdminLayout back={{ href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' }} title="คิวถ่ายรูปรัง" active="photos">
-  {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {msg}</p>}
+  {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {msg}</p>}
 
   <section class="card mb-4">
     <p class="text-lg"><strong id="left" data-total={rows.length}>{rows.length}</strong> รังที่ยังไม่มีรูปสมุดพก {!includeAll && <span class="text-sm text-muted">(เฉพาะรังที่ยังอยู่)</span>}</p>
-    <p class="hint">เดินไปที่รัง กด <strong>📷 ถ่ายรูป</strong> หรือ <strong>🖼️ เลือกจากเครื่อง</strong> ระบบย่อรูปให้ก่อนส่ง (ประหยัดเน็ต) · เพิ่มรูปอื่น/ลบรูปได้ที่หน้ารังนั้นทีหลัง</p>
+    <p class="hint">เดินไปที่รัง กด <strong><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> ถ่ายรูป</strong> หรือ <strong><Icon name="image" class="inline-block size-[1.15em] align-[-0.2em]" /> เลือกจากเครื่อง</strong> ระบบย่อรูปให้ก่อนส่ง (ประหยัดเน็ต) · เพิ่มรูปอื่น/ลบรูปได้ที่หน้ารังนั้นทีหลัง</p>
     <p class="mt-2 text-sm"><a class="underline" href={includeAll ? '/admin/photos' : '/admin/photos?all=1'}>{includeAll ? 'แสดงเฉพาะรังที่ยังอยู่' : 'แสดงรวมรังที่ขายแล้ว/ล่มด้วย'}</a></p>
   </section>
 
   {rows.length === 0 ? (
-    <div class="card text-center"><p class="text-3xl" aria-hidden="true">🎉</p><p class="mt-1 text-lg font-semibold">ทุกรังมีรูปสมุดพกแล้ว</p></div>
+    <div class="card text-center"><Icon name="celebrate" class="mx-auto size-10 text-palm-600" /><p class="mt-1 text-lg font-semibold">ทุกรังมีรูปสมุดพกแล้ว</p></div>
   ) : (
     <ul class="grid gap-3 sm:grid-cols-2" id="queue">
       {rows.map((h) => (
@@ -38,14 +39,14 @@ const msg = Astro.url.searchParams.get('msg');
           <form method="post" action={`/admin/hives/${h.code}/media`} enctype="multipart/form-data" data-photo-form class="space-y-2">
             <input type="hidden" name="intent" value="upload" /><input type="hidden" name="kind" value="passport" /><input type="hidden" name="back" value="/admin/photos" />
             <div class="grid grid-cols-2 gap-2">
-              <label class="btn-primary cursor-pointer" for={`cam-${h.code}`}>📷 ถ่ายรูป</label>
-              <label class="btn-ghost cursor-pointer" for={`pick-${h.code}`}>🖼️ เลือกจากเครื่อง</label>
+              <label class="btn-primary cursor-pointer" for={`cam-${h.code}`}><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> ถ่ายรูป</label>
+              <label class="btn-ghost cursor-pointer" for={`pick-${h.code}`}><Icon name="image" class="inline-block size-[1.15em] align-[-0.2em]" /> เลือกจากเครื่อง</label>
             </div>
             <input class="sr-only" id={`cam-${h.code}`} name="file" type="file" accept="image/*" capture="environment" />
             <input class="sr-only" id={`pick-${h.code}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
             <noscript><button class="btn-ghost w-full" type="submit">อัปโหลด</button></noscript>
             <p class="text-sm" data-state role="status" aria-live="polite"></p>
-            <button class="btn-primary w-full" type="button" data-retry hidden>🔁 ส่งรูปเดิมอีกครั้ง</button>
+            <button class="btn-primary w-full" type="button" data-retry hidden><Icon name="retry" class="inline-block size-[1.15em] align-[-0.2em]" /> ส่งรูปเดิมอีกครั้ง</button>
           </form>
         </li>
       ))}
@@ -88,7 +89,7 @@ const msg = Astro.url.searchParams.get('msg');
         appendPrepared(fd, pending);
         say(`กำลังส่ง ${pending.length} รูป…`, 'busy');
         const r = await postUpload(form.action, fd, pending.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0));
-        say(`✅ ${r.message}`, 'ok');
+        say(r.message, 'ok');
         pending = [];
         form.querySelector('.grid')?.remove();
         form.closest('li')?.classList.add('opacity-70');

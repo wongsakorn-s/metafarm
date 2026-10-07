@@ -20,3 +20,5 @@ Thumbs.db
 
 # ข้อมูลส่วนตัว/ต้นฉบับจากเจ้าของฟาร์ม (มีข้อมูลคู่ค้า) และผลลัพธ์จากการ import
 private/
+# third-party skill (ui-ux-pro-max, MIT) — ติดตั้งใหม่ได้จาก github.com/nextlevelbuilder/ui-ux-pro-max-skill
+.claude/skills/ui-ux-pro-max/

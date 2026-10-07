@@ -1,3 +1,4 @@
+import type { IconName } from './icons.ts';
 // ป้ายภาษาไทยของค่าในฐานข้อมูล
 export const statusLabel = { active: 'ยังอยู่', sold: 'ขายแล้ว', collapsed: 'ล่ม', unknown: '???' } as const;
 export const statusClass = {
@@ -24,7 +25,8 @@ export const eventLabel = {
   note: 'หมายเหตุ',
   status_change: 'เปลี่ยนสถานะ',
 } as const;
-export const eventIcon = { honey_harvest: '🍯', queen_cell_taken: '👑', brood_split: '🪺', note: '📝', status_change: '🔄' } as const;
+/** ไอคอนของเหตุการณ์ (ชื่อใน src/lib/icons.ts) */
+export const eventIcon = { honey_harvest: 'honey', queen_cell_taken: 'queen', brood_split: 'brood', note: 'note', status_change: 'status' } as const satisfies Record<string, IconName>;
 
 export const baht = (n: number | null | undefined) => (n == null ? '???' : `${n.toLocaleString('th-TH')} บาท`);
 

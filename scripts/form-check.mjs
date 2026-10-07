@@ -127,6 +127,7 @@ console.log('\n4) คิวถ่ายรูป: ผลจริงจากเ
 {
   await page.goto(BASE + '/admin/photos');
   const [c1, c2, c3] = await page.$$eval('li[data-code]', (els) => els.slice(0, 3).map((e) => e.dataset.code));
+  if (!c3) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: npm run db:seed:local && npm run media:seed:local -- --prune');
   const left = async () => Number(await page.textContent('#left'));
   const before = await left();
   const pick = (code, kind) => page.locator(`li[data-code="${code}"] input[id^="pick-"]`).evaluate(async (el, kind) => {
@@ -146,7 +147,7 @@ console.log('\n4) คิวถ่ายรูป: ผลจริงจากเ
   await pick(c1, 'text');
   await stateOf(c1).filter({ hasText: 'ไม่ได้บันทึกรูป' }).waitFor({ timeout: 20000 }).catch(() => {});
   const t1 = (await stateOf(c1).textContent()).trim();
-  check(t1.includes('ไม่ได้บันทึกรูป') && !t1.includes('✅'), `ไฟล์ที่ไม่ใช่รูป → "${t1}"`, `ขึ้นว่าสำเร็จทั้งที่เซิร์ฟเวอร์ไม่บันทึก: "${t1}"`);
+  check(t1.includes('ไม่ได้บันทึกรูป') && !t1.includes('เพิ่มแล้ว'), `ไฟล์ที่ไม่ใช่รูป → "${t1}"`, `ขึ้นว่าสำเร็จทั้งที่เซิร์ฟเวอร์ไม่บันทึก: "${t1}"`);
   check((await left()) === before, 'ตัวนับคิวไม่ลด', 'ตัวนับคิวลดทั้งที่ไม่ได้บันทึก');
 
   // สัญญาณหลุด → ปุ่ม "ส่งรูปเดิมอีกครั้ง" → สัญญาณกลับ กดแล้วสำเร็จ (ไม่ต้องถ่ายใหม่)
@@ -159,9 +160,9 @@ console.log('\n4) คิวถ่ายรูป: ผลจริงจากเ
   check(await retry.isVisible(), 'สัญญาณหลุด → มีปุ่ม "ส่งรูปเดิมอีกครั้ง"', 'สัญญาณหลุดแล้วไม่มีปุ่มส่งซ้ำ (ต้องถ่ายใหม่)');
   await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await retry.click();
-  await stateOf(c2).filter({ hasText: '✅' }).waitFor({ timeout: 20000 }).catch(() => {});
+  await stateOf(c2).filter({ hasText: 'เพิ่มแล้ว' }).waitFor({ timeout: 20000 }).catch(() => {});
   const t2 = (await stateOf(c2).textContent()).trim();
-  check(t2.startsWith('✅') && t2.includes('เพิ่มแล้ว 1 รูป'), `กดส่งซ้ำสำเร็จ → "${t2}"`, `ส่งซ้ำไม่สำเร็จ: "${t2}"`);
+  check(t2.includes('เพิ่มแล้ว 1 รูป') && (await stateOf(c2).getAttribute('class')).includes('text-palm-700'), `กดส่งซ้ำสำเร็จ → "${t2}"`, `ส่งซ้ำไม่สำเร็จ: "${t2}"`);
   check((await left()) === before - 1, 'ตัวนับคิวลดลง 1', 'ตัวนับคิวไม่ลด');
 
   // ชุดเดิมส่งซ้ำพร้อมกัน (เน็ตหลุดหลังเซิร์ฟเวอร์ได้รับ) → บันทึกรูปเดียว

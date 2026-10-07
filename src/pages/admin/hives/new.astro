@@ -1,4 +1,5 @@
 ---
+import Icon from '../../../components/Icon.astro';
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { getDb } from '../../../server/db.ts';
 import { createHive, nextHiveCode } from '../../../server/hives.ts';
@@ -67,8 +68,8 @@ const err = (k: string) => errors[k];
       <div><label class="label" for="place">สถานที่ซื้อ (ถ้าซื้อมา)</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
     </div>
 
-    <div><label class="label" for="price">ราคาซื้อ (บาท) 🔒</label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} /></div>
-    <div><label class="label" for="notes">หมายเหตุภายใน 🔒</label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
+    <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} /></div>
+    <div><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
 
     <button class="btn-primary w-full" type="submit">สร้างรัง {nextCode}</button>
   </form>

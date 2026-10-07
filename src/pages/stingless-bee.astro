@@ -1,4 +1,5 @@
 ---
+import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { getPage } from '../lib/content.ts';
 
@@ -14,8 +15,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
   <p class="mt-1 italic text-muted">Tetragonula pagdeni Schwarz</p>
   <div class="prose-mf mt-6"><Content /></div>
   <div class="mt-10 flex flex-wrap gap-3">
-    <a class="btn-primary" href="/products/hives">🐝 ดูรังสมบูรณ์ที่เปิดขาย</a>
-    <a class="btn-ghost" href="/passport">📒 สมุดพกชันโรง</a>
-    <a class="btn-ghost" href="/training">🎓 อบรมการขยายรัง</a>
+    <a class="btn-primary" href="/products/hives"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูรังสมบูรณ์ที่เปิดขาย</a>
+    <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง</a>
+    <a class="btn-ghost" href="/training"><Icon name="training" class="inline-block size-[1.15em] align-[-0.2em]" /> อบรมการขยายรัง</a>
   </div>
 </PublicLayout>

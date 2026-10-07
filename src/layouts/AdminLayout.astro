@@ -28,17 +28,17 @@ const tabActive = (k: string) => active === k || (k === 'more' && !!active && un
 
 // แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
 const side = [
-  { key: 'dashboard', href: '/admin', icon: '📊', label: 'ภาพรวม' },
-  { key: 'hives', href: '/admin/hives', icon: '🐝', label: 'รัง' },
-  { key: 'quick', href: '/admin/quick', icon: '✍️', label: 'บันทึกด่วน' },
-  { key: 'new', href: '/admin/hives/new', icon: '➕', label: 'เพิ่มรัง' },
-  { key: 'products', href: '/admin/products', icon: '🛒', label: 'สินค้า' },
+  { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
+  { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รัง' },
+  { key: 'quick', href: '/admin/quick', icon: 'edit', label: 'บันทึกด่วน' },
+  { key: 'new', href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรัง' },
+  { key: 'products', href: '/admin/products', icon: 'cart', label: 'สินค้า' },
 ] as const;
 const sideMore = [
-  { key: 'photos', href: '/admin/photos', icon: '📷', label: 'คิวถ่ายรูป' },
-  { key: 'todo', href: '/admin/todo', icon: '📝', label: 'ข้อมูลไม่ครบ' },
-  { key: 'readiness', href: '/admin/readiness', icon: '✅', label: 'เตรียมเปิดเว็บ' },
-  { key: 'settings', href: '/admin/settings', icon: '⚙️', label: 'ตั้งค่า' },
+  { key: 'photos', href: '/admin/photos', icon: 'camera', label: 'คิวถ่ายรูป' },
+  { key: 'todo', href: '/admin/todo', icon: 'note', label: 'ข้อมูลไม่ครบ' },
+  { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
+  { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ตั้งค่า' },
 ] as const;
 ---
 
@@ -53,26 +53,27 @@ const sideMore = [
     <title>{title} · {site.name} หลังบ้าน</title>
   </head>
   <body class="min-h-dvh pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-60">
+    <a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
     {/* เมนูข้าง (คอม) */}
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-y-auto border-r border-line bg-surface p-4 md:flex">
-      <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700">🐝 {site.name}</a>
+      <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700"><img src="/brand/logo-round-sm.webp" alt="" width="32" height="30" class="size-8 object-contain" />{site.name}</a>
       <nav class="flex flex-col gap-1" aria-label="เมนูหลัก">
         {side.map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
-            <span aria-hidden="true">{n.icon}</span>{n.label}
+            <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
           </a>
         ))}
         <hr class="my-2 border-line" />
         {sideMore.map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
-            <span aria-hidden="true">{n.icon}</span>{n.label}
+            <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
           </a>
         ))}
       </nav>
       <form method="post" action="/admin/logout" class="mt-auto pt-4" data-confirm="ออกจากระบบใช่ไหม?">
-        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 block truncate text-sm text-muted underline">🔑 {user?.name} · บัญชี</a>
+        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 flex min-h-11 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · บัญชี</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
     </aside>
@@ -84,11 +85,11 @@ const sideMore = [
           <Icon name="back" class="size-5 shrink-0" /><span class="truncate">{back.label}</span>
         </a>
       ) : (
-        <a href="/admin" class="inline-flex min-h-11 items-center gap-2 px-2 text-lg font-bold text-palm-700">🐝 {site.name}</a>
+        <a href="/admin" class="inline-flex min-h-11 items-center gap-2 px-2 text-lg font-bold text-palm-700"><img src="/brand/logo-round-sm.webp" alt="" width="28" height="26" class="size-7 object-contain" />{site.name}</a>
       )}
     </header>
 
-    <main class="mx-auto w-full max-w-5xl px-4 py-4 md:px-8 md:py-8">
+    <main id="main" tabindex="-1" class="mx-auto w-full max-w-5xl px-4 py-4 outline-none md:px-8 md:py-8">
       {back && <p class="mb-1 hidden md:block"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href={back.href}>← {back.label}</a></p>}
       <h1 class="mb-4 text-2xl font-bold md:mb-5">{title}</h1>
       <slot />

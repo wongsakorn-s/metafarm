@@ -28,7 +28,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
   <section aria-label="สรุปจำนวนรัง" class="card grid grid-cols-5 divide-x divide-line !p-0">
     {stats.map((s) => (
       <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
-        <span class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
+        <span data-num class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
         <span class="text-xs leading-tight text-muted md:text-sm">{s.label}</span>
       </a>
     ))}
@@ -38,13 +38,13 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
   <ul class="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
     {d.incomplete > 0 && (
       <li><a href="/admin/todo" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
-        <span class="text-xl" aria-hidden="true">❓</span>
+        <Icon name="help" class="size-6 text-honey-700" />
         <span class="flex-1"><strong>{d.incomplete} รัง</strong> ข้อมูลยังไม่ครบ (???)</span>
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
     <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
-      <span class="text-xl" aria-hidden="true">✅</span>
+      <Icon name="checklist" class="size-6 text-palm-700" />
       <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">สิ่งที่ยังต้องเติม</span></span>
       <Icon name="chevron" class="size-5 text-muted" />
     </a></li>
@@ -52,7 +52,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">
-      <h2 id="honey-h" class="mb-3 text-lg font-semibold">🍯 ผลผลิตปี {d.year}</h2>
+      <h2 id="honey-h" class="mb-3 text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {d.year}</h2>
       {d.honey && d.honey.n > 0 ? (
         <p class="text-3xl font-bold text-honey-700">{d.honey.ml.toLocaleString('th-TH')} <span class="text-base font-medium">มล.</span>
           {d.honey.g > 0 && <span class="ml-3 text-xl">+ ชัน {d.honey.g.toLocaleString('th-TH')} กรัม</span>}</p>
@@ -95,7 +95,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
     <ul class="divide-y divide-line">
       {d.recent.map(({ e, code }) => (
         <li class="flex items-center gap-3 py-2">
-          <span class="text-xl" aria-hidden="true">{eventIcon[e.type]}</span>
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
           <div class="min-w-0 flex-1">
             <a class="font-semibold text-palm-700 hover:underline" href={`/admin/hives/${code}`}>{code}</a>
             <span class="ml-1">{eventLabel[e.type]}</span>

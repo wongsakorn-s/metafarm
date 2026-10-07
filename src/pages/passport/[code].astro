@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicHive } from '../../server/public.ts';
@@ -28,7 +29,7 @@ const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
 
 const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['ปิดรัง', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
 
-const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'], queen_cell_taken: ['👑', 'เก็บไข่นางพญา'], brood_split: ['🪺', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['📝', ''] } as const;
+const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน'], queen_cell_taken: ['queen', 'เก็บไข่นางพญา'], brood_split: ['brood', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['note', ''] } as const;
 ---
 
 {!hive ? (
@@ -96,7 +97,7 @@ const eventLabel = { honey_harvest: ['🍯', 'เก็บน้ำหวาน'
           <ol class="divide-y divide-line">
             {hive.events.map((e) => (
               <li class="flex gap-3 py-3">
-                <span class="text-xl" aria-hidden="true">{eventLabel[e.type][0]}</span>
+                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventLabel[e.type][0]} class="size-4" /></span>
                 <div class="min-w-0 flex-1">
                   <p class="font-medium">{e.type === 'note' ? e.text : eventLabel[e.type][1]}
                     {e.targetCode && <span> → <a class="text-palm-700 underline" href={`/passport/${e.targetCode}`}>รัง {e.targetCode}</a></span>}</p>

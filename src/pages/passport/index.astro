@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getFarmStats, searchHiveCodes } from '../../server/public.ts';
@@ -25,7 +26,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
 <PublicLayout title="สมุดพกชันโรง" description={`ตรวจสอบประวัติรังชันโรงขนเงินของ ${site.name} ด้วยรหัสรัง: ที่มา สายพันธุ์รังแม่ และประวัติการดูแล`} active="passport">
   <section class="mx-auto max-w-xl text-center">
-    <h1 class="text-3xl font-bold text-palm-700">📒 สมุดพกชันโรง</h1>
+    <h1 class="text-3xl font-bold text-palm-700"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง</h1>
     <p class="mt-2 text-muted">ทุกรังของ {site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที</p>
 
     <form method="get" class="card mt-6 text-left" role="search">
@@ -46,9 +47,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
     </form>
 
     <dl class="mt-8 grid grid-cols-3 gap-3 text-center">
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">รังในทะเบียน</dt><dd class="text-2xl font-bold text-palm-700">{stats.total.toLocaleString('th-TH')}</dd></div>
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">ยังเลี้ยงอยู่</dt><dd class="text-2xl font-bold text-palm-700">{stats.active.toLocaleString('th-TH')}</dd></div>
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">เพาะนางพญาเอง</dt><dd class="text-2xl font-bold text-palm-700">{stats.queenBred.toLocaleString('th-TH')}</dd></div>
+      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">รังในทะเบียน</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.total.toLocaleString('th-TH')}</dd></div>
+      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">ยังเลี้ยงอยู่</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.active.toLocaleString('th-TH')}</dd></div>
+      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">เพาะนางพญาเอง</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.queenBred.toLocaleString('th-TH')}</dd></div>
     </dl>
   </section>
 </PublicLayout>

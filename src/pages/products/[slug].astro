@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
@@ -36,7 +37,7 @@ const jsonLd = product
 
 {!product ? (
   <PublicLayout title="ไม่พบสินค้า" active="products" noindex>
-    <NotFound icon="🍯" title="ไม่พบสินค้านี้" href="/products" linkLabel="ดูสินค้าทั้งหมด" />
+    <NotFound icon="honey" title="ไม่พบสินค้านี้" href="/products" linkLabel="ดูสินค้าทั้งหมด" />
   </PublicLayout>
 ) : (
   <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
@@ -55,7 +56,7 @@ const jsonLd = product
               <li class="card">
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 class="text-lg font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</h2>
-                  <p class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)}</p>
+                  <p data-num class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)}</p>
                 </div>
                 <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
                   <span class:list={['badge', stock.tone]}>{stock.text}</span>
@@ -63,7 +64,7 @@ const jsonLd = product
                   {v.sizeMl && <span class="text-muted">≈ {pricePer100ml(v.priceThb, v.sizeMl).toLocaleString('th-TH')} บาท / 100 มล.</span>}
                   {v.harvestYearBe && <span class="text-muted">เก็บเกี่ยวปี {v.harvestYearBe}</span>}
                 </div>
-                {line && <a class="btn-primary mt-3 w-full sm:w-auto" href={line} rel="noopener">💬 สั่งทางไลน์</a>}
+                {line && <a class="btn-primary mt-3 w-full sm:w-auto" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> สั่งทางไลน์</a>}
               </li>
             );
           })}

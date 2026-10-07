@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
@@ -43,7 +44,7 @@ const line = lineChatUrl(c, 'ทดสอบข้อความจากหล
 ---
 
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ตั้งค่า" active="settings">
-  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ บันทึกแล้ว — เว็บใช้ค่าใหม่ทันที แต่ลูกค้าบางคนอาจยังเห็นค่าเก่าอีกไม่เกิน ~5 นาที (แคชของเว็บ) · แก้ไขได้ทุกเมื่อ</p>}
+  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — เว็บใช้ค่าใหม่ทันที แต่ลูกค้าบางคนอาจยังเห็นค่าเก่าอีกไม่เกิน ~5 นาที (แคชของเว็บ) · แก้ไขได้ทุกเมื่อ</p>}
 
   <form method="post" class="card mb-8 max-w-2xl space-y-4" id="contact">
     <input type="hidden" name="intent" value="contact" />

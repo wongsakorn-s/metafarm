@@ -1,4 +1,5 @@
 ---
+import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
@@ -65,13 +66,13 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
 
 <AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`รูปและวิดีโอ ${hive.code}`} active="hives">
 
-  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">✅ {notice}</p>}
+  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
   {/* อัปโหลด */}
   <form method="post" enctype="multipart/form-data" id="upload-form" class="card mb-5 space-y-3" data-code={hive.code} data-max={MAX_FILES_PER_REQUEST}>
     <input type="hidden" name="intent" value="upload" />
-    <h2 class="text-lg font-semibold">📷 เพิ่มรูป</h2>
+    <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูป</h2>
     <fieldset>
       <legend class="label">ชนิดรูป</legend>
       <div class="grid gap-2 sm:grid-cols-2">
@@ -103,7 +104,7 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
               <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
               <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
                 <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
-                <button class="btn-danger w-full" type="submit">🗑️ ลบ</button>
+                <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
               </form>
             </li>
           ))}
@@ -114,7 +115,7 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
 
   {/* วิดีโอ */}
   <section class="card mb-5" aria-labelledby="h-video">
-    <h2 id="h-video" class="mb-1 text-lg font-semibold">🎬 วิดีโอ <span class="text-sm font-normal text-muted">({video ? 1 : 0}/{LIMITS.video})</span></h2>
+    <h2 id="h-video" class="mb-1 text-lg font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> วิดีโอ <span class="text-sm font-normal text-muted">({video ? 1 : 0}/{LIMITS.video})</span></h2>
     <p class="hint mb-3">อัปโหลดวิดีโอขึ้น YouTube (ตั้งเป็น "ไม่แสดงในรายการ" ก็ได้) แล้ววางลิงก์ที่นี่</p>
     {video?.youtubeId && <p class="mb-3">▶ <a class="text-palm-700 underline" href={youtubeWatchUrl(video.youtubeId)} target="_blank" rel="noopener noreferrer">{youtubeWatchUrl(video.youtubeId)}</a></p>}
     <form method="post" class="space-y-3">

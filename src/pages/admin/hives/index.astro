@@ -38,7 +38,7 @@ const link = (p: number) => {
       <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
     </div>
     <details class="group rounded-2xl border border-line bg-surface" open={activeFilters > 0}>
-      <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 font-medium [&::-webkit-details-marker]:hidden">ตัวกรอง{activeFilters > 0 && <span class="badge bg-palm-100 text-palm-900">{activeFilters}</span>}<span class="ml-auto transition group-open:rotate-90"><Icon name="chevron" class="size-5 text-muted" /></span></summary>
+      <summary class="disclosure min-h-11 px-4 font-medium">ตัวกรอง{activeFilters > 0 && <span class="badge bg-palm-100 text-palm-900">{activeFilters}</span>}</summary>
       <div class="grid gap-3 px-4 pb-4 sm:grid-cols-[1fr_1fr_auto]">
         <div>
           <label class="label" for="status">สถานะ</label>
@@ -65,7 +65,7 @@ const link = (p: number) => {
 
   <div class="mb-3 flex items-center justify-between gap-2">
     <p class="text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {activeFilters + (filter.q ? 1 : 0) > 0 && <a class="ml-1 inline-flex min-h-11 items-center underline" href="/admin/hives">ล้าง</a>}</p>
-    <a class="btn-ghost shrink-0" href="/admin/hives/new">➕ เพิ่มรัง</a>
+    <a class="btn-ghost shrink-0" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรัง</a>
   </div>
 
   {rows.length === 0 ? (
@@ -74,7 +74,7 @@ const link = (p: number) => {
     <ul class="grid gap-3 sm:grid-cols-2">
       {rows.map((h) => (
         <li>
-          <a href={`/admin/hives/${h.code}`} class="card flex gap-3 transition hover:border-palm-500">
+          <a href={`/admin/hives/${h.code}`} class="card-link flex gap-3">
             <img src={h.photoKey ? thumbUrl(`/media/${h.photoKey}`) : placeholder.hive} alt="" width="72" height="72" loading="lazy" class="size-[72px] shrink-0 rounded-xl bg-palm-50 object-cover" />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">

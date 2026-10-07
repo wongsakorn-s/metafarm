@@ -1,17 +1,19 @@
 ---
+import Icon from './Icon.astro';
+import type { IconName } from '../lib/icons.ts';
 // กล่อง "ไม่พบ…" ของหน้าสาธารณะ (ใช้ร่วมกัน: 404 ทั่วไป, สมุดพก, สินค้า, รังขาย, หลักสูตร)
 interface Props {
-  icon?: string;
+  icon?: IconName;
   title: string;
   message?: string;
   href: string;
   linkLabel: string;
 }
-const { icon = '🔎', title, message, href, linkLabel } = Astro.props;
+const { icon = 'search', title, message, href, linkLabel } = Astro.props;
 ---
 
 <section class="mx-auto max-w-md py-10 text-center">
-  <div class="text-5xl" aria-hidden="true">{icon}</div>
+  <div class="mx-auto grid size-16 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={icon} class="size-8" /></div>
   <h1 class="mt-3 text-2xl font-bold">{title}</h1>
   {message && <p class="mt-2 text-muted">{message}</p>}
   <a class="btn-primary mt-5" href={href}>{linkLabel}</a>

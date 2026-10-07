@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getReadiness } from '../../server/readiness.ts';
@@ -25,7 +26,7 @@ const r = await getReadiness(db, await getSettings(db));
   <ul class="space-y-3">
     {r.items.map((it) => (
       <li class:list={['card flex flex-wrap items-center gap-3', it.done && 'bg-palm-50/60']}>
-        <span class="text-2xl" aria-hidden="true">{it.done ? '✅' : it.level === 'must' ? '❗' : '⏳'}</span>
+        <Icon name={it.done ? 'check' : it.level === 'must' ? 'alert' : 'pending'} class={`size-7 ${it.done ? 'text-palm-600' : it.level === 'must' ? 'text-danger' : 'text-muted'}`} label={it.done ? 'เสร็จแล้ว' : it.level === 'must' ? 'สำคัญ ยังไม่เสร็จ' : 'ยังไม่เสร็จ'} />
         <div class="min-w-0 flex-1 basis-60">
           <h3 class="font-semibold">{it.title} {it.level === 'must' && !it.done && <span class="badge bg-red-100 text-danger">สำคัญ</span>}</h3>
           <p class="text-sm text-muted">{it.detail}</p>

@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import HiveCard from '../../components/HiveCard.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
@@ -27,7 +28,7 @@ const range = (p: (typeof products)[number]) => {
 
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">
-      <h2 id="hives-h" class="text-2xl font-bold">🐝 รังสมบูรณ์ชันโรงขนเงิน</h2>
+      <h2 id="hives-h" class="text-2xl font-bold"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> รังสมบูรณ์ชันโรงขนเงิน</h2>
       {saleHives.length > 0 && <a class="text-palm-700 underline" href="/products/hives">ดูทั้งหมด ({saleHives.length} รัง) →</a>}
     </div>
     <p class="mt-1 text-muted">รังที่มีชันโรงพร้อมเลี้ยง ทุกรังมีสมุดพกให้ตรวจสอบประวัติ</p>
@@ -43,11 +44,11 @@ const range = (p: (typeof products)[number]) => {
     <ul class="mt-4 grid gap-4 sm:grid-cols-2">
       {products.map((p, i) => (
         <li>
-          <a href={`/products/${p.slug}`} class="card block overflow-hidden !p-0 transition hover:border-palm-500">
+          <a href={`/products/${p.slug}`} class="card-link overflow-hidden !p-0">
             <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
             <div class="p-4">
               <h3 class="text-lg font-bold">{p.name}</h3>
-              <p class="text-xl font-bold text-palm-700">{range(p)}</p>
+              <p data-num class="text-xl font-bold text-palm-700">{range(p)}</p>
               <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
                 {p.variants.map((v) => <span>{v.label}{sizeLabel(v.sizeMl) ? ` ${sizeLabel(v.sizeMl)}` : ''}</span>)}
                 {p.variants.some((v) => v.priceIsSample) && <SampleBadge />}

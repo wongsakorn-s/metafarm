@@ -1,4 +1,6 @@
 ---
+import Icon from '../components/Icon.astro';
+import type { IconName } from '../lib/icons.ts';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { site } from '../config/site.ts';
@@ -12,10 +14,10 @@ const tel = telHref(c.phone);
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const channels = [
-  line && { icon: '💬', label: 'LINE', value: c.lineId, href: line, note: 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย' },
-  tel && { icon: '📞', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
-  c.facebookUrl && { icon: '👍', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
-].filter(Boolean) as { icon: string; label: string; value: string; href: string; note: string }[];
+  line && { icon: 'line', label: 'LINE', value: c.lineId, href: line, note: 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย' },
+  tel && { icon: 'phone', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
+  c.facebookUrl && { icon: 'thumbs', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
+].filter(Boolean) as { icon: IconName; label: string; value: string; href: string; note: string }[];
 ---
 
 <PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
@@ -25,8 +27,8 @@ const channels = [
   <ul class="mt-6 grid gap-4 sm:grid-cols-2">
     {channels.map((ch) => (
       <li>
-        <a href={ch.href} rel="noopener" class="card flex items-center gap-4 transition hover:border-palm-500">
-          <span class="text-3xl" aria-hidden="true">{ch.icon}</span>
+        <a href={ch.href} rel="noopener" class="card-link flex items-center gap-4">
+          <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={ch.icon} class="size-6" /></span>
           <span><span class="block text-sm text-muted">{ch.label}</span><span class="block text-lg font-semibold">{ch.value}</span>{ch.note && <span class="block text-sm text-muted">{ch.note}</span>}</span>
         </a>
       </li>
@@ -37,7 +39,7 @@ const channels = [
     <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
     <p class="mt-1">{site.name} · {site.tagline}</p>
     <p>{site.address}</p>
-    {c.mapUrl && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer">🗺️ เปิดแผนที่</a>}
+    {c.mapUrl && <a class="btn-ghost mt-3" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="inline-block size-[1.15em] align-[-0.2em]" /> เปิดแผนที่</a>}
     <p class="hint mt-3">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
   </section>
 </PublicLayout>

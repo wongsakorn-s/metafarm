@@ -29,13 +29,13 @@ const line = lineChatUrl(c, lineMessage);
 const tel = telHref(c.phone);
 
 const nav = [
-  { key: 'home', href: '/', label: 'หน้าแรก', icon: '🏡' },
-  { key: 'stingless-bee', href: '/stingless-bee', label: 'ชันโรงขนเงิน', icon: '🐝' },
-  { key: 'honey', href: '/honey', label: 'น้ำผึ้ง', icon: '🍯' },
-  { key: 'products', href: '/products', label: 'สินค้า', icon: '🛒' },
-  { key: 'training', href: '/training', label: 'อบรม', icon: '📚' },
-  { key: 'passport', href: '/passport', label: 'สมุดพกรัง', icon: '📒' },
-  { key: 'contact', href: '/contact', label: 'ติดต่อเรา', icon: '📍' },
+  { key: 'home', href: '/', label: 'หน้าแรก', icon: 'home' },
+  { key: 'stingless-bee', href: '/stingless-bee', label: 'ชันโรงขนเงิน', icon: 'hive' },
+  { key: 'honey', href: '/honey', label: 'น้ำผึ้ง', icon: 'honey' },
+  { key: 'products', href: '/products', label: 'สินค้า', icon: 'cart' },
+  { key: 'training', href: '/training', label: 'อบรม', icon: 'training' },
+  { key: 'passport', href: '/passport', label: 'สมุดพกรัง', icon: 'passport' },
+  { key: 'contact', href: '/contact', label: 'ติดต่อเรา', icon: 'pin' },
 ] as const;
 const current = nav.find((n) => n.key === active);
 ---
@@ -67,9 +67,10 @@ const current = nav.find((n) => n.key === active);
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body class:list={['flex min-h-dvh flex-col', (line || tel) && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0']}>
+    <a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
     {!c.confirmed && (
       <p class="bg-honey-400 px-4 py-1.5 text-center text-sm font-medium text-ink" role="note">
-        ⚠️ ช่องทางติดต่อเป็น<strong>ข้อมูลตัวอย่าง</strong><span class="hidden sm:inline"> (เว็บกำลังจัดทำ)</span>
+        <Icon name="warning" class="inline-block size-[1.15em] align-[-0.2em]" /> ช่องทางติดต่อเป็น<strong>ข้อมูลตัวอย่าง</strong><span class="hidden sm:inline"> (เว็บกำลังจัดทำ)</span>
       </p>
     )}
 
@@ -88,7 +89,7 @@ const current = nav.find((n) => n.key === active);
         </nav>
         {/* เมนูมือถือ: <details> เปิด/ปิดได้แม้ไม่มี JavaScript */}
         <details class="group md:hidden" data-site-menu>
-          <summary class="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-xl border border-line px-3 font-medium [&::-webkit-details-marker]:hidden" data-menu-toggle>
+          <summary class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-medium transition-colors duration-(--duration-fast) hover:bg-palm-50 active:bg-palm-100 group-open:border-palm-500 group-open:bg-palm-50" data-menu-toggle>
             <span class="group-open:hidden"><Icon name="menu" class="size-5" /></span>
             <span class="hidden group-open:inline"><Icon name="close" class="size-5" /></span>
             <span>{current && current.key !== 'home' ? current.label : 'เมนู'}</span>
@@ -100,7 +101,7 @@ const current = nav.find((n) => n.key === active);
                   <li>
                     <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
                       class:list={['flex min-h-13 items-center gap-3 rounded-xl px-2 text-lg', active === n.key ? 'font-semibold text-palm-700' : 'text-ink active:bg-canvas']}>
-                      <span class="w-7 text-center" aria-hidden="true">{n.icon}</span><span class="flex-1">{n.label}</span>
+                      <span class="grid w-7 place-items-center text-palm-700"><Icon name={n.icon} class="size-5" /></span><span class="flex-1">{n.label}</span>
                       {active === n.key && <span class="size-2 rounded-full bg-palm-600" aria-hidden="true"></span>}
                     </a>
                   </li>
@@ -112,7 +113,7 @@ const current = nav.find((n) => n.key === active);
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:py-10"><slot /></main>
+    <main id="main" tabindex="-1" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none md:py-10"><slot /></main>
 
     <footer class="border-t border-line bg-surface">
       <div class="mx-auto grid max-w-5xl gap-6 px-4 py-8 md:grid-cols-2">

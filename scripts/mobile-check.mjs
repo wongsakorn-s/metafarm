@@ -53,7 +53,8 @@ async function audit(page, path) {
   const res = await page.goto(BASE + path, { waitUntil: 'networkidle' });
   const r = await page.evaluate(() => {
     const vw = innerWidth;
-    const visible = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('.sr-only') && !el.classList.contains('sr-only'); };
+    // ซ่อนแบบ sr-only (1×1 px เช่นลิงก์ "ข้ามไปเนื้อหาหลัก" ก่อนกด Tab) ไม่ใช่จุดแตะ
+    const visible = (el) => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 1 && b.height > 1 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('.sr-only') && !el.classList.contains('sr-only'); };
     const label = (el) => (el.getAttribute('aria-label') || el.textContent || el.getAttribute('name') || el.tagName).replace(/\s+/g, ' ').trim().slice(0, 40);
     const small = [], tiny = [];
     for (const el of document.querySelectorAll('a[href], button, input:not([type=hidden]):not([type=file]), select, textarea, summary, label')) {
@@ -165,6 +166,7 @@ if (FLOWS) {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
   const [code, code2] = await page.$$eval('li[data-code]', (els) => els.slice(0, 2).map((e) => e.dataset.code));
+  if (!code2) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: npm run db:seed:local && npm run media:seed:local -- --prune');
   const left = async () => Number(await page.textContent('#left'));
   const before = await left();
   // รูปขนาดใหญ่แบบกล้องมือถือ (4032×3024) สร้างในหน้าแล้วเก็บเป็น Blob · ทุกครั้งที่ "เลือกรูป" สร้างชุดไฟล์ใหม่ (เหมือนผู้ใช้จริง)
@@ -192,7 +194,7 @@ if (FLOWS) {
   await net(slow);
   const t0 = Date.now();
   await pick(code);
-  const done = await waitText(code, '✅', 120000);
+  const done = await waitText(code, 'เพิ่มแล้ว', 120000);
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
   done ? ok(`ลองใหม่สำเร็จบนเน็ตช้า + CPU ช้า 4 เท่า ภายใน ${secs} วินาที (รูปเดิม ${(origBytes / 1048576).toFixed(1)} MB) — "${done.trim()}"`) : fail('ลองใหม่ไม่สำเร็จภายใน 120 วินาที');
   (await left()) === before - 1 ? ok(`ตัวนับในคิวลดลงเป็น ${before - 1}`) : fail(`ตัวนับในคิวไม่ลดลง (${before} → ${await left()})`);

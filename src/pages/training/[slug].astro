@@ -1,4 +1,5 @@
 ---
+import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getTraining } from '../../lib/content.ts';
@@ -29,7 +30,7 @@ const jsonLd = course
 
 {!course ? (
   <PublicLayout title="ไม่พบหลักสูตร" active="training" noindex>
-    <NotFound icon="📚" title="ไม่พบหลักสูตรนี้" href="/training" linkLabel="ดูหลักสูตรทั้งหมด" />
+    <NotFound icon="training" title="ไม่พบหลักสูตรนี้" href="/training" linkLabel="ดูหลักสูตรทั้งหมด" />
   </PublicLayout>
 ) : (
   <PublicLayout title={fm.title} description={fm.summary} active="training" lineMessage={`สนใจหลักสูตร${fm.title}`} jsonLd={jsonLd}>
@@ -42,7 +43,7 @@ const jsonLd = course
       <dt class="text-muted">ค่าอบรม</dt><dd class="font-semibold text-palm-700">{formatPrice(eff.priceThb)} {eff.priceIsSample && <SampleBadge />}</dd>
       <dt class="text-muted">รอบอบรม</dt><dd>แจ้งทางไลน์</dd>
     </dl>
-    {line && <a class="btn-primary mt-4" href={line} rel="noopener">💬 สอบถามและสมัครทางไลน์</a>}
+    {line && <a class="btn-primary mt-4" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> สอบถามและสมัครทางไลน์</a>}
 
     <div class="prose-mf mt-8"><course.Content /></div>
   </PublicLayout>
