@@ -18,6 +18,9 @@ export const ICONS = {
   globe: 'globe',
   // งานรัง/ข้อมูลฟาร์ม
   honey: 'droplets',
+  rain: 'cloud-rain',
+  temperature: 'thermometer',
+  chart: 'chart-column',
   queen: 'crown',
   brood: 'egg',
   note: 'sticky-note',

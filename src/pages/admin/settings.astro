@@ -3,9 +3,9 @@ import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
-import { getSettings, saveContact, saveCourse } from '../../server/settings.ts';
+import { getSettings, saveContact, saveCourse, saveLocation } from '../../server/settings.ts';
 import { listTraining } from '../../lib/content.ts';
-import { contactSchema, courseSchema, effectiveCourse, lineChatUrl, telHref } from '../../lib/settings.ts';
+import { contactSchema, courseSchema, effectiveCourse, lineChatUrl, locationSchema, telHref } from '../../lib/settings.ts';
 import { fieldErrors, type FieldErrors } from '../../lib/validation.ts';
 import { formatPrice } from '../../lib/products.ts';
 
@@ -30,6 +30,10 @@ if (Astro.request.method === 'POST') {
     const p = courseSchema.safeParse(values);
     if (p.success) { await saveCourse(db, user, p.data); return Astro.redirect(`/admin/settings?saved=course#c-${p.data.slug}`, 303); }
     errors = fieldErrors(p.error); errorWhere = `course:${values.slug}`;
+  } else if (intent === 'location') {
+    const p = locationSchema.safeParse(values);
+    if (p.success) { await saveLocation(db, user, p.data); return Astro.redirect('/admin/settings?saved=location#location', 303); }
+    errors = fieldErrors(p.error); errorWhere = 'location';
   }
 }
 
@@ -71,6 +75,20 @@ const line = lineChatUrl(c, 'ทดสอบข้อความจากหล
       {telHref(c.phone) && <a class="inline-flex min-h-11 items-center text-sm underline" href={telHref(c.phone)!}>ทดสอบเบอร์โทร</a>}
       <a class="inline-flex min-h-11 items-center text-sm underline" href="/contact" target="_blank" rel="noopener">ดูหน้า "ติดต่อเรา" บนเว็บ</a>
     </div>
+  </form>
+
+  <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="location">
+    <input type="hidden" name="intent" value="location" />
+    <h2 class="text-lg font-semibold">พิกัดฟาร์ม (สำหรับข้อมูลสภาพอากาศ)</h2>
+    <p class="hint">ใช้ดึงฝนและอุณหภูมิมาเทียบกับผลผลิตในหน้า <a class="underline" href="/admin/production">ผลผลิต + อากาศ</a> — ไม่แสดงบนเว็บสาธารณะ
+      {settings.farm.isDefault && <> · <strong class="text-honey-700">ตอนนี้ใช้พิกัดประมาณ อ.ปลวกแดง</strong></>}</p>
+    <div>
+      <label class="label" for="coords">พิกัด (ละติจูด, ลองจิจูด)</label>
+      <input class="field" id="coords" name="coords" inputmode="decimal" autocomplete="off" required value={errorWhere === 'location' ? (values.coords ?? '') : `${settings.farm.lat}, ${settings.farm.lng}`} placeholder="เช่น 12.9812, 101.2234" />
+      {err('coords', 'location') && <p class="error">{err('coords', 'location')}</p>}
+      <p class="hint">เปิด Google Maps → กดค้างที่ตำแหน่งฟาร์ม → แตะตัวเลขพิกัดที่ขึ้นมาเพื่อคัดลอก แล้ววางที่นี่ · เปลี่ยนพิกัดแล้ว ระบบดึงข้อมูลอากาศใหม่ให้เอง</p>
+    </div>
+    <button class="btn-primary" type="submit">บันทึกพิกัด</button>
   </form>
 
   <section id="courses" aria-labelledby="courses-h" class="max-w-2xl">

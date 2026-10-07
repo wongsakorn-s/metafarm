@@ -1,0 +1,105 @@
+---
+// กราฟรายเดือนแบบ small multiple (หลายกราฟเรียงลง ใช้แกนเวลาเดียวกัน — ไม่ใช้กราฟสองแกน y)
+// แท่ง/ป้ายเป็น HTML (ตัวหนังสือไม่ย่อตามจอ) · เส้นเป็น SVG ยืดตามกล่องด้วย non-scaling-stroke
+// เดือนแล้งแรเงาทุกกราฟตรงกัน · ชี้/แตะเดือนเพื่อดูค่า · ข้อมูลเต็มอยู่ในตารางใต้กราฟ (สำหรับโปรแกรมอ่านหน้าจอ)
+import { fmt, monthLabel, niceRange, niceScale } from '../lib/chart.ts';
+
+interface Series { label: string; color: string; values: (number | null)[] }
+interface Props {
+  title: string;
+  unit: string;
+  months: string[];
+  series: Series[];
+  kind?: 'bar' | 'line';
+  /** เดือนที่แรเงา (เดือนแล้ง) */
+  shade?: boolean[];
+  /** ข้อความเมื่อยังไม่มีข้อมูลเลย */
+  empty?: string;
+  digits?: number;
+}
+const { title, unit, months, series, kind = 'bar', shade = [], empty, digits = 0 } = Astro.props;
+const n = months.length;
+const totals = months.map((_, i) => series.reduce((s, x) => s + (x.values[i] ?? 0), 0));
+const hasData = series.some((s) => s.values.some((v) => v != null && v !== 0));
+
+const lineVals = kind === 'line' ? (series[0]?.values.filter((v): v is number => v != null) ?? []) : [];
+const range = kind === 'line' ? niceRange(Math.min(...lineVals), Math.max(...lineVals)) : null;
+const scale = kind === 'bar' ? niceScale(Math.max(0, ...totals)) : null;
+const lo = range ? range.min : 0;
+const hi = range ? range.max : scale!.max;
+const step = range ? range.step : scale!.step;
+const ticks: number[] = [];
+for (let t = lo; t <= hi + 1e-9; t += step) ticks.push(Math.round(t * 100) / 100);
+const pct = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+
+// เส้น: จุดกึ่งกลางของแต่ละเดือน · ช่วงที่ไม่มีข้อมูลตัดเส้น
+const segments: string[] = [];
+if (kind === 'line') {
+  let cur: string[] = [];
+  months.forEach((_, i) => {
+    const v = series[0]!.values[i];
+    if (v == null) { if (cur.length) segments.push(cur.join(' ')); cur = []; return; }
+    cur.push(`${i + 0.5},${(100 - pct(v)).toFixed(2)}`);
+  });
+  if (cur.length) segments.push(cur.join(' '));
+}
+// ป้ายแกน x: เดือนมกราคม (ขึ้นปีใหม่) + เดือนแรก · ถ้าช่วงสั้น ใส่ทุก 3 เดือน
+const showLabel = (m: string, i: number) => i === 0 || m.endsWith('-01') || (n <= 15 && i % 3 === 0);
+const tip = (i: number) =>
+  `${monthLabel(months[i]!)}: ` +
+  (series.length > 1
+    ? series.map((s) => `${s.label} ${fmt(s.values[i], digits)}`).join(' · ') + ` (รวม ${fmt(totals[i], digits)})`
+    : `${fmt(series[0]?.values[i], digits)} ${unit}`) +
+  (shade[i] ? ' · เดือนแล้ง' : '');
+const id = `ch-${title.replace(/[^a-z0-9ก-๙]/gi, '').slice(0, 20)}-${n}`;
+---
+
+<figure class="chart" aria-labelledby={`${id}-t`}>
+  <figcaption id={`${id}-t`} class="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <span class="font-semibold">{title} <span class="text-sm font-normal text-muted">({unit})</span></span>
+    {series.length > 1 && (
+      <span class="flex flex-wrap gap-x-3 text-sm text-muted">
+        {series.map((s) => <span class="inline-flex items-center gap-1.5"><span class="inline-block size-3 rounded-sm" style={`background:${s.color}`}></span>{s.label}</span>)}
+      </span>
+    )}
+  </figcaption>
+
+  {!hasData ? (
+    <p class="rounded-xl border border-dashed border-line bg-canvas px-4 py-6 text-center text-sm text-muted">{empty ?? 'ยังไม่มีข้อมูลในช่วงนี้'}</p>
+  ) : (
+    <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2" aria-hidden="true">
+      <div class="relative h-36 w-9 text-right text-[11px] leading-none text-muted md:h-40">
+        {ticks.map((t) => <span data-num class="absolute right-0 -translate-y-1/2" style={`top:${100 - pct(t)}%`}>{fmt(t, step < 1 ? 1 : 0)}</span>)}
+      </div>
+      <div class="relative h-36 md:h-40">
+        {ticks.map((t) => <span class="absolute inset-x-0 border-t border-line" style={`top:${100 - pct(t)}%`}></span>)}
+        <div class="absolute inset-0 flex">
+          {months.map((m, i) => (
+            <div class="chart-cell group relative flex h-full flex-1 flex-col justify-end" tabindex="-1" data-tip={tip(i)}>
+              {shade[i] && <span class="absolute inset-0 bg-honey-100/70"></span>}
+              {kind === 'bar' && (
+                <span class="relative flex flex-col-reverse px-[12%]" style={`height:${pct(totals[i]!)}%`}>
+                  {series.map((s) => {
+                    const v = s.values[i] ?? 0;
+                    return v > 0 ? <span class="block w-full border-t border-surface first:border-t-0 last:rounded-t-[3px]" style={`height:${(v / totals[i]!) * 100}%;background:${s.color}`}></span> : null;
+                  })}
+                </span>
+              )}
+              <span class="chart-hover pointer-events-none absolute inset-y-0 left-1/2 hidden w-px -translate-x-1/2 bg-ink/40 group-hover:block group-focus:block"></span>
+            </div>
+          ))}
+        </div>
+        {kind === 'line' && (
+          <svg class="pointer-events-none absolute inset-0 size-full overflow-visible" viewBox={`0 0 ${n} 100`} preserveAspectRatio="none">
+            {segments.map((pts) => <polyline points={pts} fill="none" stroke={series[0]!.color} stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" />)}
+          </svg>
+        )}
+      </div>
+      <div></div>
+      <div class="relative mt-1 h-4 text-[11px] text-muted">
+        {months.map((m, i) => showLabel(m, i) && <span class="absolute whitespace-nowrap" style={`left:${(i / n) * 100}%`}>{monthLabel(m)}</span>)}
+      </div>
+    </div>
+  )}
+  <p class="chart-tip mt-1 min-h-5 text-sm text-ink" aria-hidden="true"></p>
+</figure>

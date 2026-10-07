@@ -1,6 +1,7 @@
 // การตั้งค่าที่เจ้าของฟาร์มแก้เองได้จากหลังบ้าน (ช่องทางติดต่อ, ราคา/ระยะเวลาหลักสูตรอบรม)
 // เก็บในตาราง settings แบบ key/value — ไม่ผูกกับ runtime จึงทดสอบได้
 import { z } from 'zod';
+import { DEFAULT_FARM_LOCATION, parseLatLng, type FarmLocation } from './weather.ts';
 
 export interface ContactSettings {
   lineId: string;
@@ -18,6 +19,8 @@ export interface CourseOverride {
 export interface SiteSettings {
   contact: ContactSettings;
   courses: Record<string, CourseOverride>;
+  /** พิกัดฟาร์มสำหรับข้อมูลสภาพอากาศ · isDefault = ยังเป็นพิกัดประมาณ อ.ปลวกแดง */
+  farm: FarmLocation & { isDefault: boolean };
 }
 
 /** ค่าเริ่มต้น (ตัวอย่าง) ใช้จนกว่าเจ้าของฟาร์มจะบันทึกค่าจริง */
@@ -54,6 +57,11 @@ export function parseSettingRows(rows: { key: string; value: string }[]): SiteSe
       confirmed: get('contact.confirmed', '0') === '1',
     },
     courses,
+    farm: (() => {
+      const lat = Number(map.get('farm.lat'));
+      const lng = Number(map.get('farm.lng'));
+      return Number.isFinite(lat) && Number.isFinite(lng) && map.has('farm.lat') ? { lat, lng, isDefault: false } : { ...DEFAULT_FARM_LOCATION, isDefault: true };
+    })(),
   };
 }
 
@@ -145,5 +153,23 @@ export function courseToRows(d: z.output<typeof courseSchema>): { key: string; v
     { key: `course.${d.slug}.priceThb`, value: String(d.priceThb) },
     { key: `course.${d.slug}.duration`, value: d.confirmed ? stripSampleMark(d.duration) || d.duration : d.duration },
     { key: `course.${d.slug}.confirmed`, value: d.confirmed ? '1' : '0' },
+  ];
+}
+
+/** พิกัดฟาร์ม: "12.98, 101.22" หรือวางลิงก์ Google Maps แบบยาว (ที่มี @lat,lng) */
+export const locationSchema = z.object({
+  coords: z.preprocess(blank, z.string().max(500).transform((v, ctx) => {
+    const loc = parseLatLng(v);
+    if (!loc) {
+      ctx.addIssue({ code: 'custom', message: 'อ่านพิกัดไม่ได้ — ใส่แบบ 12.98, 101.22 (ละติจูด, ลองจิจูด ในประเทศไทย)' });
+      return z.NEVER;
+    }
+    return loc;
+  })),
+});
+export function locationToRows(d: z.output<typeof locationSchema>): { key: string; value: string }[] {
+  return [
+    { key: 'farm.lat', value: String(d.coords.lat) },
+    { key: 'farm.lng', value: String(d.coords.lng) },
   ];
 }

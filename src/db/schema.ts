@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -255,4 +256,19 @@ export const auditLogs = sqliteTable('audit_logs', {
   entityId: integer('entity_id'),
   diff: text('diff', { mode: 'json' }),
   at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+});
+
+/**
+ * สภาพอากาศรายวันที่ฟาร์ม (จาก NASA POWER — ข้อมูลย้อนหลัง ฟรีทุกการใช้งาน)
+ * ใช้เทียบกับผลผลิตในหน้า "ผลผลิต + อากาศ" · ดึงเฉพาะวันที่ยังไม่มี (ดู src/server/weather.ts)
+ * ค่าที่แหล่งข้อมูลยังไม่มี (เช่นช่วงไม่กี่วันล่าสุด) เป็น null แล้วจะดึงใหม่ภายหลัง
+ */
+export const weatherDaily = sqliteTable('weather_daily', {
+  date: text('date').primaryKey(), // YYYY-MM-DD
+  tMax: real('t_max'),
+  tMin: real('t_min'),
+  rainMm: real('rain_mm'),
+  humidity: real('humidity'),
+  source: text('source').notNull().default('nasa-power'),
+  fetchedAt: text('fetched_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
 });

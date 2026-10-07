@@ -52,7 +52,10 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">
-      <h2 id="honey-h" class="mb-3 text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {d.year}</h2>
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 id="honey-h" class="text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {Number(d.year) + 543}</h2>
+        <a class="btn-ghost !px-3 text-sm" href="/admin/production"><Icon name="chart" class="size-4" />กราฟผลผลิต + อากาศ</a>
+      </div>
       {d.honey && d.honey.n > 0 ? (
         <p class="text-3xl font-bold text-honey-700">{d.honey.ml.toLocaleString('th-TH')} <span class="text-base font-medium">มล.</span>
           {d.honey.g > 0 && <span class="ml-3 text-xl">+ ชัน {d.honey.g.toLocaleString('th-TH')} กรัม</span>}</p>

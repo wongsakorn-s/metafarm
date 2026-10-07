@@ -307,6 +307,21 @@ console.log('\n10) หลังบ้านบนคอม: ตารางร�
   check(primaries <= 1, `หน้าเตรียมเปิดเว็บมีปุ่มหลัก ${primaries} ปุ่ม`, `ปุ่มหลักมากเกินไป (${primaries})`);
 }
 
+console.log('\n11) ผลผลิต + สภาพอากาศ');
+{
+  await page.goto(BASE + '/admin/production?range=24', { waitUntil: 'networkidle', timeout: 120000 });
+  const figs = await page.locator('#charts figure').count();
+  check(figs === 4, 'มีกราฟ 4 กราฟ (น้ำผึ้ง · ขยายรัง · ฝน · อุณหภูมิ) แกนเวลาเดียวกัน', `จำนวนกราฟ ${figs}`);
+  const cells = await page.$$eval('#charts figure', (fs) => fs.map((f) => f.querySelectorAll('.chart-cell').length).filter((n) => n > 0));
+  check(cells.length >= 2 && new Set(cells).size === 1 && cells[0] === 24, `ทุกกราฟมี ${cells[0]} เดือนเท่ากัน`, `จำนวนเดือนไม่เท่ากัน ${cells}`);
+  await page.locator('#charts figure').nth(2).locator('.chart-cell').nth(5).dispatchEvent('pointerenter');
+  const tips = (await page.locator('#charts .chart-tip').allTextContents()).filter(Boolean);
+  const sameMonth = tips.length >= 2 && new Set(tips.map((t) => t.split(':')[0])).size === 1;
+  check(sameMonth, `ชี้เดือนในกราฟฝน → ทุกกราฟแสดงเดือนเดียวกัน (${tips[0]?.split(':')[0]})`, `ค่าที่แสดงไม่ตรงเดือน: ${tips.join(' | ')}`);
+  const rainRows = await page.locator('details:has(#tbl-h) tbody tr').count();
+  check(rainRows === 24, 'ตารางข้อมูลรายเดือนครบ 24 แถว (สำหรับโปรแกรมอ่านหน้าจอ)', `ตารางมี ${rainRows} แถว`);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

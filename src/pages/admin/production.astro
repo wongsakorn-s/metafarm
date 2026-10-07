@@ -1,0 +1,179 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
+import MonthChart from '../../components/MonthChart.astro';
+import { getDb } from '../../server/db.ts';
+import { getSettings } from '../../server/settings.ts';
+import { ensureWeather, monthlyWeather } from '../../server/weather.ts';
+import { firstDataDate, monthlyProduction, topHoneyHives } from '../../server/production.ts';
+import { compareDryWet, DRY_MONTH_MM, isDryMonth, monthRange, POWER_ATTRIBUTION } from '../../lib/weather.ts';
+import { fmt, monthLabel } from '../../lib/chart.ts';
+import { todayBangkok } from '../../lib/validation.ts';
+import { formatThaiDate } from '../../lib/thai-date.ts';
+
+// ผลผลิต + สภาพอากาศ (สิ่งที่เจ้าของฟาร์มอยากได้มากที่สุดจากแบบสอบถาม Phase 4)
+// กราฟเล็กหลายกราฟใช้แกนเวลาเดียวกัน · เดือนแล้งแรเงาตรงกันทุกกราฟ · ไม่ใช้กราฟสองแกน y
+export const prerender = false;
+
+const db = getDb();
+const today = todayBangkok();
+const thisMonth = today.slice(0, 7);
+const RANGES = { '12': 12, '24': 24, all: 0 } as const;
+type Range = keyof typeof RANGES;
+const range: Range = (Object.keys(RANGES) as Range[]).includes(Astro.url.searchParams.get('range') as Range) ? (Astro.url.searchParams.get('range') as Range) : 'all';
+
+const settings = await getSettings(db);
+const first = (await firstDataDate(db)) ?? `${today.slice(0, 4)}-01-01`;
+const startAll = first.slice(0, 7);
+const back = (k: number) => { const d = new Date(`${thisMonth}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - (k - 1)); return d.toISOString().slice(0, 7); };
+const fromMonth = RANGES[range] ? [back(RANGES[range]), startAll].sort().at(-1)! : startAll;
+const months = monthRange(fromMonth, thisMonth);
+
+// ข้อมูลอากาศ: ดึงเฉพาะที่ยังไม่มี (ครั้งแรกรอ ~ไม่กี่วินาที ครั้งต่อไปอ่านจากฐานข้อมูล)
+const status = await ensureWeather(db, settings.farm, `${startAll}-01`, today, { force: Astro.url.searchParams.get('refresh') === '1' });
+const [prod, weather, top] = await Promise.all([monthlyProduction(db, fromMonth), monthlyWeather(db, fromMonth), topHoneyHives(db, `${fromMonth}-01`)]);
+
+const P = months.map((m) => prod.get(m));
+const W = months.map((m) => weather.get(m));
+const dry = W.map((w) => isDryMonth(w));
+const sum = (a: (number | null | undefined)[]) => a.reduce<number>((s, x) => s + (x ?? 0), 0);
+
+const honey = P.map((p) => p?.honeyMl ?? 0);
+const splits = P.map((p) => p?.broodSplits ?? 0);
+const queens = P.map((p) => p?.queenCells ?? 0);
+const expansion = months.map((m, i) => ({ month: m, value: splits[i]! + queens[i]! }));
+const rain = W.map((w) => (w ? Math.round(w.rainMm ?? 0) : null));
+const tmax = W.map((w) => (w?.tMaxAvg != null ? Math.round(w.tMaxAvg * 10) / 10 : null));
+
+// ข้อสังเกต: การขยายรังในเดือนแล้งเทียบเดือนปกติ (ต้องมีข้อมูลพอ ทั้งสองกลุ่ม ≥ 6 เดือน)
+// นับเฉพาะช่วงที่ฟาร์มขยายรังจริง (ตั้งแต่เดือนแรกถึงเดือนสุดท้ายที่มีการขยาย) — ไม่นับช่วงที่ยังไม่เริ่ม/หยุดบันทึก
+const firstExp = expansion.findIndex((e) => e.value > 0);
+const lastExp = expansion.findLastIndex((e) => e.value > 0);
+const cmp = firstExp >= 0 ? compareDryWet(expansion.slice(firstExp, lastExp + 1), weather) : null;
+const firstHoney = honey.findIndex((v) => v > 0);
+const honeyCmp = firstHoney >= 0 ? compareDryWet(months.slice(firstHoney).map((m, i) => ({ month: m, value: honey[firstHoney + i]! })), weather) : null;
+
+const year = today.slice(0, 4);
+const yearIdx = months.map((m, i) => (m.startsWith(year) ? i : -1)).filter((i) => i >= 0);
+const tiles = [
+  { label: `น้ำผึ้งปี ${Number(year) + 543}`, value: fmt(sum(yearIdx.map((i) => honey[i]))), unit: 'มล.', icon: 'honey' as const },
+  { label: `ขยายรังปี ${Number(year) + 543}`, value: fmt(sum(yearIdx.map((i) => splits[i]! + queens[i]!))), unit: 'ครั้ง', icon: 'brood' as const },
+  { label: `ฝนสะสมปี ${Number(year) + 543}`, value: fmt(sum(yearIdx.map((i) => rain[i]))), unit: 'มม.', icon: 'rain' as const },
+  { label: 'เดือนแล้งในช่วงนี้', value: fmt(dry.filter(Boolean).length), unit: `จาก ${months.length} เดือน`, icon: 'warning' as const },
+];
+const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3', temp: '#5b6a61' };
+---
+
+<AdminLayout back={{ href: '/admin', label: 'ภาพรวม' }} title="ผลผลิต + สภาพอากาศ" active="production">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <nav aria-label="ช่วงเวลา" class="inline-flex rounded-xl border border-line bg-surface p-1">
+      {([['12', '12 เดือน'], ['24', '24 เดือน'], ['all', 'ทั้งหมด']] as const).map(([k, l]) => (
+        <a href={`?range=${k}`} aria-current={range === k ? 'page' : undefined}
+          class:list={['inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium', range === k ? 'bg-palm-600 text-white' : 'text-ink hover:bg-palm-50']}>{l}</a>
+      ))}
+    </nav>
+    <p class="text-sm text-muted">{monthLabel(months[0]!)} – {monthLabel(months.at(-1)!)} · พิกัด {settings.farm.lat}, {settings.farm.lng}{settings.farm.isDefault && <> (ประมาณ · <a class="underline" href="/admin/settings#location">ตั้งพิกัดจริง</a>)</>}</p>
+  </div>
+
+  {status.error && (
+    <p role="status" class="mb-4 rounded-xl bg-honey-50 p-3 text-sm"><Icon name="warning" class="inline-block size-[1.15em] align-[-0.2em] text-honey-700" /> ดึงข้อมูลอากาศไม่สำเร็จ ({status.error}) — แสดงข้อมูลที่มีอยู่ จะลองใหม่อัตโนมัติภายหลัง</p>
+  )}
+  {status.pending > 0 && !status.error && (
+    <p role="status" class="mb-4 rounded-xl bg-palm-50 p-3 text-sm">กำลังทยอยโหลดข้อมูลอากาศย้อนหลัง (เหลืออีก {status.pending} ปี) — <a class="underline" href={`?range=${range}&refresh=1`}>โหลดต่อ</a></p>
+  )}
+
+  <section aria-label="สรุป" class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    {tiles.map((t) => (
+      <div class="card flex items-center gap-3 !p-3">
+        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={t.icon} class="size-5" /></span>
+        <div class="min-w-0"><p class="truncate text-xs text-muted">{t.label}</p><p class="font-semibold"><span data-num class="text-xl">{t.value}</span> <span class="text-xs font-normal text-muted">{t.unit}</span></p></div>
+      </div>
+    ))}
+  </section>
+
+  {cmp && (
+    <section class="mb-5 rounded-2xl border border-line bg-surface p-4" aria-labelledby="obs-h">
+      <h2 id="obs-h" class="flex items-center gap-2 font-semibold"><Icon name="info" class="size-5 text-palm-700" />ข้อสังเกตจากข้อมูล</h2>
+      <p class="mt-1">ในช่วงที่มีการขยายรัง เดือนแล้ง (ฝน &lt; {DRY_MONTH_MM} มม.) ขยายรังเฉลี่ย <strong data-num>{fmt(cmp.dryAvg, 1)}</strong> ครั้ง/เดือน เทียบกับเดือนที่ฝนปกติ <strong data-num>{fmt(cmp.wetAvg, 1)}</strong> ครั้ง/เดือน ({cmp.dryMonths} กับ {cmp.wetMonths} เดือน)</p>
+      <p class="hint">เป็นการเทียบตัวเลขเฉย ๆ ไม่ได้พิสูจน์ว่าฝนเป็นสาเหตุ — การขยายรังขึ้นกับการตัดสินใจของฟาร์มด้วย</p>
+      {honeyCmp && <p class="mt-2">น้ำผึ้ง: เดือนแล้งเฉลี่ย <strong data-num>{fmt(honeyCmp.dryAvg)}</strong> มล. · เดือนปกติ <strong data-num>{fmt(honeyCmp.wetAvg)}</strong> มล.</p>}
+    </section>
+  )}
+
+  <div class="card space-y-6" id="charts">
+    <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+      <span class="inline-flex items-center gap-1.5"><span class="inline-block h-3 w-4 rounded-sm bg-honey-100"></span>แถบเหลือง = เดือนแล้ง (ฝนรวม &lt; {DRY_MONTH_MM} มม.)</span>
+      <span>ชี้หรือแตะที่เดือน เพื่อดูค่าของเดือนนั้นในทุกกราฟ</span>
+    </p>
+    <MonthChart title="น้ำผึ้งที่เก็บได้" unit="มล./เดือน" months={months} shade={dry} series={[{ label: 'น้ำผึ้ง', color: C.honey, values: honey }]}
+      empty="ยังไม่มีบันทึกการเก็บน้ำหวานในช่วงนี้ — บันทึกได้ที่ปุ่ม ➕ บันทึก → เก็บน้ำหวาน แล้วกราฟนี้จะเริ่มมีข้อมูล" />
+    <MonthChart title="การขยายรัง" unit="ครั้ง/เดือน" months={months} shade={dry}
+      series={[{ label: 'แยกไข่อ่อน/ตัวงาน', color: C.split, values: splits }, { label: 'เก็บไข่นางพญา', color: C.queen, values: queens }]} />
+    <MonthChart title="ฝนรวม" unit="มม./เดือน" months={months} shade={dry} series={[{ label: 'ฝน', color: C.rain, values: rain }]}
+      empty="ยังไม่มีข้อมูลฝน — ระบบกำลังดึงข้อมูลจาก NASA POWER" />
+    <MonthChart title="อุณหภูมิสูงสุดเฉลี่ย" unit="°C" kind="line" digits={1} months={months} shade={dry} series={[{ label: 'อุณหภูมิสูงสุด', color: C.temp, values: tmax }]}
+      empty="ยังไม่มีข้อมูลอุณหภูมิ" />
+  </div>
+
+  <div class="mt-5 grid gap-5 lg:grid-cols-2">
+    <section class="card" aria-labelledby="top-h">
+      <h2 id="top-h" class="mb-2 font-semibold">รังที่ให้น้ำผึ้งมากที่สุด <span class="text-sm font-normal text-muted">(ช่วงที่เลือก)</span></h2>
+      {top.length === 0 ? <p class="text-sm text-muted">ยังไม่มีบันทึกการเก็บน้ำหวาน</p> : (
+        <ol class="divide-y divide-line">
+          {top.map((t, i) => (
+            <li class="flex items-center gap-3">
+              <span data-num class="w-5 text-right text-sm text-muted">{i + 1}</span>
+              <a class="inline-flex min-h-11 min-w-11 items-center font-semibold text-palm-700 hover:underline" href={`/admin/hives/${t.code}`}>{t.code}</a>
+              <span data-num class="ml-auto">{fmt(t.ml)} มล.</span>
+              <span class="w-16 text-right text-sm text-muted">{t.harvests} ครั้ง</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+    <details class="card self-start" aria-labelledby="tbl-h">
+      <summary class="disclosure min-h-11 font-semibold" id="tbl-h">ตารางข้อมูลรายเดือน</summary>
+      <div class="mt-2 max-h-96 overflow-auto">
+        <table class="w-full text-right text-sm">
+          <thead class="sticky top-0 bg-surface text-xs text-muted"><tr><th scope="col" class="py-1 text-left">เดือน</th><th scope="col">น้ำผึ้ง (มล.)</th><th scope="col">ขยายรัง</th><th scope="col">ฝน (มม.)</th><th scope="col">สูงสุด (°C)</th></tr></thead>
+          <tbody class="divide-y divide-line" data-num>
+            {months.map((m, i) => i).reverse().map((i) => (
+              <tr class:list={[dry[i] && 'bg-honey-50']}>
+                <th scope="row" class="py-1 text-left font-normal">{monthLabel(months[i]!)}{dry[i] && <span class="sr-only"> (เดือนแล้ง)</span>}</th>
+                <td>{fmt(honey[i])}</td><td>{fmt(splits[i]! + queens[i]!)}</td><td>{fmt(rain[i])}</td><td>{fmt(tmax[i], 1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <p class="mt-5 text-xs text-muted">{POWER_ATTRIBUTION} · ข้อมูลถึง {status.latest ? formatThaiDate(status.latest) : '–'} (ช้ากว่าวันจริงไม่กี่วัน)</p>
+</AdminLayout>
+
+<script>
+  // ชี้/แตะเดือนในกราฟใด → ไฮไลต์เดือนเดียวกันทุกกราฟ และแสดงค่าใต้แต่ละกราฟ
+  const charts = [...document.querySelectorAll<HTMLElement>('#charts figure')];
+  const show = (idx: number | null) => {
+    for (const fig of charts) {
+      const cells = fig.querySelectorAll<HTMLElement>('.chart-cell');
+      cells.forEach((c, i) => c.classList.toggle('is-active', i === idx));
+      const tip = fig.querySelector<HTMLElement>('.chart-tip');
+      if (tip) tip.textContent = idx != null && cells[idx] ? cells[idx]!.dataset.tip ?? '' : '';
+    }
+  };
+  for (const fig of charts) {
+    fig.querySelectorAll<HTMLElement>('.chart-cell').forEach((cell, i) => {
+      cell.addEventListener('pointerenter', () => show(i));
+      cell.addEventListener('focus', () => show(i));
+    });
+  }
+  document.getElementById('charts')?.addEventListener('pointerleave', () => show(null));
+</script>
+
+<style>
+  /* เดือนที่กำลังดู: เส้นแนวตั้งในทุกกราฟ */
+  :global(.chart-cell.is-active .chart-hover) { display: block; }
+  :global(.chart-cell) { outline: none; }
+</style>
