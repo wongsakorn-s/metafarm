@@ -70,6 +70,47 @@
   input, select, textarea {
     font-size: 16px;
   }
+  /* ช่องวันที่บน iOS Safari: (1) มีความกว้างขั้นต่ำของตัวเอง ไม่หดตามคอลัมน์ → ล้นกรอบ
+     (2) สูงไม่เท่าช่องอื่น (3) ข้อความชิดกลาง — ปิดหน้าตาเฉพาะของระบบแล้วจัดเหมือนช่องอื่น
+     (ปุ่มปฏิทินของ Android/คอมยังอยู่ เพราะเป็น ::-webkit-calendar-picker-indicator แยกต่างหาก) */
+  input:is([type='date'], [type='time'], [type='datetime-local'], [type='month']) {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+  }
+  input:is([type='date'], [type='time'], [type='datetime-local'], [type='month'])::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+    min-height: 1.5em;
+  }
+  /* ช่องวันที่ที่ยังว่าง: iOS แสดง "วันนี้" ทั้งที่ยังไม่ได้เลือก → ซ่อนตัวเลขแล้วแสดง "ยังไม่ระบุ" แทน
+     (สคริปต์ admin-forms.ts ใส่ data-empty และป้าย .date-placeholder ให้) */
+  input[data-empty]:not(:focus) { color: transparent; }
+  .date-wrap { position: relative; display: block; min-width: 0; }
+  .date-placeholder {
+    position: absolute;
+    inset-inline: 0.75rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    top: 50%;
+    transform: translateY(-50%);
+    color: color-mix(in srgb, var(--color-muted) 80%, transparent);
+    pointer-events: none;
+  }
+  /* select: หน้าตาเหมือนช่องกรอกอื่นทุกเครื่อง (Safari/WebKit ใช้กล่องเทาของระบบ) + ลูกศรของเรา */
+  select:not([multiple]):not([size]) {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-inline-end: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b6a61' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.25rem;
+  }
+  input:not([data-empty]) + .date-placeholder,
+  input:focus + .date-placeholder { display: none; }
   /* แตะแล้วตอบทันที (ไม่มีหน่วง 300ms รอดับเบิลแตะ) และเคอร์เซอร์มือบนทุกอย่างที่กดได้
      (Tailwind 4 ตั้งปุ่มเป็น cursor: default) */
   a, button, summary, label, select, [role='button'] {
@@ -154,7 +195,7 @@
   @apply sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-xl focus:bg-palm-900 focus:px-4 focus:py-3 focus:font-semibold focus:text-white focus:shadow-raised;
 }
 @utility field {
-  @apply block w-full min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;
+  @apply block w-full min-w-0 min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;
 }
 /* ช่องเลือกไฟล์: ปุ่ม "เลือกไฟล์" ของเบราว์เซอร์ให้เข้าชุดกับปุ่มของเว็บ (เดิมเป็นปุ่มเทาของระบบ) */
 @utility field-file {

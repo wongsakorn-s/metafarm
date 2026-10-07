@@ -78,3 +78,21 @@ if (errors[0]) {
   errors[0].scrollIntoView({ block: 'center' });
   field?.focus({ preventScroll: true });
 }
+
+// ช่องวันที่ว่าง: แสดงป้าย "ยังไม่ระบุ" แทนวันที่ของระบบ (iOS แสดงวันนี้ในช่องว่าง ทำให้เข้าใจผิดว่ากรอกแล้ว)
+for (const input of document.querySelectorAll<HTMLInputElement>('input[type=date]')) {
+  if (input.parentElement?.classList.contains('date-wrap')) continue;
+  const wrap = document.createElement('span');
+  wrap.className = 'date-wrap';
+  input.replaceWith(wrap);
+  wrap.append(input);
+  const ph = document.createElement('span');
+  ph.className = 'date-placeholder';
+  ph.setAttribute('aria-hidden', 'true');
+  ph.textContent = input.required ? 'เลือกวันที่' : 'ยังไม่ระบุ';
+  wrap.append(ph);
+  const sync = () => input.toggleAttribute('data-empty', !input.value);
+  sync();
+  input.addEventListener('input', sync);
+  input.addEventListener('change', sync);
+}

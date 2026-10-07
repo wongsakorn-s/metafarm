@@ -5,7 +5,7 @@
 // ⚠️ ข้อจำกัด: เป็นการ "จำลอง" บน Chromium (Edge/Chrome ที่ติดตั้ง) ไม่ใช่เครื่องจริง และไม่ใช่เอนจิน Safari (WebKit)
 //    จึงตรวจเรื่องขนาดจอ/สัมผัส/เครือข่ายได้ แต่ไม่รู้ว่า iOS Safari จริงทำอะไรต่าง (เช่นแปลงรูป HEIC, ปุ่มแถบเมนูล่าง, 100vh)
 import { mkdirSync, readFileSync } from 'node:fs';
-import { chromium, devices } from 'playwright-core';
+import { chromium, devices, webkit } from 'playwright-core';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4321';
 const FLOWS = process.env.MOBILE_FLOWS !== '0';
@@ -211,5 +211,32 @@ if (FLOWS) {
   console.log(`   ℹ️ ทดสอบกับรัง ${code} (เพิ่มรูปทดสอบ 1 รูป) — ล้างด้วย: npm run db:seed:local && npm run media:seed:local -- --prune`);
 }
 await browser.close();
+
+// ---------- เอนจิน Safari (WebKit): ช่องวันที่/ตัวเลือก — iOS มีพฤติกรรมเฉพาะที่ Chromium ไม่มี ----------
+// ต้องติดตั้งครั้งเดียว: npx playwright-core install webkit (ถ้าไม่มีจะข้าม)
+{
+  let wk;
+  try { wk = await webkit.launch(); } catch { console.log('\n⏭️  ข้ามการทดสอบ WebKit (ยังไม่ได้ติดตั้ง: npx playwright-core install webkit)'); }
+  if (wk) {
+    console.log('\n🧭 iPhone 13 บนเอนจิน Safari (WebKit): ช่องวันที่ในฟอร์ม');
+    const ctx = await wk.newContext({ ...devices['iPhone 13'] });
+    const page = await ctx.newPage();
+    await login(page);
+    for (const path of ['/admin/hives/new', '/admin/hives/A25/edit']) {
+      await page.goto(BASE + path, { waitUntil: 'networkidle' });
+      const r = await page.$$eval('input[type=date]', (els) => els.map((e) => {
+        const b = e.getBoundingClientRect(), c = e.closest('form')?.getBoundingClientRect();
+        const text = e.parentElement?.querySelector('.date-placeholder');
+        return { name: e.name, w: b.width, h: b.height, overflow: c ? b.right - c.right : 0, empty: !e.value, marked: e.hasAttribute('data-empty'), ph: text ? getComputedStyle(text).display !== 'none' : false };
+      }));
+      const bad = r.filter((x) => x.overflow > 0.5 || x.h < 44 || x.empty !== x.marked || x.empty !== x.ph);
+      bad.length ? fail(`${path}: ช่องวันที่ผิดปกติ ${JSON.stringify(bad)}`) : ok(`${path}: ช่องวันที่ ${r.length} ช่อง อยู่ในกรอบ สูง ≥ 44px และช่องว่างแสดง "ยังไม่ระบุ" (ไม่ใช่วันนี้)`);
+      const widths = new Set(r.map((x) => Math.round(x.w)));
+      widths.size <= 1 ? ok(`${path}: ช่องวันที่คู่กันกว้างเท่ากัน`) : fail(`${path}: ช่องวันที่กว้างไม่เท่ากัน ${[...widths]}`);
+    }
+    await ctx.close();
+    await wk.close();
+  }
+}
 console.log(failed ? `\n❌ พบปัญหา ${failed} จุด` : '\n✅ ผ่านทั้งหมด');
 process.exit(failed ? 1 : 0);
