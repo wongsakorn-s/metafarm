@@ -450,6 +450,56 @@ console.log('\n12) ขาย: ออเดอร์ → ชำระ → ส่�
   console.log('   ℹ️ ข้อมูลทดสอบ: ลูกค้า คุณ' + tag + ' · ' + code + ', ' + code2);
 }
 
+console.log('\n13) ล็อตน้ำผึ้ง: เก็บ → ล็อต → บรรจุ → ฉลาก QR → ขาย (ล็อตเก่าก่อน)');
+{
+  // เก็บน้ำหวาน 2 รัง (รวม 600 มล.)
+  for (const [code, ml] of [['A30', 400], ['A31', 200]]) await post('/admin/hives/' + code, { intent: 'honey', occurredOn: today, honeyMl: String(ml), idem: crypto.randomUUID() });
+  await page.goto(BASE + '/admin/lots/new');
+  // เลือกเฉพาะ 2 ครั้งล่าสุดของ A30/A31
+  await page.$$eval('input[name=eventId]', (els) => els.forEach((e) => (e.checked = false)));
+  for (const code of ['A30', 'A31']) await page.locator('label:has-text("' + code + '") input[name=eventId]').first().check();
+  const sumText = await page.textContent('#sum');
+  await Promise.all([page.waitForURL(/\/admin\/lots\/H\d{4}-\d{2}-\d+\?saved=created/), page.click('button:has-text("สร้างล็อต")')]);
+  const lot = page.url().match(/lots\/(H\d{4}-\d{2}-\d+)/)[1];
+  check(/600/.test(sumText ?? '') && /^H\d{4}-\d{2}-\d+$/.test(lot), 'สร้างล็อต ' + lot + ' จากการเก็บ 600 มล.', 'สร้างล็อตไม่ถูก (' + sumText + ', ' + lot + ')');
+  // บรรจุขวด 50 มล.: 13 ขวด ใช้ได้ไม่เกิน 12 → ถูกปฏิเสธ · 10 ขวด ผ่าน → สต็อก +10
+  const v50 = await page.$eval('#variantId', (s) => [...s.options].find((o) => / 50 มล\./.test(o.text))?.value);
+  await page.goto(BASE + '/admin/products');
+  const before = Number(await page.inputValue('#st-' + v50));
+  await page.goto(BASE + '/admin/lots/' + lot);
+  await page.selectOption('#variantId', v50);
+  await page.fill('#qty', '13');
+  await Promise.all([page.waitForLoadState('load'), page.click('button:has-text("บันทึกการบรรจุ")')]);
+  const err = (await page.locator('[role=alert]').first().textContent().catch(() => '')) ?? '';
+  check(err.includes('ไม่เกิน 12 ขวด'), 'บรรจุเกินน้ำผึ้งที่มี → ปฏิเสธ: "' + err.trim() + '"', 'บรรจุเกินได้: ' + err);
+  await page.selectOption('#variantId', v50);
+  await page.fill('#qty', '10');
+  await page.fill('#unitCost', '37');
+  await Promise.all([page.waitForURL(/saved=bottled/), page.click('button:has-text("บันทึกการบรรจุ")')]);
+  await page.goto(BASE + '/admin/products');
+  const after = Number(await page.inputValue('#st-' + v50));
+  check(after === before + 10, 'บรรจุ 10 ขวด → สต็อก ' + before + ' → ' + after, 'สต็อกไม่เพิ่ม (' + before + ' → ' + after + ')');
+  // ฉลาก: 10 ดวง มี QR ชี้หน้า /lot/
+  await page.goto(BASE + '/admin/lots/' + lot + '/labels?variant=' + v50 + '&count=10&start=3');
+  const labels = await page.locator('.lbl').count();
+  const qrOk = await page.locator('.lbl svg').first().getAttribute('aria-label');
+  const blanks = await page.$$eval('.sheet > div:not(.lbl)', (e) => e.length);
+  check(labels === 10 && blanks === 2 && qrOk?.includes(lot), 'หน้าพิมพ์ฉลาก: 10 ดวง เริ่มดวงที่ 3 (เว้น 2) มี QR ของล็อต', 'ฉลากไม่ถูก (' + labels + ' ดวง, เว้น ' + blanks + ', ' + qrOk + ')');
+  // หน้าสาธารณะ (ไม่ล็อกอิน): มีรังที่มา ไม่มีต้นทุน
+  const pub = await page.evaluate(async (u) => { const r = await fetch(u, { credentials: 'omit' }); return { s: r.status, t: await r.text() }; }, '/lot/' + lot);
+  check(pub.s === 200 && pub.t.includes('A30') && pub.t.includes('A31') && !pub.t.includes('37 บาท') && !pub.t.includes('600 มล.'), 'หน้า /lot/' + lot + ' (สาธารณะ): แสดงรัง A30, A31 · ไม่มีต้นทุนหรือปริมาณ', 'หน้าล็อตสาธารณะไม่ถูกต้อง (' + pub.s + ')');
+  // ขาย 2 ขวด ชำระแล้ว → ผูกล็อตนี้
+  await page.goto(BASE + '/admin/orders/new');
+  await page.check('input[name=customerMode][value=new]');
+  await page.fill('#c_name', 'ลูกค้าล็อต' + Date.now().toString().slice(-5));
+  await page.fill('#qty_v' + v50, '2');
+  await page.check('#paidNow');
+  await page.selectOption('#payMethod', 'promptpay');
+  await Promise.all([page.waitForURL(/saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+  const sumOrder = await page.inputValue('#summary');
+  check(sumOrder.includes('ล็อต H'), 'ขายขวด 50 มล. → ผูกล็อตให้เอง (ข้อความสรุปมี "' + (sumOrder.match(/ล็อต H[\d-]+/) ?? [''])[0] + '")', 'ขายแล้วไม่ผูกล็อต');
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

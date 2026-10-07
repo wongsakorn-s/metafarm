@@ -1,0 +1,94 @@
+---
+// พิมพ์ฉลากล็อตบนแผ่นสติกเกอร์ A4 — หน้าเปล่า (ไม่มีเมนูหลังบ้าน) ให้กดพิมพ์ได้ทันที
+// ปรับแบบแผ่น/จำนวน/ดวงเริ่ม ได้ (ใช้แผ่นที่เหลือจากครั้งก่อนต่อได้)
+import '../../../../styles/global.css';
+import { getDb } from '../../../../server/db.ts';
+import { getLot, honeyVariants } from '../../../../server/lots.ts';
+import { isLotCode, LABEL_SHEETS, type LabelSheet } from '../../../../lib/lots.ts';
+import { qrSvg } from '../../../../lib/qr.ts';
+import { formatThaiDate } from '../../../../lib/thai-date.ts';
+import { site } from '../../../../config/site.ts';
+
+export const prerender = false;
+const db = getDb();
+const code = Astro.params.code ?? '';
+if (!isLotCode(code)) return new Response('ไม่พบล็อต', { status: 404 });
+const got = await getLot(db, code);
+if (!got) return new Response('ไม่พบล็อต', { status: 404 });
+const sp = Astro.url.searchParams;
+const variants = await honeyVariants(db);
+const variant = variants.find((x) => String(x.id) === sp.get('variant')) ?? variants[0];
+const sheetKey: LabelSheet = (Object.keys(LABEL_SHEETS) as LabelSheet[]).includes(sp.get('sheet') as LabelSheet) ? (sp.get('sheet') as LabelSheet) : 'a4_40';
+const sheet = LABEL_SHEETS[sheetKey];
+const perPage = sheet.cols * sheet.rows;
+const count = Math.min(Math.max(1, Number(sp.get('count')) || perPage), 500);
+const start = Math.min(Math.max(1, Number(sp.get('start')) || 1), perPage);
+const url = new URL(`/lot/${code}`, Astro.url.origin).href;
+const qr = qrSvg(url, `QR ล็อต ${code}`);
+const harvested = formatThaiDate(got.lot.harvestedTo).replace(/^\d+\s/, ''); // "ต.ค. 2569"
+// ช่องว่างก่อนดวงเริ่ม + ฉลากจริง แบ่งเป็นหน้า
+const cells: (null | 1)[] = [...Array(start - 1).fill(null), ...Array(count).fill(1)];
+const pages: (null | 1)[][] = [];
+for (let i = 0; i < cells.length; i += perPage) pages.push(cells.slice(i, i + perPage));
+const qs = (o: Record<string, string | number>) => `?${new URLSearchParams({ variant: String(variant?.id ?? ''), sheet: sheetKey, count: String(count), start: String(start), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) })}`;
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>ฉลากล็อต {code} · {site.name}</title>
+    <style is:inline set:html={`
+      @page { size: A4; margin: 0; }
+      .sheet { width: 210mm; height: 297mm; padding: ${sheet.marginTop}mm 0 0 ${sheet.marginLeft}mm; display: grid; grid-template-columns: repeat(${sheet.cols}, ${sheet.w}mm); grid-auto-rows: ${sheet.h}mm; column-gap: ${sheet.gapX}mm; row-gap: ${sheet.gapY}mm; background: #fff; box-sizing: border-box; break-after: page; }
+      .lbl { box-sizing: border-box; padding: 2mm 2.5mm; display: flex; gap: 2mm; align-items: center; overflow: hidden; color: #111; }
+      .lbl .q { flex: 0 0 auto; height: calc(${sheet.h}mm - 5mm); aspect-ratio: 1; }
+      .lbl .q svg { width: 100%; height: 100%; display: block; }
+      .lbl .t { min-width: 0; line-height: 1.2; font-size: ${sheet.h < 32 ? 7 : 8.5}pt; }
+      .lbl .t b { font-size: 1.15em; display: block; }
+      .lbl .lot { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+      @media screen { .sheet { margin: 0 auto 8mm; box-shadow: 0 2px 12px rgb(0 0 0 / .15); } .lbl { outline: 1px dashed #cfd8d2; outline-offset: -1px; } }
+      @media print { .no-print { display: none !important; } body { background: #fff; } }
+    `} />
+  </head>
+  <body class="bg-canvas">
+    <div class="no-print mx-auto max-w-3xl space-y-3 p-4">
+      <p><a class="inline-flex min-h-11 items-center underline" href={`/admin/lots/${code}`}>← กลับไปล็อต {code}</a></p>
+      <h1 class="text-xl font-bold">ฉลากล็อต {code}</h1>
+      <form method="get" class="card grid gap-3 sm:grid-cols-2">
+        <div><label class="label" for="variant">ขนาดขวด</label><select class="field" id="variant" name="variant">{variants.map((x) => <option value={x.id} selected={x.id === variant?.id}>{x.label} · {x.sizeMl} มล.</option>)}</select></div>
+        <div><label class="label" for="sheet">แผ่นสติกเกอร์</label><select class="field" id="sheet" name="sheet">{(Object.keys(LABEL_SHEETS) as LabelSheet[]).map((k) => <option value={k} selected={k === sheetKey}>{LABEL_SHEETS[k].label}</option>)}</select></div>
+        <div><label class="label" for="count">จำนวนดวง</label><input class="field" id="count" name="count" type="number" inputmode="numeric" min="1" max="500" value={count} /></div>
+        <div><label class="label" for="start">เริ่มที่ดวงที่ (แผ่นที่ใช้ไปบ้างแล้ว)</label><input class="field" id="start" name="start" type="number" inputmode="numeric" min="1" max={perPage} value={start} /></div>
+        <div class="flex flex-wrap gap-2 sm:col-span-2">
+          <button class="btn-ghost" type="submit">ปรับตัวอย่าง</button>
+          <button class="btn-primary" type="button" id="print">พิมพ์ ({pages.length} แผ่น)</button>
+        </div>
+        <p class="hint sm:col-span-2">ตั้งค่าเครื่องพิมพ์: ขนาด A4 · ขอบกระดาษ "ไม่มี" · ย่อ/ขยาย 100% (ไม่ใช่ "พอดีหน้า") · ลองพิมพ์บนกระดาษธรรมดาทาบกับแผ่นสติกเกอร์ก่อน</p>
+      </form>
+    </div>
+
+    {pages.map((pg) => (
+      <div class="sheet">
+        {pg.map((c) => c ? (
+          <div class="lbl">
+            <div class="q" set:html={qr} />
+            <div class="t">
+              <b>{site.name}</b>
+              น้ำผึ้งชันโรงขนเงิน{variant?.sizeMl ? ` ${variant.sizeMl} มล.` : ''}<br />
+              <span class="lot">ล็อต {code}</span><br />
+              เก็บ {harvested}<br />
+              สแกนดูที่มา
+            </div>
+          </div>
+        ) : <div></div>)}
+      </div>
+    ))}
+
+    <script>
+      document.getElementById('print')?.addEventListener('click', () => window.print());
+    </script>
+  </body>
+</html>

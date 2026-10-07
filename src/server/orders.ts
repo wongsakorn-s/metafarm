@@ -4,11 +4,12 @@
 import { and, asc, desc, eq, inArray, like, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
-import { auditLogs, customers, hives, orderItems, orders, productVariants, products } from '../db/schema.ts';
+import { auditLogs, customers, hives, honeyLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
 import { canMove, nextSeq, orderCode, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 import { statusStatements } from './hives.ts';
+import { lotForSale } from './lots.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 type Order = typeof orders.$inferSelect;
@@ -19,7 +20,7 @@ const audit = (db: Db, user: SessionUser, action: string, entity: string, entity
 const run = (db: Db, stmts: BatchItem<'sqlite'>[]) => db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
 /** ออเดอร์ที่ยังไม่จบ (จองรังไว้) */
 const OPEN: OrderStatus[] = ['awaiting_payment', 'paid'];
-const totalSql = sql<number>`(coalesce((select sum(i.qty * i.unit_price) from order_items i where i.order_id = ${orders.id}), 0) + ${orders.shipFee})`;
+const totalSql = sql<number>`(coalesce((select sum(i.qty * i.unit_price) from order_items i where i.order_id = orders.id), 0) + ${orders.shipFee})`;
 
 // ---------- อ่าน ----------
 
@@ -36,7 +37,7 @@ export async function listOrders(db: Db, f: OrderFilter = {}) {
     .select({
       code: orders.code, status: orders.status, orderedOn: orders.orderedOn, channel: orders.channel, shipMethod: orders.shipMethod,
       customerName: customers.name, customerId: orders.customerId, total: totalSql,
-      items: sql<string>`(select group_concat(i.label || case when i.qty > 1 then ' ×' || i.qty else '' end, ', ') from order_items i where i.order_id = ${orders.id})`,
+      items: sql<string>`(select group_concat(i.label || case when i.qty > 1 then ' ×' || i.qty else '' end, ', ') from order_items i where i.order_id = orders.id)`,
     })
     .from(orders)
     .leftJoin(customers, eq(customers.id, orders.customerId))
@@ -55,21 +56,21 @@ export async function getOrder(db: Db, code: string) {
   const o = await db.query.orders.findFirst({ where: eq(orders.code, code) });
   if (!o) return null;
   const [items, customer] = await Promise.all([
-    db.select({ item: orderItems, hiveCode: hives.code }).from(orderItems).leftJoin(hives, eq(hives.id, orderItems.hiveId)).where(eq(orderItems.orderId, o.id)).orderBy(asc(orderItems.id)),
+    db.select({ item: orderItems, hiveCode: hives.code, lotCode: honeyLots.code }).from(orderItems).leftJoin(hives, eq(hives.id, orderItems.hiveId)).leftJoin(honeyLots, eq(honeyLots.id, orderItems.lotId)).where(eq(orderItems.orderId, o.id)).orderBy(asc(orderItems.id)),
     o.customerId ? db.query.customers.findFirst({ where: eq(customers.id, o.customerId) }) : Promise.resolve(undefined),
   ]);
-  return { order: o, items: items.map((r) => ({ ...r.item, hiveCode: r.hiveCode })), customer: customer ?? null };
+  return { order: o, items: items.map((r) => ({ ...r.item, hiveCode: r.hiveCode, lotCode: r.lotCode })), customer: customer ?? null };
 }
 
 /** ตัวเลือกในฟอร์มออเดอร์ใหม่: ลูกค้า (ล่าสุดก่อน), สินค้า, รังที่ขายได้ (ยังอยู่ และไม่ได้อยู่ในออเดอร์ค้าง) */
 export async function orderFormOptions(db: Db) {
   const [cust, variants, sellable] = await Promise.all([
     db.select({ id: customers.id, name: customers.name, phone: customers.phone }).from(customers)
-      .orderBy(desc(sql`coalesce((select max(o.ordered_on) from orders o where o.customer_id = ${customers.id}), ${customers.createdAt})`), asc(customers.name)),
+      .orderBy(desc(sql`coalesce((select max(o.ordered_on) from orders o where o.customer_id = customers.id), ${customers.createdAt})`), asc(customers.name)),
     db.select({ id: productVariants.id, label: productVariants.label, sizeMl: productVariants.sizeMl, price: productVariants.priceThb, stock: productVariants.stockQty, product: products.name })
       .from(productVariants).innerJoin(products, eq(products.id, productVariants.productId)).orderBy(asc(products.sortOrder), asc(productVariants.sortOrder), asc(productVariants.id)),
     db.select({ id: hives.id, code: hives.code, forSale: hives.forSale, salePrice: hives.salePrice }).from(hives)
-      .where(and(eq(hives.status, 'active'), sql`not exists (select 1 from order_items i join orders o on o.id = i.order_id where i.hive_id = ${hives.id} and o.status in ('awaiting_payment', 'paid'))`))
+      .where(and(eq(hives.status, 'active'), sql`not exists (select 1 from order_items i join orders o on o.id = i.order_id where i.hive_id = hives.id and o.status in ('awaiting_payment', 'paid'))`))
       .orderBy(desc(hives.forSale), asc(hives.id)),
   ]);
   return { customers: cust, variants, hives: sellable };
@@ -157,7 +158,9 @@ async function stockStatements(db: Db, user: SessionUser, o: Order, items: Item[
   for (const i of items) {
     if (i.kind === 'variant' && i.variantId) {
       // จดจำนวนที่ตัดได้จริงก่อน (คำสั่งใน batch ทำตามลำดับ) แล้วค่อยตัด — สต็อกไม่ติดลบ และยกเลิกแล้วคืนเท่าที่ตัดไป
-      out.push(db.update(orderItems).set({ stockTaken: sql`min(${i.qty}, (select stock_qty from product_variants where id = ${i.variantId}))` }).where(eq(orderItems.id, i.id)));
+      // ล็อตน้ำผึ้ง: ล็อตเก่าก่อน ที่ยังมีขวดขนาดนี้เหลือ (ไม่มีล็อต = สต็อกที่ใส่มือ ไม่ผูกล็อต)
+      const lotId = i.lotId ?? (await lotForSale(db, i.variantId));
+      out.push(db.update(orderItems).set({ stockTaken: sql`min(${i.qty}, (select stock_qty from product_variants where id = ${i.variantId}))`, lotId }).where(eq(orderItems.id, i.id)));
       out.push(db.update(productVariants).set({ stockQty: sql`max(${productVariants.stockQty} - ${i.qty}, 0)`, ...touch }).where(eq(productVariants.id, i.variantId)));
     } else if (i.kind === 'hive' && i.hiveId) {
       const hive = (await db.query.hives.findFirst({ where: eq(hives.id, i.hiveId) }))!;
@@ -240,7 +243,7 @@ export async function listCustomers(db: Db, q?: string) {
   return db
     .select({
       id: customers.id, name: customers.name, phone: customers.phone,
-      orders: sql<number>`count(${orders.id})`,
+      orders: sql<number>`count(orders.id)`,
       spent: sql<number>`coalesce(sum(${totalSql}), 0)`,
       lastOrder: sql<string | null>`max(${orders.orderedOn})`,
     })
@@ -248,7 +251,7 @@ export async function listCustomers(db: Db, q?: string) {
     .leftJoin(orders, and(eq(orders.customerId, customers.id), valid))
     .where(s ? or(like(customers.name, `%${s}%`), like(customers.phone, `%${s}%`)) : (undefined as SQL | undefined))
     .groupBy(customers.id)
-    .orderBy(desc(sql`count(${orders.id})`), asc(customers.name));
+    .orderBy(desc(sql`count(orders.id)`), asc(customers.name));
 }
 
 export async function getCustomer(db: Db, id: number) {

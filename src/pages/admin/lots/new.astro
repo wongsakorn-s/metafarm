@@ -1,0 +1,82 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import { getDb } from '../../../server/db.ts';
+import { createLot, unassignedHarvests } from '../../../server/lots.ts';
+import { newLotSchema } from '../../../lib/lots.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { fmt } from '../../../lib/chart.ts';
+
+export const prerender = false;
+const db = getDb();
+let error = '';
+let picked = new Set<number>();
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const ids = form.getAll('eventId').map(String);
+  picked = new Set(ids.map(Number));
+  const p = newLotSchema.safeParse({ eventIds: ids, note: form.get('note'), idem: form.get('idem') });
+  if (!p.success) error = p.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
+  else {
+    const r = await createLot(db, Astro.locals.user!, p.data);
+    if (r.ok) return Astro.redirect(`/admin/lots/${r.code}?saved=created`, 303);
+    error = r.error;
+  }
+}
+const rows = await unassignedHarvests(db);
+const posted = Astro.request.method === 'POST';
+const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none';
+---
+
+<AdminLayout back={{ href: '/admin/lots', label: 'ล็อตน้ำผึ้ง' }} title="สร้างล็อตน้ำผึ้ง" active="lots">
+  {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+  {rows.length === 0 ? (
+    <p class="card text-muted">ไม่มีการเก็บน้ำหวานที่ยังไม่อยู่ในล็อต</p>
+  ) : (
+    <form method="post" class="max-w-2xl space-y-4" id="lot-form">
+      <input type="hidden" name="idem" value={crypto.randomUUID()} />
+      <section class="card" aria-labelledby="ev-h">
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="ev-h" class="font-semibold">เลือกการเก็บที่กรอง/บรรจุรวมกัน</h2>
+          <button type="button" class="btn-ghost !min-h-11 text-sm" id="all">เลือกทั้งหมด</button>
+        </div>
+        <ul class="divide-y divide-line">
+          {rows.map((e) => (
+            <li><label class="flex min-h-12 items-center gap-3 py-1">
+              <input class="size-5 accent-palm-600" type="checkbox" name="eventId" value={e.id} checked={posted ? picked.has(e.id) : true} data-ml={e.ml ?? 0} />
+              <span class="flex-1"><span class="font-semibold">{e.code}</span> <span class="text-sm text-muted">· เก็บ {formatThaiDate(e.occurredOn)}</span></span>
+              <span data-num class="text-sm">{fmt(e.ml)} มล.</span>
+            </label></li>
+          ))}
+        </ul>
+        <p class="hint">การเก็บแต่ละครั้งอยู่ได้ล็อตเดียว · รหัสล็อตตั้งจากเดือนของการเก็บครั้งล่าสุดที่เลือก</p>
+      </section>
+      <section class="card">
+        <label class="label" for="note">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea class="field" id="note" name="note" rows="2" maxlength="500" placeholder="เช่น กรองแล้ว ตากลมแห้ง 2 วัน"></textarea>
+      </section>
+      <div class={`${STICKY} flex items-center gap-3`}>
+        <p class="min-w-0 flex-1 text-sm text-muted">รวม <strong data-num id="sum" class="block text-xl text-ink">0 มล.</strong></p>
+        <button class="btn-primary flex-1 md:flex-none" type="submit"><Icon name="check" class="size-5" />สร้างล็อต</button>
+      </div>
+    </form>
+  )}
+</AdminLayout>
+
+<script>
+  const form = document.getElementById('lot-form');
+  const sum = () => {
+    let ml = 0;
+    form?.querySelectorAll<HTMLInputElement>('input[name=eventId]').forEach((c) => { if (c.checked) ml += Number(c.dataset.ml) || 0; });
+    const el = document.getElementById('sum');
+    if (el) el.textContent = `${ml.toLocaleString('th-TH')} มล.`;
+  };
+  form?.addEventListener('change', sum);
+  document.getElementById('all')?.addEventListener('click', () => {
+    const boxes = [...(form?.querySelectorAll<HTMLInputElement>('input[name=eventId]') ?? [])];
+    const on = !boxes.every((b) => b.checked);
+    boxes.forEach((b) => (b.checked = on));
+    sum();
+  });
+  sum();
+</script>

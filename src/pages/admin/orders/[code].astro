@@ -50,7 +50,7 @@ if (!got) return new Response('ไม่พบออเดอร์', { status: 
 const { order: o, items, customer } = got;
 const settings = await getSettings(db);
 const total = orderTotal(items, o.shipFee);
-const summary = orderSummaryText(o, items, site.name, settings.paymentInfo);
+const summary = orderSummaryText(o, items.map((i) => ({ ...i, label: i.lotCode ? `${i.label} (ล็อต ${i.lotCode})` : i.label })), site.name, settings.paymentInfo);
 const saved = Astro.url.searchParams.get('saved');
 const savedText: Record<string, string> = {
   created: 'บันทึกออเดอร์แล้ว — กด "คัดลอกข้อความสรุป" เพื่อส่งให้ลูกค้าทาง LINE',
@@ -80,7 +80,7 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
           <tbody class="divide-y divide-line" data-num>
             {items.map((i) => (
               <tr>
-                <td class="py-2 pr-2">{i.hiveCode ? <a class="font-medium text-palm-700 underline" href={`/admin/hives/${i.hiveCode}`}>{i.label}</a> : i.label}<span class="block text-xs text-muted">{baht(i.unitPrice)} / ชิ้น</span></td>
+                <td class="py-2 pr-2">{i.hiveCode ? <a class="font-medium text-palm-700 underline" href={`/admin/hives/${i.hiveCode}`}>{i.label}</a> : i.label}<span class="block text-xs text-muted">{baht(i.unitPrice)} / ชิ้น{i.lotCode && <> · ล็อต <a class="underline" href={`/admin/lots/${i.lotCode}`}>{i.lotCode}</a></>}</span></td>
                 <td class="text-right">{i.qty}</td>
                 <td class="text-right">{baht(i.qty * i.unitPrice)}</td>
               </tr>

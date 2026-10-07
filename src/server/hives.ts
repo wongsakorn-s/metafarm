@@ -44,7 +44,7 @@ export type HiveSort = (typeof HIVE_SORTS)[number];
 
 const hasUnknownNote = sql`${hives.notes} LIKE '%???%'`;
 
-const lastEventSql = sql`(select max(occurred_on) from hive_events e where e.hive_id = ${hives.id})`;
+const lastEventSql = sql`(select max(occurred_on) from hive_events e where e.hive_id = hives.id)`;
 function sortOrder(sort: HiveSort = 'new'): SQL[] {
   switch (sort) {
     case 'old': return [asc(hives.id)];
@@ -79,7 +79,7 @@ export async function listHives(db: Db, f: ListFilter) {
         queenBornOn: hives.queenBornOn,
         forSale: hives.forSale,
         salePrice: hives.salePrice,
-        photoKey: sql<string | null>`(select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' order by m.sort_order, m.id limit 1)`,
+        photoKey: sql<string | null>`(select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' order by m.sort_order, m.id limit 1)`,
         lastEventOn: sql<string | null>`${lastEventSql}`,
       })
       .from(hives)
@@ -338,7 +338,7 @@ export async function listHivesWithoutPhoto(db: Db, includeAll = false) {
   return db
     .select({ code: hives.code, status: hives.status, origin: hives.origin, originPlace: hives.originPlace, acquiredOn: hives.acquiredOn, acquiredOnPrecision: hives.acquiredOnPrecision, forSale: hives.forSale })
     .from(hives)
-    .where(and(includeAll ? undefined : eq(hives.status, 'active'), sql`not exists (select 1 from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' and m.r2_key is not null)`))
+    .where(and(includeAll ? undefined : eq(hives.status, 'active'), sql`not exists (select 1 from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null)`))
     .orderBy(asc(hives.id));
 }
 
@@ -410,14 +410,14 @@ export async function recentHiveCodes(db: Db, limit = 8): Promise<string[]> {
     .select({ code: hives.code })
     .from(hives)
     .where(eq(hives.status, 'active'))
-    .orderBy(desc(sql`coalesce((select max(e.created_at) from hive_events e where e.hive_id = ${hives.id}), ${hives.updatedAt})`), desc(hives.id))
+    .orderBy(desc(sql`coalesce((select max(e.created_at) from hive_events e where e.hive_id = hives.id), ${hives.updatedAt})`), desc(hives.id))
     .limit(limit);
   return rows.map((r) => r.code);
 }
 
 /** รหัสรังถัดไป (A148 …) */
 export async function nextHiveCode(db: Db): Promise<string> {
-  const [{ max }] = await db.select({ max: sql<number>`coalesce(max(${hives.id}), 0)` }).from(hives);
+  const [{ max }] = await db.select({ max: sql<number>`coalesce(max(hives.id), 0)` }).from(hives);
   return `A${max + 1}`;
 }
 

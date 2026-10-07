@@ -15,6 +15,7 @@ const suppliers = await all('SELECT name, phone, notes FROM suppliers');
 const customers = await all('SELECT name, phone, line_name, address, notes FROM customers');
 const orderRows = await all('SELECT code, note, tracking_no FROM orders');
 const payInfo = await all("SELECT value FROM settings WHERE key = 'payment.info'");
+const lots = await all('SELECT code, note FROM honey_lots');
 await dispose();
 
 const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -28,6 +29,7 @@ for (const c of customers) {
 }
 // ออเดอร์: รหัส หมายเหตุ เลขพัสดุ — ห้ามโผล่บนหน้าสาธารณะ · ช่องทางชำระเงิน (เลขบัญชี) ใช้เฉพาะข้อความถึงลูกค้า
 for (const o of orderRows) { add(o.code, 'รหัสออเดอร์'); (o.note ?? '').split(/\n/).forEach((l) => add(l, 'หมายเหตุออเดอร์', 6)); add(o.tracking_no, 'เลขพัสดุ', 6); }
+for (const l of lots) (l.note ?? '').split(/\n/).forEach((x) => add(x, `หมายเหตุล็อต ${l.code}`, 6));
 for (const p of payInfo) (p.value ?? '').split(/\n/).forEach((l) => add(l, 'ช่องทางชำระเงิน', 6));
 const FARM_TOKENS = new Set(['ปลวกแดง', 'หนองไร่', 'ระยอง']);
 for (const h of hives) {
@@ -58,6 +60,8 @@ const saleHives = hives.filter((h) => h.for_sale && h.status === 'active' && h.s
 const pages = [
   ['/', 'หน้าแรก'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'],
   ...hives.map((h) => [`/passport/${h.code}`, h.code]),
+  // หน้าล็อตน้ำผึ้งจาก QR บนขวด (ต้องไม่มีหมายเหตุล็อต ต้นทุน หรือข้อมูลการขาย)
+  ...lots.map((l) => [`/lot/${l.code}`, `ล็อต ${l.code}`]),
   ['/products', 'สินค้า:รวม', 'product'], ['/products/hives', 'สินค้า:รังสมบูรณ์', 'product'],
   ['/products/hive-box', 'สินค้า:รังเปล่า', 'product'], ['/products/stingless-honey', 'สินค้า:น้ำผึ้ง', 'product'],
   ['/products/hives/A99999', '404', 'product'], ['/products/no-such-product', '404', 'product'],

@@ -1,0 +1,50 @@
+---
+// หน้าที่ลูกค้าเห็นเมื่อสแกน QR บนขวดน้ำผึ้ง — อ่านผ่าน src/server/public.ts เท่านั้น (ไม่มีต้นทุน/ยอดขาย/ลูกค้า)
+import PublicLayout from '../../layouts/PublicLayout.astro';
+import NotFound from '../../components/NotFound.astro';
+import Icon from '../../components/Icon.astro';
+import { getDb } from '../../server/db.ts';
+import { getPublicLot } from '../../server/public.ts';
+import { isLotCode } from '../../lib/lots.ts';
+import { formatThaiDate } from '../../lib/thai-date.ts';
+import { site } from '../../config/site.ts';
+
+export const prerender = false;
+const code = (Astro.params.code ?? '').toUpperCase();
+const lot = isLotCode(code) ? await getPublicLot(getDb(), code) : null;
+if (!lot) Astro.response.status = 404;
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+const period = lot ? (lot.harvestedFrom === lot.harvestedTo ? formatThaiDate(lot.harvestedFrom) : `${formatThaiDate(lot.harvestedFrom)} – ${formatThaiDate(lot.harvestedTo)}`) : '';
+---
+
+{!lot ? (
+  <PublicLayout title="ไม่พบล็อตน้ำผึ้ง" noindex>
+    <NotFound icon="honey" title={`ไม่พบล็อต ${code}`} message="ตรวจสอบรหัสล็อตบนฉลากขวด แล้วลองอีกครั้ง" href="/honey" linkLabel="เกี่ยวกับน้ำผึ้งชันโรง" />
+  </PublicLayout>
+) : (
+  // หน้าเฉพาะของขวดแต่ละล็อต: ไม่ต้องติดผลค้นหา (noindex) แต่เปิดได้ทุกคนจาก QR
+  <PublicLayout title={`น้ำผึ้งล็อต ${lot.code}`} description={`น้ำผึ้งชันโรงขนเงินจาก ${site.name} เก็บ ${period}`} noindex lineMessage={`สอบถามน้ำผึ้งล็อต ${lot.code}`} active="honey">
+    <article class="mx-auto max-w-xl">
+      <div class="mb-5 flex items-center gap-4">
+        <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-7" /></span>
+        <div>
+          <p class="text-sm text-muted">น้ำผึ้งชันโรงขนเงิน · {site.name}</p>
+          <h1 class="text-2xl font-bold">ล็อต <span data-num>{lot.code}</span></h1>
+        </div>
+      </div>
+      <dl class="card grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        <dt class="text-muted">เก็บน้ำหวาน</dt><dd>{period}</dd>
+        <dt class="text-muted">แหล่งที่มา</dt><dd>{site.name} · {site.address}</dd>
+        <dt class="text-muted">ชนิดผึ้ง</dt><dd>ชันโรงขนเงิน <span class="italic text-muted">(Tetragonula pagdeni)</span></dd>
+      </dl>
+      <section class="card mt-4" aria-labelledby="h-h">
+        <h2 id="h-h" class="font-semibold">รังที่ให้น้ำผึ้งล็อตนี้ ({lot.hives.length} รัง)</h2>
+        <p class="hint mb-3">แตะรหัสรังเพื่อดูสมุดพก: ที่มา วันเกิดนางพญา และประวัติการดูแล</p>
+        <ul class="flex flex-wrap gap-2">
+          {lot.hives.map((h) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${h}`}>{h}</a></li>)}
+        </ul>
+      </section>
+      <p class="mt-4 text-sm text-muted">น้ำผึ้งชันโรงเป็นอาหาร ไม่ใช่ยา · <a class="underline" href="/honey">อ่านเพิ่มเติมเกี่ยวกับน้ำผึ้งชันโรง</a></p>
+    </article>
+  </PublicLayout>
+)}

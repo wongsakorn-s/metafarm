@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest';
+import { bottlingSchema, isLotCode, lotCode, lotPrefix, maxBottles, nextLotSeq, pickLot, remainingMl } from './lots.ts';
+
+describe('รหัสล็อต', () => {
+  it('H + พ.ศ. + เดือน + ลำดับ', () => {
+    expect(lotCode('2026-10-03', 1)).toBe('H2569-10-1');
+    expect(lotPrefix('2027-01-15')).toBe('H2570-01-');
+    expect(isLotCode('H2569-10-1')).toBe(true);
+    expect(isLotCode('h2569-10-1')).toBe(false);
+  });
+  it('ลำดับถัดไปนับเฉพาะเดือนเดียวกัน', () => {
+    expect(nextLotSeq(['H2569-10-1', 'H2569-10-3', 'H2569-09-7'], 'H2569-10-')).toBe(4);
+    expect(nextLotSeq([], 'H2569-10-')).toBe(1);
+  });
+});
+
+describe('ปริมาณ', () => {
+  it('คงเหลือ = ทั้งหมด − ที่บรรจุ · บรรจุได้อีกกี่ขวด', () => {
+    const left = remainingMl(1000, [{ qty: 6, sizeMl: 50 }, { qty: 2, sizeMl: 120 }]);
+    expect(left).toBe(460);
+    expect(maxBottles(left, 120)).toBe(3);
+    expect(maxBottles(left, 0)).toBe(0);
+    expect(maxBottles(-10, 50)).toBe(0);
+  });
+});
+
+describe('เลือกล็อตตอนขาย', () => {
+  it('ล็อตเก่าก่อน ที่ยังมีขวดเหลือ · ไม่มี → null', () => {
+    const lots = [
+      { id: 3, harvestedTo: '2026-09-30', bottled: 10, sold: 2 },
+      { id: 1, harvestedTo: '2026-08-31', bottled: 5, sold: 5 },
+      { id: 2, harvestedTo: '2026-09-15', bottled: 4, sold: 0 },
+    ];
+    expect(pickLot(lots)).toBe(2);
+    expect(pickLot([{ id: 1, harvestedTo: '2026-08-31', bottled: 5, sold: 5 }])).toBeNull();
+  });
+});
+
+describe('ฟอร์มบรรจุขวด', () => {
+  it('ต้องเลือกขนาดและจำนวน · ต้นทุนไม่บังคับ', () => {
+    expect(bottlingSchema.safeParse({ variantId: '2', qty: '10', bottledOn: '2026-10-01', unitCost: '' }).success).toBe(true);
+    expect(bottlingSchema.safeParse({ variantId: '', qty: '10', bottledOn: '2026-10-01' }).success).toBe(false);
+    expect(bottlingSchema.safeParse({ variantId: '2', qty: '0', bottledOn: '2026-10-01' }).success).toBe(false);
+  });
+});

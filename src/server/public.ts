@@ -5,7 +5,7 @@
 // ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
-import { hiveEvents, hiveMedia, hives, productVariants, products, species } from '../db/schema.ts';
+import { hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
 
@@ -209,8 +209,8 @@ export async function getSaleHives(db: Db): Promise<SaleHiveCard[]> {
       acquiredOnPrecision: hives.acquiredOnPrecision,
       queenBornOn: hives.queenBornOn,
       coverKey: sql<string | null>`coalesce(
-        (select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'sale' and m.r2_key is not null order by m.sort_order, m.id limit 1),
-        (select r2_key from hive_media m where m.hive_id = ${hives.id} and m.kind = 'passport' and m.r2_key is not null order by m.sort_order, m.id limit 1))`,
+        (select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'sale' and m.r2_key is not null order by m.sort_order, m.id limit 1),
+        (select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null order by m.sort_order, m.id limit 1))`,
     })
     .from(hives)
     .innerJoin(species, eq(species.id, hives.speciesId))
@@ -326,4 +326,20 @@ export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
     .where(and(eq(hiveMedia.r2Key, key), or(eq(hiveMedia.kind, 'passport'), and(eq(hiveMedia.kind, 'sale'), eq(hives.forSale, true), eq(hives.status, 'active')))))
     .limit(1);
   return row.length > 0;
+}
+
+// ---------- ล็อตน้ำผึ้ง (หน้า /lot/[code] จาก QR บนขวด) ----------
+
+/**
+ * ข้อมูลล็อตสำหรับลูกค้าที่สแกน QR: รหัส ช่วงวันที่เก็บ และรังที่ให้น้ำผึ้ง (ลิงก์ไปสมุดพก)
+ * ⚠️ ห้ามเพิ่ม: ต้นทุน จำนวนที่ขาย ลูกค้า หรือปริมาณรวม — ข้อมูลหลังบ้าน
+ */
+export interface PublicLot { code: string; harvestedFrom: string; harvestedTo: string; hives: string[] }
+export async function getPublicLot(db: Db, code: string): Promise<PublicLot | null> {
+  const [lot] = await db.select({ id: honeyLots.id, code: honeyLots.code, harvestedFrom: honeyLots.harvestedFrom, harvestedTo: honeyLots.harvestedTo }).from(honeyLots).where(eq(honeyLots.code, code)).limit(1);
+  if (!lot) return null;
+  const rows = await db.selectDistinct({ code: hives.code, id: hives.id }).from(lotSources)
+    .innerJoin(hiveEvents, eq(hiveEvents.id, lotSources.eventId)).innerJoin(hives, eq(hives.id, hiveEvents.hiveId))
+    .where(eq(lotSources.lotId, lot.id)).orderBy(asc(hives.id));
+  return { code: lot.code, harvestedFrom: lot.harvestedFrom, harvestedTo: lot.harvestedTo, hives: rows.map((r) => r.code) };
 }

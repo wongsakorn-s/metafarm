@@ -1,10 +1,11 @@
 ---
 // แถบย่อยของหมวด "ขาย": ออเดอร์ · ลูกค้า · สินค้า (มือถือเข้าจากแท็บล่าง "ขาย")
-interface Props { active: 'orders' | 'customers' | 'products' }
+interface Props { active: 'orders' | 'customers' | 'lots' | 'products' }
 const { active } = Astro.props;
 const tabs = [
   { key: 'orders', href: '/admin/orders', label: 'ออเดอร์' },
   { key: 'customers', href: '/admin/customers', label: 'ลูกค้า' },
+  { key: 'lots', href: '/admin/lots', label: 'ล็อตน้ำผึ้ง' },
   { key: 'products', href: '/admin/products', label: 'สินค้า / ราคา / สต็อก' },
 ] as const;
 ---

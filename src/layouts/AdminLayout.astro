@@ -3,7 +3,7 @@ import '../styles/global.css';
 import { site } from '../config/site.ts';
 import Icon from '../components/Icon.astro';
 
-type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'products' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo';
+type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo';
 interface Props {
   title: string;
   active?: Key;
@@ -24,7 +24,7 @@ const tabs = [
 ] as const;
 // หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
 const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo'];
-const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
+const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products' || active === 'lots')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
 
 // แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
 const side = [
@@ -35,6 +35,7 @@ const side = [
   { key: 'new', href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรัง' },
   { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ออเดอร์' },
   { key: 'customers', href: '/admin/customers', icon: 'users', label: 'ลูกค้า' },
+  { key: 'lots', href: '/admin/lots', icon: 'honey', label: 'ล็อตน้ำผึ้ง' },
   { key: 'products', href: '/admin/products', icon: 'cart', label: 'สินค้า' },
 ] as const;
 const sideMore = [

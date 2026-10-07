@@ -329,10 +329,58 @@ export const orderItems = sqliteTable(
     prevForSale: integer('prev_for_sale', { mode: 'boolean' }),
     /** จำนวนที่ตัดสต็อกจริงตอนชำระ (สินค้าทำตามสั่งที่สต็อก 0 ตัดได้ 0) — ยกเลิกแล้วคืนเท่านี้ ไม่สร้างสต็อกเกินจริง */
     stockTaken: integer('stock_taken').notNull().default(0),
+    /** ล็อตน้ำผึ้งของขวดที่ขาย (เลือกล็อตเก่าก่อนตอนชำระ) — ว่างได้ */
+    lotId: integer('lot_id').references((): AnySQLiteColumn => honeyLots.id),
   },
   (t) => [
     index('order_items_order_idx').on(t.orderId),
     index('order_items_hive_idx').on(t.hiveId),
     check('order_items_qty_pos', sql`${t.qty} > 0 and ${t.unitPrice} >= 0`),
   ],
+);
+
+// ---------- ล็อตน้ำผึ้ง (Phase 4.3) ----------
+
+/** ล็อต = น้ำผึ้งจากการเก็บหลายครั้งที่รวมกันกรอง/บรรจุ · รหัส H2569-10-1 (พ.ศ.-เดือนที่เก็บ-ลำดับ) ติดบนฉลาก */
+export const honeyLots = sqliteTable(
+  'honey_lots',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    code: text('code').notNull(),
+    harvestedFrom: text('harvested_from').notNull(),
+    harvestedTo: text('harvested_to').notNull(),
+    totalMl: integer('total_ml').notNull(),
+    note: text('note'),
+    createKey: text('create_key'),
+    createdBy: integer('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('honey_lots_code_uq').on(t.code), uniqueIndex('honey_lots_create_key_uq').on(t.createKey), check('honey_lots_ml_pos', sql`${t.totalMl} > 0`)],
+);
+
+/** การเก็บน้ำหวานที่รวมอยู่ในล็อต — การเก็บหนึ่งครั้งอยู่ได้ล็อตเดียว */
+export const lotSources = sqliteTable(
+  'lot_sources',
+  {
+    lotId: integer('lot_id').notNull().references(() => honeyLots.id),
+    eventId: integer('event_id').notNull().references(() => hiveEvents.id),
+  },
+  (t) => [uniqueIndex('lot_sources_event_uq').on(t.eventId), index('lot_sources_lot_idx').on(t.lotId)],
+);
+
+/** การบรรจุขวด: เพิ่มสต็อกของขนาดนั้น · ต้นทุนต่อขวด (ขวด+ฉลาก) ใช้คิดกำไรในขั้น 4.4 — ข้อมูลหลังบ้าน */
+export const bottlings = sqliteTable(
+  'bottlings',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    lotId: integer('lot_id').notNull().references(() => honeyLots.id),
+    variantId: integer('variant_id').notNull().references(() => productVariants.id),
+    qty: integer('qty').notNull(),
+    bottledOn: text('bottled_on').notNull(),
+    unitCost: integer('unit_cost'),
+    createKey: text('create_key'),
+    createdBy: integer('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [index('bottlings_lot_idx').on(t.lotId, t.variantId), uniqueIndex('bottlings_create_key_uq').on(t.createKey), check('bottlings_qty_pos', sql`${t.qty} > 0 and coalesce(${t.unitCost}, 0) >= 0`)],
 );

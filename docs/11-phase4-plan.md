@@ -1,6 +1,6 @@
 # Phase 4 plan: sales, honey lots, and the production + weather dashboard
 
-> **Status:** approved "as recommended" (2026-10-07). **4.1 done** (`/admin/production`, migration 0007, approximate coordinates, historical weather only, no forecast yet). **4.2 done** (`/admin/orders`, `/admin/customers`, migration 0008). Next: 4.3.
+> **Status:** approved "as recommended" (2026-10-07). **4.1 done** (`/admin/production`, migration 0007, approximate coordinates, historical weather only, no forecast yet). **4.2 done** (`/admin/orders`, `/admin/customers`, migration 0008). **4.3 done** (`/admin/lots`, labels, public `/lot/[code]`, migration 0009). Next: 4.4.
 > Earlier status line: plan awaiting approval (2026-10-07). It is based on the answers the farm side gave in the questionnaire (Section 1).
 > UI must follow `design-system/metafarm/MASTER.md`. Database migrations are add-only (see `10-deploy-runbook.md`).
 
