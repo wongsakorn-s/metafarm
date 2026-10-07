@@ -110,17 +110,18 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
         <ul class="mt-4 space-y-3">
           {p.variants.map((v) => (
             <li class="rounded-xl border border-line p-3">
-              <form method="post" class="grid items-end gap-3 sm:grid-cols-[1fr_9rem_9rem_auto]">
+              <form method="post" class="grid grid-cols-3 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
                 <input type="hidden" name="intent" value="variant" /><input type="hidden" name="variantId" value={v.id} />
-                <div>
+                <div class="col-span-3 sm:col-span-1">
                   <p class="font-medium">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
                   <p class="text-sm text-muted">{v.priceConfirmed ? `ราคาปัจจุบัน ${formatPrice(v.priceThb)} (ยืนยันแล้ว)` : <span class="font-medium text-honey-700">ราคาตัวอย่าง {formatPrice(v.priceThb)} — ยังไม่ได้ยืนยัน</span>}</p>
                 </div>
                 <div><label class="label" for={`pr-${v.id}`}>ราคา (บาท)</label><input class="field" id={`pr-${v.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={errorVariant === v.id ? (posted.priceThb ?? '') : v.priceThb} />{errorVariant === v.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
                 <div><label class="label" for={`st-${v.id}`}>สต็อก (ชิ้น)</label><input class="field" id={`st-${v.id}`} name="stockQty" type="number" inputmode="numeric" min="0" required value={errorVariant === v.id ? (posted.stockQty ?? '') : v.stockQty} />{errorVariant === v.id && errorFields.stockQty && <p class="error">{errorFields.stockQty}</p>}</div>
-                <button class="btn-primary" type="submit">บันทึก</button>
+                <div><label class="label" for={`co-${v.id}`}>ต้นทุน/ชิ้น</label><input class="field" id={`co-${v.id}`} name="unitCost" type="number" inputmode="numeric" min="0" placeholder="ไม่ทราบ" value={errorVariant === v.id ? (posted.unitCost ?? '') : (v.unitCost ?? '')} />{errorVariant === v.id && errorFields.unitCost && <p class="error">{errorFields.unitCost}</p>}</div>
+                <button class="btn-primary col-span-3 sm:col-span-1" type="submit">บันทึก</button>
               </form>
-              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกทางไลน์" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น)</p>
+              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกทางไลน์" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น) · ต้นทุนใช้คิดกำไรในรายงาน ไม่แสดงบนเว็บ (น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดก่อน)</p>
             </li>
           ))}
         </ul>

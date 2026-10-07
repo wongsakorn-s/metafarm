@@ -1,6 +1,6 @@
 # Phase 4 plan: sales, honey lots, and the production + weather dashboard
 
-> **Status:** approved "as recommended" (2026-10-07). **4.1 done** (`/admin/production`, migration 0007, approximate coordinates, historical weather only, no forecast yet). **4.2 done** (`/admin/orders`, `/admin/customers`, migration 0008). **4.3 done** (`/admin/lots`, labels, public `/lot/[code]`, migration 0009). Next: 4.4.
+> **Status:** approved "as recommended" (2026-10-07). **4.1 done** (`/admin/production`, migration 0007, approximate coordinates, historical weather only, no forecast yet). **4.2 done** (`/admin/orders`, `/admin/customers`, migration 0008). **4.3 done** (`/admin/lots`, labels, public `/lot/[code]`, migration 0009). **4.4 done** (`/admin/reports`, CSV export, migration 0010 `product_variants.unit_cost`). Phase 4 complete — next: Phase 5.
 > Earlier status line: plan awaiting approval (2026-10-07). It is based on the answers the farm side gave in the questionnaire (Section 1).
 > UI must follow `design-system/metafarm/MASTER.md`. Database migrations are add-only (see `10-deploy-runbook.md`).
 
@@ -127,6 +127,13 @@ Each sub-phase is deployed and used for real before the next one starts.
 - **Honey yield per hive:** from existing harvest data, by year.
 - **CSV export:** orders, customers, and the hive register (opens in Excel/Sheets, Thai-safe UTF-8 BOM).
 - **Optional import:** the old Excel/Sheets orders, if the file is sent.
+
+**As built (4.4):**
+- Filter is by **year** (chips; months are on the chart). Sales count only paid/fulfilled orders, by `paid_on`.
+- Shipping: the farm does not record what it actually pays the carrier, so the ship fee charged to the customer is shown separately and left out of both revenue and profit (treated as pass-through).
+- Cost per line: lot bottling cost (weighted average for that lot + size) → else the item's `unit_cost` (new field on the products page) → hives: purchase price if bought, 0 if bred/split/natural, unknown if origin unknown.
+- CSV: `/admin/reports/export/{sales-YYYY,orders,customers,hives}.csv` — UTF-8 BOM, formula-injection guard (`'` prefix), admin-only.
+- Old-order import: not built (no file received yet).
 
 ## 4. Decisions needed before starting (owner / user)
 

@@ -49,10 +49,10 @@ export async function monthlyProduction(db: Db, fromMonth: string): Promise<Map<
 }
 
 /** รังที่ให้น้ำผึ้งมากที่สุดในช่วงเวลา */
-export async function topHoneyHives(db: Db, fromIso: string, limit = 10) {
+export async function topHoneyHives(db: Db, fromIso: string, limit = 10, toIso = '9999-12-31') {
   return db.all<{ code: string; ml: number; harvests: number }>(sql`
     select h.code as code, sum(e.honey_ml) as ml, count(*) as harvests
       from hive_events e join hives h on h.id = e.hive_id
-     where e.type = 'honey_harvest' and e.occurred_on >= ${fromIso} and coalesce(e.honey_ml, 0) > 0
+     where e.type = 'honey_harvest' and e.occurred_on >= ${fromIso} and e.occurred_on < ${toIso} and coalesce(e.honey_ml, 0) > 0
      group by h.id order by ml desc limit ${limit}`);
 }

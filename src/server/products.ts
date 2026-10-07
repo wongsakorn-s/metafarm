@@ -23,7 +23,7 @@ export async function updateVariant(db: Db, user: SessionUser, d: z.output<typeo
   const v = await db.query.productVariants.findFirst({ where: eq(productVariants.id, d.variantId) });
   if (!v) return { ok: false, error: 'ไม่พบตัวเลือกสินค้านี้' };
   const stmts: BatchItem<'sqlite'>[] = [
-    db.update(productVariants).set({ priceThb: d.priceThb, stockQty: d.stockQty, priceConfirmed: true, ...touch }).where(eq(productVariants.id, v.id)),
+    db.update(productVariants).set({ priceThb: d.priceThb, stockQty: d.stockQty, unitCost: d.unitCost ?? null, priceConfirmed: true, ...touch }).where(eq(productVariants.id, v.id)),
     audit(db, user, 'product.variant.update', v.productId, { variantId: v.id, price: { from: v.priceThb, to: d.priceThb }, stock: { from: v.stockQty, to: d.stockQty } }),
   ];
   await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);

@@ -197,6 +197,8 @@ export const productVariants = sqliteTable('product_variants', {
   /** false = ราคาตัวอย่าง (เว็บจะแสดงป้าย "ราคาตัวอย่าง") — กลายเป็น true เมื่อเจ้าของฟาร์มบันทึกราคาในหลังบ้าน */
   priceConfirmed: integer('price_confirmed', { mode: 'boolean' }).notNull().default(false),
   stockQty: integer('stock_qty').notNull().default(0),
+  /** ต้นทุนต่อชิ้น (ใช้คิดกำไร) — สินค้าที่ไม่มีล็อต เช่นรังเปล่า · น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดของล็อตก่อน · ข้อมูลหลังบ้าน */
+  unitCost: integer('unit_cost'),
   harvestYearBe: integer('harvest_year_be'),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps,

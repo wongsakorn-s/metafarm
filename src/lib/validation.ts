@@ -86,6 +86,8 @@ export const variantSchema = z.object({
   variantId: z.coerce.number().int().positive(),
   priceThb: int(1_000_000).refine((n) => n >= 1, 'ราคาต้องมากกว่า 0'),
   stockQty: int(100_000),
+  /** ต้นทุนต่อชิ้น — ว่างได้ (ยังไม่รู้) */
+  unitCost: opt(int(1_000_000)),
 });
 
 export const publishSchema = z.object({

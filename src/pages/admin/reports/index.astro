@@ -1,0 +1,129 @@
+---
+// รายงานยอดขาย กำไร ลูกค้า และผลผลิตรายปี (Phase 4.4) — หลังบ้านเท่านั้น (มีต้นทุน/ลูกค้า)
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import Icon from '../../../components/Icon.astro';
+import SalesTabs from '../../../components/SalesTabs.astro';
+import MonthChart from '../../../components/MonthChart.astro';
+import { getDb } from '../../../server/db.ts';
+import { paidYears, saleLines, shipFees, unpaidOrders } from '../../../server/reports.ts';
+import { topHoneyHives } from '../../../server/production.ts';
+import { bestSellers, monthlyRevenue, parseYear, reportYears, summarize, topCustomers } from '../../../lib/reports.ts';
+import { todayBangkok } from '../../../lib/validation.ts';
+import { formatThaiDate } from '../../../lib/thai-date.ts';
+import { fmt } from '../../../lib/chart.ts';
+import { baht } from '../../../lib/labels.ts';
+
+export const prerender = false;
+const db = getDb();
+const current = Number(todayBangkok().slice(0, 4));
+const year = parseYear(Astro.url.searchParams.get('year'), current);
+const [lines, ship, years, unpaid, honey] = await Promise.all([
+  saleLines(db, year),
+  shipFees(db, year),
+  paidYears(db),
+  unpaidOrders(db),
+  topHoneyHives(db, `${year}-01-01`, 10, `${year + 1}-01-01`),
+]);
+const be = (y: number) => y + 543;
+const sum = summarize(lines);
+const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+const sellers = bestSellers(lines);
+const buyers = topCustomers(lines);
+const unpaidTotal = unpaid.reduce((s, o) => s + o.total, 0);
+const honeyTotal = honey.reduce((s, h) => s + h.ml, 0);
+---
+
+<AdminLayout title="ขาย" active="reports">
+  <SalesTabs active="reports" />
+
+  <nav aria-label="เลือกปี" class="mb-4 flex flex-wrap items-center gap-2">
+    <span class="text-sm text-muted">ปี</span>
+    {reportYears(years, current).map((y) => (
+      <a href={`/admin/reports?year=${y}`} aria-current={y === year ? 'page' : undefined}
+        class:list={['inline-flex min-h-11 items-center rounded-full border px-4 font-medium', y === year ? 'border-palm-600 bg-palm-600 text-white' : 'border-line bg-surface hover:bg-canvas']}>{be(y)}</a>
+    ))}
+  </nav>
+
+  <section aria-label={`สรุปปี ${be(year)}`} class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="card"><p class="text-sm text-muted">ยอดขายสินค้า</p><p id="r-revenue" data-value={sum.revenue} data-num class="text-2xl font-bold">{baht(sum.revenue)}</p><p class="text-xs text-muted">ไม่รวมค่าส่ง {baht(ship)}</p></div>
+    <div class="card"><p class="text-sm text-muted">ออเดอร์ที่ชำระแล้ว</p><p data-num class="text-2xl font-bold">{fmt(sum.orders)}</p><p class="text-xs text-muted">ตามวันที่ชำระ</p></div>
+    <div class="card"><p class="text-sm text-muted">กำไร (ประมาณ)</p><p id="r-profit" data-value={sum.profit} data-num class:list={['text-2xl font-bold', sum.profit < 0 ? 'text-danger' : 'text-palm-700']}>{baht(sum.profit)}</p><p class="text-xs text-muted">ยอดขาย − ต้นทุนสินค้า</p></div>
+    <a class="card-link" href="/admin/orders?status=awaiting_payment"><p class="text-sm text-muted">รอชำระ (ทุกปี)</p><p data-num class:list={['text-2xl font-bold', unpaid.length > 0 && 'text-honey-700']}>{fmt(unpaid.length)} ออเดอร์</p><p class="text-xs text-muted">รวม {baht(unpaidTotal)}</p></a>
+  </section>
+
+  {sum.uncosted.lines > 0 && (
+    <p role="note" class="mt-3 flex gap-2 rounded-xl bg-honey-50 p-3 text-sm text-ink">
+      <Icon name="info" class="mt-0.5 size-4 shrink-0" />
+      <span>{sum.uncosted.lines} รายการ (ยอดขาย {baht(sum.uncosted.revenue)}) ยังไม่มีต้นทุน จึงไม่นับในกำไร — ใส่ต้นทุนได้ที่ <a class="underline" href="/admin/products">หน้าสินค้า</a> หรือตอนบรรจุขวดในล็อต (รังที่ซื้อมาใช้ราคาซื้อในหน้ารัง)</span>
+    </p>
+  )}
+
+  <div class="mt-5 grid gap-5 lg:grid-cols-2 lg:items-start">
+    <div class="lg:col-span-2">
+      <MonthChart title={`ยอดขายรายเดือน ปี ${be(year)}`} unit="บาท/เดือน" months={months} series={[{ label: 'ยอดขาย', color: '#0b7a3e', values: monthlyRevenue(lines) }]}
+        empty="ยังไม่มีออเดอร์ที่ชำระแล้วในปีนี้ — ยอดขายจะขึ้นเมื่อกด &quot;ชำระแล้ว&quot; ในหน้าออเดอร์" />
+    </div>
+
+    <section class="card" aria-labelledby="best-h">
+      <h2 id="best-h" class="mb-2 font-semibold">สินค้าขายดี</h2>
+      {sellers.length === 0 ? <p class="text-sm text-muted">ยังไม่มีการขายในปีนี้</p> : (
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">สินค้า</th><th scope="col" class="text-right">จำนวน</th><th scope="col" class="text-right">ยอดขาย</th><th scope="col" class="text-right">กำไร</th></tr></thead>
+            <tbody class="divide-y divide-line" data-num>
+              {sellers.map((s) => <tr><td class="py-2 pr-2">{s.label}</td><td class="text-right">{fmt(s.qty)}</td><td class="text-right">{fmt(s.revenue)}</td><td class="text-right">{s.profit == null ? <span class="text-muted" title="บางรายการยังไม่มีต้นทุน">–</span> : fmt(s.profit)}</td></tr>)}
+            </tbody>
+          </table>
+          <p class="hint mt-2">หน่วยเงิน: บาท · "–" = บางรายการยังไม่มีต้นทุน</p>
+        </div>
+      )}
+    </section>
+
+    <section class="card" aria-labelledby="cus-h">
+      <h2 id="cus-h" class="mb-2 font-semibold">ลูกค้าที่ซื้อมากที่สุด</h2>
+      {buyers.length === 0 ? <p class="text-sm text-muted">ยังไม่มีลูกค้าที่ชำระแล้วในปีนี้</p> : (
+        <ol class="divide-y divide-line text-sm">
+          {buyers.map((c, i) => (
+            <li class="flex items-center gap-3"><span data-num class="w-5 text-muted">{i + 1}</span><a class="inline-flex min-h-11 min-w-0 flex-1 items-center truncate font-medium text-palm-700 underline" href={`/admin/customers/${c.id}`}>{c.name}</a><span class="text-muted">{c.orders} ออเดอร์</span><span data-num class="w-24 text-right">{baht(c.revenue)}</span></li>
+          ))}
+        </ol>
+      )}
+    </section>
+
+    <section class="card" aria-labelledby="unpaid-h">
+      <h2 id="unpaid-h" class="mb-2 font-semibold">ยังไม่ชำระ</h2>
+      {unpaid.length === 0 ? <p class="text-sm text-muted">ไม่มีออเดอร์ค้างชำระ</p> : (
+        <ul class="divide-y divide-line text-sm">
+          {unpaid.map((o) => (
+            <li class="flex items-center gap-3"><a class="inline-flex min-h-11 items-center font-semibold text-palm-700 underline" href={`/admin/orders/${o.code}`}>{o.code}</a><span class="min-w-0 flex-1 truncate">{o.customer ?? 'ไม่ระบุลูกค้า'} · <span class="text-muted">{formatThaiDate(o.orderedOn)}</span></span><span data-num>{baht(o.total)}</span></li>
+          ))}
+        </ul>
+      )}
+    </section>
+
+    <section class="card" aria-labelledby="honey-h">
+      <h2 id="honey-h" class="mb-2 font-semibold">น้ำผึ้งต่อรัง ปี {be(year)}</h2>
+      {honey.length === 0 ? <p class="text-sm text-muted">ยังไม่มีบันทึกการเก็บน้ำหวานในปีนี้</p> : (
+        <>
+          <ol class="divide-y divide-line text-sm">
+            {honey.map((h) => (
+              <li class="flex items-center gap-3"><a class="inline-flex min-h-11 min-w-11 items-center font-semibold text-palm-700 underline" href={`/admin/hives/${h.code}`}>{h.code}</a><span class="flex-1 text-muted">เก็บ {h.harvests} ครั้ง</span><span data-num>{fmt(h.ml)} มล.</span></li>
+            ))}
+          </ol>
+          <p class="hint mt-2">10 รังแรก รวม {fmt(honeyTotal)} มล. · ดูกราฟรายเดือนที่ <a class="underline" href="/admin/production">ผลผลิต + อากาศ</a></p>
+        </>
+      )}
+    </section>
+
+    <section class="card lg:col-span-2" aria-labelledby="exp-h">
+      <h2 id="exp-h" class="mb-1 flex items-center gap-2 font-semibold"><Icon name="download" class="size-5 text-palm-700" />ส่งออกเป็นไฟล์ Excel (CSV)</h2>
+      <p class="hint mb-3">เปิดได้ด้วย Excel หรือ Google Sheets · ไฟล์มีข้อมูลลูกค้าและต้นทุน — อย่าส่งต่อให้คนนอก</p>
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <a class="btn-ghost justify-start" href={`/admin/reports/export/sales-${year}.csv`} download>รายการขายปี {be(year)} (มีต้นทุน/กำไร)</a>
+        <a class="btn-ghost justify-start" href="/admin/reports/export/orders.csv" download>ออเดอร์ทั้งหมด</a>
+        <a class="btn-ghost justify-start" href="/admin/reports/export/customers.csv" download>ลูกค้าทั้งหมด</a>
+        <a class="btn-ghost justify-start" href="/admin/reports/export/hives.csv" download>รังทั้งหมด</a>
+      </div>
+    </section>
+  </div>
+</AdminLayout>

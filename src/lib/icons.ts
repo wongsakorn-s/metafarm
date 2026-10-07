@@ -21,6 +21,8 @@ export const ICONS = {
   rain: 'cloud-rain',
   temperature: 'thermometer',
   chart: 'chart-column',
+  report: 'trending-up',
+  download: 'download',
   receipt: 'receipt',
   users: 'users',
   copy: 'copy',

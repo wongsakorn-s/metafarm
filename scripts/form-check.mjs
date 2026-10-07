@@ -500,6 +500,60 @@ console.log('\n13) ล็อตน้ำผึ้ง: เก็บ → ล็อ
   check(sumOrder.includes('ล็อต H'), 'ขายขวด 50 มล. → ผูกล็อตให้เอง (ข้อความสรุปมี "' + (sumOrder.match(/ล็อต H[\d-]+/) ?? [''])[0] + '")', 'ขายแล้วไม่ผูกล็อต');
 }
 
+console.log('\n14) รายงาน: ต้นทุนในหน้าสินค้า → ขาย → ยอดขาย/กำไร · ส่งออก CSV');
+{
+  // ใส่ต้นทุนรังเปล่า (ไม่มีล็อต → ใช้ต้นทุนในหน้าสินค้า · บันทึกแถวนี้ = ยืนยันราคา จึงไม่ใช้น้ำผึ้งที่ข้อ 5 ตรวจราคาตัวอย่าง)
+  await page.goto(BASE + '/admin/orders/new');
+  const orderable = await page.$$eval('input[id^=qty_v]', (els) => els.map((e) => e.id.slice(5)));
+  await page.goto(BASE + '/admin/products');
+  const vid = await page.evaluate((ids) => ids.find((id) => /รังเปล่า/.test(document.getElementById('co-' + id)?.closest('form')?.textContent ?? '')), orderable);
+  await page.fill('#co-' + vid, '40');
+  await Promise.all([page.waitForLoadState('load'), page.locator('#co-' + vid).locator('xpath=ancestor::form').locator('button[type=submit]').click()]);
+  await page.goto(BASE + '/admin/products');
+  check(await page.inputValue('#co-' + vid) === '40', 'ต้นทุนต่อชิ้นในหน้าสินค้าบันทึกได้ (40)', 'ต้นทุนไม่ถูกบันทึก: ' + (await page.inputValue('#co-' + vid)));
+
+  const tile = async () => {
+    await page.goto(BASE + '/admin/reports');
+    return { rev: Number(await page.getAttribute('#r-revenue', 'data-value')), profit: Number(await page.getAttribute('#r-profit', 'data-value')) };
+  };
+  const before = await tile();
+  // ขาย 2 ขวด ชำระแล้ว · ลูกค้าชื่อขึ้นต้นด้วย = (ทดสอบกันสูตรใน CSV)
+  const cname = '=SUM(1)รายงาน' + Date.now().toString().slice(-5);
+  await page.goto(BASE + '/admin/orders/new');
+  await page.check('input[name=customerMode][value=new]');
+  await page.fill('#c_name', cname);
+  await page.fill('#qty_v' + vid, '2');
+  const price = Number(await page.inputValue('#price_v' + vid));
+  await page.check('#paidNow');
+  await page.selectOption('#payMethod', 'transfer');
+  await Promise.all([page.waitForURL(/saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+  const code = page.url().match(/orders\/(S\d{4}-\d+)/)[1];
+  const after = await tile();
+  check(after.rev - before.rev === 2 * price && after.profit - before.profit === 2 * (price - 40),
+    'ขาย 2 × ' + price + ' บาท (ต้นทุน 40) → ยอดขาย +' + (after.rev - before.rev) + ' กำไร +' + (after.profit - before.profit),
+    'รายงานไม่ตรง: ยอดขาย +' + (after.rev - before.rev) + ' (คาด ' + 2 * price + ') กำไร +' + (after.profit - before.profit) + ' (คาด ' + 2 * (price - 40) + ')');
+
+  const get = (u, omit) => page.evaluate(async ({ u, omit }) => {
+    const r = await fetch(u, { credentials: omit ? 'omit' : 'same-origin' });
+    const buf = new Uint8Array(await r.arrayBuffer());
+    return { s: r.status, url: r.url, type: r.headers.get('content-type'), disp: r.headers.get('content-disposition'), bom: buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf, t: new TextDecoder().decode(buf) };
+  }, { u, omit });
+  const year = new Date(Date.now() + 7 * 3600e3).getUTCFullYear();
+  const sales = await get('/admin/reports/export/sales-' + year + '.csv');
+  const salesRow = sales.t.split('\r\n').find((l) => l.startsWith(code + ','));
+  check(sales.s === 200 && sales.bom && /text\/csv/.test(sales.type ?? '') && /attachment/.test(sales.disp ?? '') && salesRow?.endsWith(',2,' + price + ',' + 2 * price + ',40,' + 2 * (price - 40)),
+    'sales-' + year + '.csv: BOM + ดาวน์โหลด + แถว ' + code + ' มีต้นทุน/กำไร', 'CSV รายการขายไม่ถูก (' + sales.s + ', ' + salesRow + ')');
+  const orders = await get('/admin/reports/export/orders.csv');
+  check(orders.s === 200 && orders.t.includes(code + ',') && orders.t.includes('ชำระแล้ว'), 'orders.csv มีออเดอร์ ' + code + ' (สถานะเป็นภาษาไทย)', 'orders.csv ไม่ถูก (' + orders.s + ')');
+  const cus = await get('/admin/reports/export/customers.csv');
+  check(cus.s === 200 && cus.t.includes("'" + cname) && !cus.t.includes(',' + cname), 'customers.csv: ชื่อขึ้นต้นด้วย = ถูกเติม \' กันสูตร', 'customers.csv ไม่กันสูตร');
+  const hv = await get('/admin/reports/export/hives.csv');
+  check(hv.s === 200 && hv.bom && hv.t.startsWith('รหัส,') && hv.t.split('\r\n').length > 10, 'hives.csv: ' + (hv.t.split('\r\n').length - 2) + ' รัง', 'hives.csv ไม่ถูก (' + hv.s + ', ' + JSON.stringify(hv.t.slice(0, 20)) + ')');
+  const bad = await get('/admin/reports/export/secrets.csv');
+  const anon = await get('/admin/reports/export/customers.csv', true);
+  check(bad.s === 404 && anon.url.includes('/admin/login') && !anon.t.includes(cname), 'ไฟล์ไม่รู้จัก → 404 · ไม่ล็อกอิน → ไปหน้า login (ไม่ได้ข้อมูล)', 'ส่งออกรั่ว/ผิด (' + bad.s + ', ' + anon.url + ')');
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

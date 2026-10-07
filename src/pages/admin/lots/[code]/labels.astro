@@ -30,7 +30,6 @@ const harvested = formatThaiDate(got.lot.harvestedTo).replace(/^\d+\s/, ''); // 
 const cells: (null | 1)[] = [...Array(start - 1).fill(null), ...Array(count).fill(1)];
 const pages: (null | 1)[][] = [];
 for (let i = 0; i < cells.length; i += perPage) pages.push(cells.slice(i, i + perPage));
-const qs = (o: Record<string, string | number>) => `?${new URLSearchParams({ variant: String(variant?.id ?? ''), sheet: sheetKey, count: String(count), start: String(start), ...Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) })}`;
 ---
 
 <!doctype html>
