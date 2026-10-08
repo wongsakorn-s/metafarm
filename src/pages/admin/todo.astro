@@ -8,6 +8,8 @@ import { unknownTopics } from '../../lib/unknown-notes.ts';
 import { fieldErrors, fillSchema, todayBangkok } from '../../lib/validation.ts';
 import { provinceOf } from '../../lib/place.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
+import { isOwner as isOwnerUser } from '../../lib/permissions.ts';
+import { statusTargets } from '../../lib/permissions.ts';
 
 export const prerender = false;
 
@@ -47,7 +49,7 @@ const rows = await listIncompleteHives(db);
 const items = rows.map((h) => ({ ...h, topics: unknownTopics(h.notes) }));
 ---
 
-<AdminLayout back={{ href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' }} title="ข้อมูลที่ยังไม่ครบ" active="todo">
+<AdminLayout back={isOwnerUser(Astro.locals.user) ? { href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' } : { href: '/admin/more', label: 'เมนู' }} title="ข้อมูลที่ยังไม่ครบ" active="todo">
   {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกรัง {saved.split('-')[0]} แล้ว{saved.endsWith('-unknown') ? ' (ตั้งเป็น "ไม่ทราบจริง ๆ" — เลิกเตือน)' : ''}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">รัง {errorCode}: {error}</p>}
 
@@ -87,7 +89,7 @@ const items = rows.map((h) => ({ ...h, topics: unknownTopics(h.notes) }));
               )}
               {needs('สถานะรัง') && (
                 <div><label class="label" for={`st-${h.code}`}>สถานะรัง</label>
-                  <select class="field" id={`st-${h.code}`} name="status"><option value="">เลือก…</option>{(['active', 'sold', 'collapsed'] as const).map((s) => <option value={s} selected={val('status') === s}>{statusLabel[s]}</option>)}</select>
+                  <select class="field" id={`st-${h.code}`} name="status"><option value="">เลือก…</option>{statusTargets(Astro.locals.user!.role, h.status).map((s) => <option value={s} selected={val('status') === s}>{statusLabel[s]}</option>)}</select>
                   <p class="hint">บันทึกเป็นเหตุการณ์ "เปลี่ยนสถานะ" วันนี้</p></div>
               )}
               <button class="btn-primary w-full" type="submit">บันทึกที่กรอก</button>

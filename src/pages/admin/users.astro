@@ -1,0 +1,134 @@
+---
+// จัดการผู้ใช้ (เจ้าของเท่านั้น — middleware กันพนักงานไว้แล้ว): เพิ่มพนักงาน · ปิด/เปิดบัญชี · รีเซ็ตรหัสผ่าน
+// รหัสผ่านชั่วคราวแสดงในหน้าตอบกลับครั้งเดียว (ไม่เก็บไว้ที่ไหน) → ผู้ใช้ต้องเปลี่ยนตอนเข้าใช้ครั้งแรก
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
+import { getDb } from '../../server/db.ts';
+import { createStaff, listUsers, newStaffSchema, resetStaffPassword, setStaffActive } from '../../server/users.ts';
+import { fieldErrors } from '../../lib/validation.ts';
+import { roleLabel } from '../../lib/permissions.ts';
+import { formatThaiDate } from '../../lib/thai-date.ts';
+
+export const prerender = false;
+const db = getDb();
+const me = Astro.locals.user!;
+let errors: Record<string, string> = {};
+let values: Record<string, string> = {};
+let issued: { name: string; email: string; password: string; reason: 'created' | 'reset' } | null = null;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  const intent = values.intent;
+  if (intent === 'create') {
+    const p = newStaffSchema.safeParse(values);
+    if (!p.success) errors = fieldErrors(p.error);
+    else {
+      const r = await createStaff(db, me, p.data);
+      if (r.ok) { issued = { name: p.data.name, email: p.data.email, password: r.password, reason: 'created' }; values = {}; }
+      else errors = { email: r.error };
+    }
+  } else if (intent === 'disable' || intent === 'enable' || intent === 'reset') {
+    const id = Number(values.userId);
+    const target = (await listUsers(db)).find((u) => u.id === id);
+    if (intent === 'reset') {
+      const r = await resetStaffPassword(db, me, id);
+      if (r.ok && target) issued = { name: target.name, email: target.email, password: r.password, reason: 'reset' };
+      else if (!r.ok) errors._ = r.error;
+    } else {
+      const r = await setStaffActive(db, me, id, intent === 'enable');
+      if (r.ok) return Astro.redirect(`/admin/users?saved=${intent}`, 303);
+      errors._ = r.error;
+    }
+  } else errors._ = 'คำสั่งไม่ถูกต้อง';
+}
+// มีรหัสผ่านในหน้า → ห้ามเก็บใน cache ใด ๆ (middleware ตั้ง no-store ให้หลังบ้านอยู่แล้ว ย้ำไว้)
+if (issued) Astro.response.headers.set('Cache-Control', 'no-store');
+const rows = await listUsers(db);
+const saved = Astro.url.searchParams.get('saved');
+const v = (k: string) => values[k] ?? '';
+---
+
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ผู้ใช้และสิทธิ์" active="users">
+  {saved === 'disable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปิดบัญชีแล้ว — ผู้ใช้ถูกออกจากระบบทุกเครื่อง</p>}
+  {saved === 'enable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปิดบัญชีแล้ว</p>}
+  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+
+  {issued && (
+    <section role="status" aria-labelledby="pw-h" class="card mb-5 max-w-xl border-2 border-honey-400">
+      <h2 id="pw-h" class="font-semibold">{issued.reason === 'created' ? `เพิ่ม ${issued.name} แล้ว` : `รีเซ็ตรหัสผ่านของ ${issued.name} แล้ว`}</h2>
+      <p class="mt-1 text-sm text-muted">ส่งข้อมูลนี้ให้พนักงาน (เช่น ทาง LINE ส่วนตัว) — <strong class="text-ink">รหัสนี้จะแสดงครั้งเดียว</strong> และต้องเปลี่ยนเป็นรหัสของตัวเองตอนเข้าใช้ครั้งแรก</p>
+      <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <dt class="text-muted">เว็บ</dt><dd class="break-all">{new URL('/admin/login', Astro.url.origin).href}</dd>
+        <dt class="text-muted">อีเมล</dt><dd class="break-all">{issued.email}</dd>
+        <dt class="text-muted">รหัสชั่วคราว</dt><dd><code id="temp-pw" class="rounded bg-canvas px-2 py-1 text-lg font-semibold tracking-wider">{issued.password}</code></dd>
+      </dl>
+      <textarea id="pw-msg" class="sr-only" readonly aria-hidden="true" tabindex="-1">{`เข้าหลังบ้าน MetaFarm: ${new URL('/admin/login', Astro.url.origin).href}\nอีเมล: ${issued.email}\nรหัสชั่วคราว: ${issued.password}\n(เข้าครั้งแรกระบบจะให้ตั้งรหัสผ่านใหม่)`}</textarea>
+      <button class="btn-primary mt-3 w-full" type="button" id="copy-pw"><Icon name="copy" class="size-5" />คัดลอกข้อความส่งให้พนักงาน</button>
+    </section>
+  )}
+
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+    <section class="card" aria-labelledby="list-h">
+      <h2 id="list-h" class="mb-1 font-semibold">ผู้ใช้ ({rows.length})</h2>
+      <ul class="divide-y divide-line">
+        {rows.map((u) => (
+          <li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium">{u.name} {u.id === me.id && <span class="text-sm text-muted">(คุณ)</span>}</p>
+              <p class="truncate text-sm text-muted">{u.email}</p>
+              <p class="text-xs text-muted">{u.lastLogin ? `ล็อกอินล่าสุด ${formatThaiDate(u.lastLogin.slice(0, 10))}` : 'ยังไม่เคยล็อกอิน'}{u.mustChangePassword && u.active ? ' · รอเปลี่ยนรหัสชั่วคราว' : ''}</p>
+            </div>
+            <span class:list={['badge', u.role === 'owner' ? 'bg-palm-100 text-palm-900' : 'bg-canvas text-ink']}>{roleLabel[u.role]}</span>
+            {!u.active && <span class="badge bg-slate-200 text-slate-700">ปิดอยู่</span>}
+            {u.role === 'staff' && (
+              <div class="flex w-full gap-2 sm:w-auto">
+                <form method="post" class="flex-1" data-confirm={`รีเซ็ตรหัสผ่านของ ${u.name}? (ออกจากระบบทุกเครื่อง และได้รหัสชั่วคราวใหม่)`}>
+                  <input type="hidden" name="intent" value="reset" /><input type="hidden" name="userId" value={u.id} />
+                  <button class="btn-ghost w-full whitespace-nowrap" type="submit" disabled={!u.active}>รีเซ็ตรหัส</button>
+                </form>
+                <form method="post" class="flex-1" data-confirm={u.active ? `ปิดบัญชี ${u.name}? (ออกจากระบบทันที เปิดกลับได้)` : undefined}>
+                  <input type="hidden" name="intent" value={u.active ? 'disable' : 'enable'} /><input type="hidden" name="userId" value={u.id} />
+                  <button class:list={["w-full whitespace-nowrap", u.active ? "btn-danger" : "btn-ghost"]} type="submit">{u.active ? 'ปิดบัญชี' : 'เปิดบัญชี'}</button>
+                </form>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <div class="space-y-5 lg:sticky lg:top-6">
+      <form method="post" class="card space-y-3">
+        <input type="hidden" name="intent" value="create" />
+        <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />
+        <h2 class="flex items-center gap-2 font-semibold"><Icon name="users" class="size-5 text-palm-700" />เพิ่มพนักงาน</h2>
+        <div><label class="label" for="name">ชื่อ</label><input class="field" id="name" name="name" maxlength="60" required value={v('name')} autocomplete="off" />{errors.name && <p class="error">{errors.name}</p>}</div>
+        <div><label class="label" for="email">อีเมล (ใช้ล็อกอิน)</label><input class="field" id="email" name="email" type="email" inputmode="email" autocapitalize="none" maxlength="120" required value={v('email')} autocomplete="off" />{errors.email && <p class="error">{errors.email}</p>}</div>
+        <button class="btn-primary w-full" type="submit">เพิ่มพนักงาน</button>
+        <p class="hint">ระบบสุ่มรหัสผ่านชั่วคราวให้ แล้วแสดงให้คัดลอกส่งต่อ</p>
+      </form>
+
+      <section class="card text-sm" aria-labelledby="perm-h">
+        <h2 id="perm-h" class="mb-2 font-semibold">พนักงานทำอะไรได้บ้าง</h2>
+        <ul class="space-y-1">
+          <li class="flex gap-2"><Icon name="check" class="mt-0.5 size-4 shrink-0 text-palm-700" />ดูรัง บันทึกงาน (น้ำหวาน แยกรัง ไข่นางพญา หมายเหตุ รังล่ม)</li>
+          <li class="flex gap-2"><Icon name="check" class="mt-0.5 size-4 shrink-0 text-palm-700" />เพิ่มรัง แก้ข้อมูลรัง ถ่ายรูป</li>
+          <li class="flex gap-2"><Icon name="check" class="mt-0.5 size-4 shrink-0 text-palm-700" />ผลผลิต + อากาศ · สร้างล็อต บรรจุขวด พิมพ์ฉลาก</li>
+          <li class="flex gap-2"><Icon name="close" class="mt-0.5 size-4 shrink-0 text-danger" />ไม่เห็นราคา ต้นทุน ผู้ขาย ลูกค้า</li>
+          <li class="flex gap-2"><Icon name="close" class="mt-0.5 size-4 shrink-0 text-danger" />เข้าหมวดขาย รายงาน ตั้งค่าเว็บ และหน้านี้ไม่ได้</li>
+          <li class="flex gap-2"><Icon name="close" class="mt-0.5 size-4 shrink-0 text-danger" />ตั้งขายรัง หรือเปลี่ยนรังเป็น "ขายแล้ว" ไม่ได้</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</AdminLayout>
+
+<script>
+  document.getElementById('copy-pw')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const text = (document.getElementById('pw-msg') as HTMLTextAreaElement).value;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'คัดลอกแล้ว'; }
+    catch { btn.textContent = 'คัดลอกไม่ได้ — กดค้างที่รหัสเพื่อคัดลอกเอง'; }
+  });
+</script>

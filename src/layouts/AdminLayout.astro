@@ -2,8 +2,9 @@
 import '../styles/global.css';
 import { site } from '../config/site.ts';
 import Icon from '../components/Icon.astro';
+import { isOwner, roleLabel } from '../lib/permissions.ts';
 
-type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo';
+type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users';
 interface Props {
   title: string;
   active?: Key;
@@ -12,18 +13,23 @@ interface Props {
 }
 const { title, active, back } = Astro.props;
 const user = Astro.locals.user;
+const owner = isOwner(user);
+// พนักงานไม่มีหมวดขาย/ตั้งค่าเว็บ (middleware กันไว้แล้ว ที่นี่แค่ไม่แสดงลิงก์ที่เข้าไม่ได้)
+const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings', 'users']);
+const allowed = (k: string) => owner || !OWNER_KEYS.has(k);
 
 // แถบล่างบนมือถือ: 5 ปุ่ม — ปุ่มกลาง "บันทึก" เป็นงานที่ทำบ่อยที่สุดในสวน
 // หน้ารองทั้งหมด (ตั้งค่า บัญชี คิวถ่ายรูป ฯลฯ) อยู่ใต้ "เมนู" เพื่อให้ปุ่มหลักใหญ่และไม่แน่น
+// พนักงาน: แท็บ "ขาย" เปลี่ยนเป็น "ล็อต" (บรรจุขวด/พิมพ์ฉลาก)
 const tabs = [
   { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
   { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รัง' },
   { key: 'quick', href: '/admin/quick', icon: 'plus', label: 'บันทึก' },
-  { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ขาย' },
+  owner ? ({ key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ขาย' } as const) : ({ key: 'lots', href: '/admin/lots', icon: 'honey', label: 'ล็อต' } as const),
   { key: 'more', href: '/admin/more', icon: 'menu', label: 'เมนู' },
 ] as const;
 // หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
-const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo'];
+const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo', 'users'];
 const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products' || active === 'lots' || active === 'reports')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
 
 // แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
@@ -44,6 +50,7 @@ const sideMore = [
   { key: 'todo', href: '/admin/todo', icon: 'note', label: 'ข้อมูลไม่ครบ' },
   { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
   { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ตั้งค่า' },
+  { key: 'users', href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์' },
 ] as const;
 ---
 
@@ -63,14 +70,14 @@ const sideMore = [
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-y-auto border-r border-line bg-surface p-4 md:flex">
       <a href="/admin" class="mb-6 flex items-center gap-2 text-xl font-bold text-palm-700"><img src="/brand/logo-round-sm.webp" alt="" width="32" height="30" class="size-8 object-contain" />{site.name}</a>
       <nav class="flex flex-col gap-1" aria-label="เมนูหลัก">
-        {side.map((n) => (
+        {side.filter((n) => allowed(n.key)).map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
             <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
           </a>
         ))}
         <hr class="my-2 border-line" />
-        {sideMore.map((n) => (
+        {sideMore.filter((n) => allowed(n.key)).map((n) => (
           <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
             class:list={['flex min-h-11 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
             <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
@@ -78,7 +85,7 @@ const sideMore = [
         ))}
       </nav>
       <form method="post" action="/admin/logout" class="mt-auto pt-4" data-confirm="ออกจากระบบใช่ไหม?">
-        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 flex min-h-11 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · บัญชี</a>
+        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 flex min-h-11 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
     </aside>

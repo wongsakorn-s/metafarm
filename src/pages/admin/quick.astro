@@ -3,6 +3,7 @@ import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { recentHiveCodes } from '../../server/hives.ts';
+import { isOwner } from '../../lib/permissions.ts';
 
 // บันทึกด่วนในสวน: พิมพ์เลขรัง (เช่น 25) แล้วเลือกงาน → ไปที่ฟอร์มนั้นของรังทันที ไม่ต้องค้นในรายการ 150 รัง
 export const prerender = false;
@@ -64,7 +65,9 @@ const recent = await recentHiveCodes(db, 8);
   )}
 
   <section class="mt-6 grid grid-cols-2 gap-3" aria-label="งานอื่น">
-    <a class="btn-primary col-span-2" href="/admin/orders/new"><Icon name="receipt" class="size-5" />จดออเดอร์ใหม่</a>
+    {isOwner(Astro.locals.user)
+      ? <a class="btn-primary col-span-2" href="/admin/orders/new"><Icon name="receipt" class="size-5" />จดออเดอร์ใหม่</a>
+      : <a class="btn-primary col-span-2" href="/admin/lots"><Icon name="honey" class="size-5" />ล็อตน้ำผึ้ง (บรรจุขวด / ฉลาก)</a>}
     <a class="btn-ghost" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>
     <a class="btn-ghost" href="/admin/photos"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> คิวถ่ายรูป</a>
   </section>

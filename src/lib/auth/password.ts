@@ -39,6 +39,13 @@ export function passwordProblem(password: string): string | null {
   return password.length < 10 ? 'รหัสผ่านต้องยาวอย่างน้อย 10 ตัวอักษร' : null;
 }
 
+/** รหัสผ่านชั่วคราวที่อ่าน/พิมพ์ง่าย (ตัด 0 O 1 l I ที่สับสน) เช่น "k7Qm-x9Tb-R4pz" — 12 ตัว + ขีด */
+export function tempPassword(): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const chars = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => alphabet[b % alphabet.length]).join('');
+  return `${chars.slice(0, 4)}-${chars.slice(4, 8)}-${chars.slice(8)}`;
+}
+
 /** token สุ่มสำหรับ cookie (base64url, 32 ไบต์) และ hash ที่เก็บในฐานข้อมูล */
 export function newToken(): string {
   return b64(crypto.getRandomValues(new Uint8Array(32))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

@@ -213,6 +213,8 @@ export const users = sqliteTable(
     passwordHash: text('password_hash').notNull(),
     role: text('role', { enum: USER_ROLES }).notNull().default('staff'),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    /** รหัสผ่านชั่วคราว (เจ้าของสร้าง/รีเซ็ตให้) → ต้องเปลี่ยนก่อนใช้งานหน้าอื่น */
+    mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
     ...timestamps,
   },
   (t) => [uniqueIndex('users_email_uq').on(t.email)],

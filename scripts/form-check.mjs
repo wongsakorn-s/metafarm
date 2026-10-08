@@ -3,7 +3,7 @@
 //
 // ⚠️ เขียนข้อมูลจริงลงฐานข้อมูล "ในเครื่อง" (เหตุการณ์ทดสอบ, รังใหม่ 1 รัง, รูปทดสอบ) — จึงยอมรันกับ localhost เท่านั้น
 //    ล้างกลับเป็นข้อมูล Excel: npm run db:seed:local && npm run media:seed:local -- --prune
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4321';
@@ -552,6 +552,111 @@ console.log('\n14) รายงาน: ต้นทุนในหน้าส�
   const bad = await get('/admin/reports/export/secrets.csv');
   const anon = await get('/admin/reports/export/customers.csv', true);
   check(bad.s === 404 && anon.url.includes('/admin/login') && !anon.t.includes(cname), 'ไฟล์ไม่รู้จัก → 404 · ไม่ล็อกอิน → ไปหน้า login (ไม่ได้ข้อมูล)', 'ส่งออกรั่ว/ผิด (' + bad.s + ', ' + anon.url + ')');
+}
+
+console.log('\n15) สิทธิ์พนักงาน: เพิ่มพนักงาน → รหัสชั่วคราว → ทำงานรังได้ · เรื่องเงิน/ขายไม่ได้ · ปิดบัญชี');
+{
+  const text = (url, fields) => page.evaluate(async ({ url, fields }) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    const r = await fetch(url, { method: 'POST', body: fd });
+    return { status: r.status, t: await r.text() };
+  }, { url, fields });
+  const stamp = Date.now().toString().slice(-6);
+  const sEmail = 'staff' + stamp + '@metafarm.local';
+  const sName = 'พนักงานทดสอบ' + stamp;
+  // เพิ่มพนักงาน · ส่งฟอร์มซ้ำด้วยคีย์เดิม → บัญชีเดียว ได้รหัสใหม่
+  const key = crypto.randomUUID();
+  const c1 = await text('/admin/users', { intent: 'create', name: sName, email: sEmail, idem: key });
+  const c2 = await text('/admin/users', { intent: 'create', name: sName, email: sEmail, idem: key });
+  const pw1 = (c1.t.match(/id="temp-pw"[^>]*>([^<]+)</) ?? [])[1];
+  const temp = (c2.t.match(/id="temp-pw"[^>]*>([^<]+)</) ?? [])[1];
+  await page.goto(BASE + '/admin/users');
+  const rows = await page.locator('li:has-text("' + sEmail + '")').count();
+  check(pw1 && temp && pw1 !== temp && rows === 1, 'เพิ่มพนักงาน ' + sEmail + ' · ส่งซ้ำ → บัญชีเดียว รหัสชั่วคราวใหม่', 'เพิ่มพนักงานไม่ถูก (' + rows + ' แถว, ' + pw1 + ' / ' + temp + ')');
+  const other = await text('/admin/users', { intent: 'create', name: 'x', email: sEmail, idem: crypto.randomUUID() });
+  check(other.t.includes('อีเมลนี้มีบัญชีอยู่แล้ว'), 'อีเมลซ้ำ (คนละฟอร์ม) → ปฏิเสธ', 'อีเมลซ้ำไม่ถูกปฏิเสธ');
+  const userId = await page.locator('li:has-text("' + sEmail + '") input[name=userId]').first().getAttribute('value');
+
+  // พนักงานล็อกอินด้วยรหัสชั่วคราว → ถูกพาไปเปลี่ยนรหัส · หน้าอื่นเข้าไม่ได้จนกว่าจะเปลี่ยน
+  const sctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  const sp = await sctx.newPage();
+  sp.on('pageerror', (e) => pageErrors.push('staff: ' + e.message));
+  const staffLogin = async (pw) => {
+    await sp.goto(BASE + '/admin/login');
+    await sp.fill('#email', sEmail);
+    await sp.fill('#password', pw);
+    await Promise.all([sp.waitForLoadState('load'), sp.press('#password', 'Enter')]);
+    await sp.waitForTimeout(300);
+  };
+  await staffLogin(temp);
+  const forcedUrl = sp.url();
+  await sp.goto(BASE + '/admin/hives');
+  check(/\/admin\/account\?first=1/.test(forcedUrl) && /\/admin\/account/.test(sp.url()), 'รหัสชั่วคราว → บังคับไปหน้าเปลี่ยนรหัสผ่าน (เปิดหน้ารังไม่ได้)', 'ไม่บังคับเปลี่ยนรหัส (' + forcedUrl + ' → ' + sp.url() + ')');
+  const newPw = 'staff-pass-' + stamp + '-ok';
+  await sp.fill('#current', temp);
+  await sp.fill('#next', newPw);
+  await sp.fill('#confirm', newPw);
+  await Promise.all([sp.waitForURL(/\/admin\?welcome=1/), sp.click('button:has-text("เปลี่ยนรหัสผ่าน")')]);
+  check(true, 'ตั้งรหัสผ่านใหม่แล้วเข้าใช้งานได้', '');
+  writeFileSync('private/dev-staff.txt', 'อีเมล: ' + sEmail + '\nรหัสผ่าน: ' + newPw + '\n(บัญชีพนักงานทดสอบในเครื่อง — สร้างโดย check:forms ข้อ 15 ใช้กับ check:staff)\n');
+
+  // เมนู: ไม่มีหมวดขาย/ตั้งค่า/ผู้ใช้
+  const ownerLinks = await sp.locator('a[href^="/admin/orders"], a[href^="/admin/products"], a[href^="/admin/reports"], a[href^="/admin/settings"], a[href^="/admin/users"], a[href^="/admin/readiness"]').count();
+  const lotsTab = await sp.locator('nav a[href="/admin/lots"]').count();
+  check(ownerLinks === 0 && lotsTab > 0, 'เมนูพนักงาน: ไม่มีลิงก์หมวดขาย/ตั้งค่า/ผู้ใช้ · แท็บล่างเป็น "ล็อต"', 'เมนูพนักงานยังมีลิงก์ของเจ้าของ ' + ownerLinks + ' ลิงก์');
+  const sreq = (url, method = 'GET') => sp.evaluate(async ({ url, method }) => {
+    const r = await fetch(url, method === 'POST' ? { method, body: new URLSearchParams({ intent: 'x' }) } : {});
+    return { status: r.status, t: await r.text() };
+  }, { url, method });
+  const g1 = await sreq('/admin/orders');
+  const g2 = await sreq('/admin/reports/export/customers.csv');
+  const g3 = await sreq('/admin/products', 'POST');
+  const g4 = await sreq('/admin/users');
+  check(g1.status === 403 && g1.t.includes('สำหรับเจ้าของฟาร์มเท่านั้น') && g2.status === 403 && g3.status === 403 && g4.status === 403,
+    'หน้า/ไฟล์/ฟอร์มของเจ้าของ → 403 (ออเดอร์, CSV ลูกค้า, ส่งฟอร์มสินค้า, จัดการผู้ใช้)', 'พนักงานเข้าได้: ' + [g1, g2, g3, g4].map((x) => x.status).join(', '));
+
+  // หน้ารัง: ไม่มีราคาซื้อ/ฟอร์มตั้งขาย · สถานะเลือก "ขายแล้ว" ไม่ได้
+  await sp.goto(BASE + '/admin/hives/' + HIVE);
+  const saleForm = await sp.locator('#form-sale').count();
+  const opts = await sp.$$eval('#st-s option', (os) => os.map((o) => o.value).filter(Boolean));
+  const bodyText = await sp.textContent('main');
+  check(saleForm === 0 && !opts.includes('sold') && !/ราคาซื้อ|บาท/.test(bodyText ?? ''), 'หน้ารัง ' + HIVE + ' (พนักงาน): ไม่มีราคา/ฟอร์มตั้งขาย · สถานะให้เลือก ' + opts.join(', '), 'หน้ารังของพนักงานมีข้อมูลเงิน/ตัวเลือกขาย (' + saleForm + ', ' + opts + ')');
+  // ส่งคำสั่งเองตรง ๆ (ไม่ผ่านปุ่ม) → เซิร์ฟเวอร์ปฏิเสธ
+  const fx = (fields) => sp.evaluate(async ({ url, fields }) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    return (await fetch(url, { method: 'POST', body: fd })).text();
+  }, { url: '/admin/hives/' + HIVE, fields });
+  const t1 = await fx({ intent: 'sale', forSale: 'on', salePrice: '99999' });
+  const t2 = await fx({ intent: 'status', status: 'sold', occurredOn: today, soldPrice: '99999', idem: crypto.randomUUID() });
+  check(t1.includes('การตั้งขายเป็นสิทธิ์ของเจ้าของ') && t2.includes('พนักงานเปลี่ยนสถานะได้แค่'), 'ยิงคำสั่งตั้งขาย/ขายแล้วเอง → เซิร์ฟเวอร์ปฏิเสธ', 'เซิร์ฟเวอร์ไม่ปฏิเสธคำสั่งขายจากพนักงาน');
+  // แก้ข้อมูลรังที่ซื้อมา (มีราคาซื้อจริง) โดยแอบใส่ราคาซื้อ → ราคาซื้อไม่เปลี่ยน
+  await page.goto(BASE + '/admin/hives?origin=purchased');
+  const PH = (await page.getAttribute('a[href^="/admin/hives/A"]', 'href')).split('/')[3];
+  await page.goto(BASE + '/admin/hives/' + PH + '/edit');
+  const priceBefore = await page.inputValue('#price');
+  await sp.goto(BASE + '/admin/hives/' + PH + '/edit');
+  const hasPrice = await sp.locator('#price').count();
+  await sp.evaluate(() => { const f = document.querySelector('select[name=origin]').form; const i = document.createElement('input'); i.type = 'hidden'; i.name = 'purchasePrice'; i.value = '12345'; f.appendChild(i); });
+  await Promise.all([sp.waitForURL(/saved=edited/), sp.locator('form:has(select[name=origin]) button[type=submit]').last().click()]);
+  await page.goto(BASE + '/admin/hives/' + PH + '/edit');
+  const priceAfter = await page.inputValue('#price');
+  check(hasPrice === 0 && priceAfter === priceBefore, 'รัง ' + PH + ': ฟอร์มแก้รังของพนักงานไม่มีราคาซื้อ · แอบส่งราคา 12345 → ราคาซื้อเดิม (' + (priceBefore || 'ว่าง') + ')', 'ราคาซื้อถูกแก้โดยพนักงาน: ' + priceBefore + ' → ' + priceAfter);
+  // งานรังปกติได้ และประวัติบอกว่าใครบันทึก
+  const t3 = await fx({ intent: 'note', occurredOn: today, note: 'form-check: พนักงานบันทึก', idem: crypto.randomUUID() });
+  await sp.goto(BASE + '/admin/hives/' + HIVE);
+  const by = await sp.locator('#timeline li:has-text("form-check: พนักงานบันทึก")').first().textContent();
+  check(!/role="alert"/.test(t3) && (by ?? '').includes('บันทึกโดย ' + sName), 'พนักงานบันทึกหมายเหตุได้ · ประวัติแสดง "บันทึกโดย ' + sName + '"', 'บันทึกงานรังไม่ได้ หรือไม่แสดงผู้บันทึก');
+
+  // เจ้าของปิดบัญชี → พนักงานหลุดทันที · เปิดกลับ → ล็อกอินได้ (ไม่ต้องเปลี่ยนรหัสอีก)
+  await post('/admin/users', { intent: 'disable', userId });
+  await sp.goto(BASE + '/admin');
+  const kicked = sp.url().includes('/admin/login');
+  await post('/admin/users', { intent: 'enable', userId });
+  await staffLogin(newPw);
+  check(kicked && /\/admin$/.test(new URL(sp.url()).pathname), 'ปิดบัญชี → พนักงานถูกออกจากระบบทันที · เปิดกลับ → ล็อกอินได้', 'ปิด/เปิดบัญชีไม่ถูก (' + kicked + ', ' + sp.url() + ')');
+  await sctx.close();
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

@@ -8,6 +8,7 @@ import { baht, boxLabel, eventIcon, eventLabel, originLabel, statusClass, status
 import { formatThaiDate, UNKNOWN } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
+import { isOwner, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
 export const prerender = false;
@@ -17,6 +18,8 @@ if (!/^A\d{1,5}$/.test(code)) return new Response(null, { status: 404 });
 
 const db = getDb();
 const user = Astro.locals.user!;
+// พนักงาน: ไม่เห็นราคา/คู่ค้า และไม่มีฟอร์มตั้งขาย (เซิร์ฟเวอร์ปฏิเสธเองด้วย)
+const owner = isOwner(user);
 const today = todayBangkok();
 
 let detail = await getHiveDetail(db, code);
@@ -52,6 +55,7 @@ if (Astro.request.method === 'POST') {
 }
 
 const { hive, events, media, children, totals } = detail;
+const targets = statusTargets(user.role, hive.status);
 const saved = Astro.url.searchParams.get('saved');
 const photos = media.filter((m) => m.kind === 'passport' && m.r2Key);
 const salePhotos = media.filter((m) => m.kind === 'sale' && m.r2Key);
@@ -86,8 +90,8 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       <div class="flex flex-wrap items-center gap-2">
         <span class:list={['badge text-sm', statusClass[hive.status]]}>{statusLabel[hive.status]}</span>
         <span class="badge bg-canvas text-ink">{originLabel[hive.origin]}</span>
-        {hive.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย {baht(hive.salePrice)}</span>}
-        {hive.status === 'sold' && <span class="badge bg-honey-100 text-honey-700">ขายแล้ว {baht(hive.soldPrice)} · {formatThaiDate(hive.soldOn)}</span>}
+        {hive.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย{owner && ` ${baht(hive.salePrice)}`}</span>}
+        {hive.status === 'sold' && <span class="badge bg-honey-100 text-honey-700">ขายแล้ว{owner && ` ${baht(hive.soldPrice)}`} · {formatThaiDate(hive.soldOn)}</span>}
       </div>
       {/* รูปย่อ 3 รูปแถวเดียว (เดิม 2 รูปแนวตั้งกินครึ่งจอ ต้องเลื่อนนานกว่าจะถึงปุ่มบันทึก) */}
       <a href={`/admin/hives/${hive.code}/media`} class="mt-3 grid grid-cols-3 gap-2" aria-label={`รูปและวิดีโอของรัง ${hive.code}`}>
@@ -123,12 +127,12 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
       <h3 class="mt-5 text-sm font-semibold text-muted"><Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /> ข้อมูลภายใน (ไม่แสดงบนเว็บสาธารณะ)</h3>
       <dl class="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-        {hive.origin === 'purchased' && <><dt class="text-muted">ราคาซื้อ</dt><dd>{baht(hive.purchasePrice)}</dd></>}
-        {detail.supplierName && <><dt class="text-muted">คู่ค้า</dt><dd>{detail.supplierName}{detail.supplierPhone ? ` · ${detail.supplierPhone}` : ''}</dd></>}
+        {owner && hive.origin === 'purchased' && <><dt class="text-muted">ราคาซื้อ</dt><dd>{baht(hive.purchasePrice)}</dd></>}
+        {owner && detail.supplierName && <><dt class="text-muted">คู่ค้า</dt><dd>{detail.supplierName}{detail.supplierPhone ? ` · ${detail.supplierPhone}` : ''}</dd></>}
         {hive.status === 'collapsed' && <><dt class="text-muted">สาเหตุที่ล่ม</dt><dd>{hive.collapseReason ?? UNKNOWN}</dd></>}
       </dl>
       {noteLines.length > 0 && (
-        <ul class="mt-3 space-y-1 text-sm">
+        <ul class="mt-3 space-y-1 text-sm" data-internal-notes>
           {noteLines.map((l) => <li class:list={[l.startsWith('???') && 'font-semibold text-honey-700']}>{l}</li>)}
         </ul>
       )}
@@ -139,7 +143,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
       {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
         <ol class="divide-y divide-line">
-          {events.map(({ e, targetCode }) => (
+          {events.map(({ e, targetCode, by }) => (
             <li class="flex gap-3 py-3">
               <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
               <div class="min-w-0 flex-1">
@@ -150,7 +154,8 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
                   {e.type === 'status_change' && e.toStatus ? <span> → {statusLabel[e.toStatus]}</span> : null}
                   {targetCode && <span> → <a class="text-palm-700 underline" href={`/admin/hives/${targetCode}`}>{targetCode}</a></span>}
                 </p>
-                {e.note && <p class="break-words text-sm text-muted">{e.note}</p>}
+                {e.note && <p class="break-words text-sm text-muted">{owner ? e.note : maskOrderCodes(e.note)}</p>}
+                {by && <p class="text-xs text-muted">บันทึกโดย {by}</p>}
               </div>
               <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
             </li>
@@ -217,7 +222,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
     {/* ตั้งขาย / เปลี่ยนสถานะ */}
     <section class="order-4 xl:order-none mb-5 space-y-3" aria-label="จัดการรัง">
-      {hive.status === 'active' && (
+      {owner && hive.status === 'active' && (
         <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
           <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
           <form method="post" class="mt-3 space-y-3">
@@ -229,6 +234,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
           <a class="btn-ghost mt-3 w-full" href={`/admin/orders/new?hive=${hive.code}`}><Icon name="receipt" class="size-5" />มีลูกค้าสั่งรังนี้ — จดออเดอร์</a>
         </details>
       )}
+      {targets.length > 0 && (
       <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="status" class="size-6 text-palm-700" />เปลี่ยนสถานะรัง</summary>
         <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`}>
@@ -237,14 +243,16 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
             <select class="field" id="st-s" name="status" required>
               {/* ไม่เลือกอะไรไว้ก่อน — กันกดยืนยันแล้วรังกลายเป็น "ขายแล้ว" โดยไม่ตั้งใจ */}
               <option value="" disabled selected={!f.status.v('status')}>เลือกสถานะ…</option>
-              {(['active', 'sold', 'collapsed'] as const).filter((s) => s !== hive.status).map((s) => <option value={s} selected={f.status.v('status') === s}>{statusLabel[s]}</option>)}
+              {targets.map((s) => <option value={s} selected={f.status.v('status') === s}>{statusLabel[s]}</option>)}
             </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}</div>
           <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
-          <div><label class="label" for="st-p">ราคาขายจริง (บาท) — ถ้าเลือก "ขายแล้ว"</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>
+          {targets.includes('sold') && <div><label class="label" for="st-p">ราคาขายจริง (บาท) — ถ้าเลือก "ขายแล้ว"</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>}
           <div><label class="label" for="st-r">สาเหตุ (ถ้าล่ม)</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}</div>
           <button class="btn-danger w-full" type="submit">ยืนยันเปลี่ยนสถานะ</button>
         </form>
       </details>
+      )}
+      {!owner && hive.status === 'sold' && <p class="hint">รังที่ขายแล้ว — การแก้สถานะการขายเป็นสิทธิ์ของเจ้าของฟาร์ม</p>}
     </section>
     </div>
   </div>

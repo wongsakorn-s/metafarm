@@ -14,6 +14,8 @@ export interface SessionUser {
   email: string;
   name: string;
   role: 'owner' | 'staff';
+  /** ใช้รหัสผ่านชั่วคราวอยู่ → middleware บังคับไปหน้าเปลี่ยนรหัสผ่าน */
+  mustChangePassword: boolean;
 }
 
 const isoIn = (ms: number) => new Date(Date.now() + ms).toISOString();
@@ -51,7 +53,7 @@ export async function login(db: Db, emailRaw: string, password: string, ip: stri
     tokenHash: await sha256Hex(token),
     expiresAt: isoIn(SESSION_DAYS * 86_400_000),
   });
-  return { ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role } };
+  return { ok: true, token, user: { id: user.id, email: user.email, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword } };
 }
 
 export type ChangePasswordResult = { ok: true; otherSessionsEnded: boolean } | { ok: false; error: string };
@@ -87,7 +89,7 @@ export async function changePassword(
 
   const keepHash = currentToken ? await sha256Hex(currentToken) : '';
   await db.batch([
-    db.update(users).set({ passwordHash: await hashPassword(input.next), updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` }).where(eq(users.id, user.id)),
+    db.update(users).set({ passwordHash: await hashPassword(input.next), mustChangePassword: false, updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` }).where(eq(users.id, user.id)),
     db.delete(sessions).where(and(eq(sessions.userId, user.id), sql`${sessions.tokenHash} != ${keepHash}`)),
     db.delete(loginAttempts).where(eq(loginAttempts.keyHash, key)),
     db.insert(auditLogs).values({ userId: user.id, action: 'user.password_change', entity: 'user', entityId: user.id }),
@@ -98,13 +100,13 @@ export async function changePassword(
 export async function userFromToken(db: Db, token: string | undefined): Promise<SessionUser | null> {
   if (!token) return null;
   const rows = await db
-    .select({ id: users.id, email: users.email, name: users.name, role: users.role, active: users.active })
+    .select({ id: users.id, email: users.email, name: users.name, role: users.role, active: users.active, mustChangePassword: users.mustChangePassword })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
     .where(and(eq(sessions.tokenHash, await sha256Hex(token)), gt(sessions.expiresAt, new Date().toISOString())))
     .limit(1);
   const u = rows[0];
-  return u?.active ? { id: u.id, email: u.email, name: u.name, role: u.role } : null;
+  return u?.active ? { id: u.id, email: u.email, name: u.name, role: u.role, mustChangePassword: u.mustChangePassword } : null;
 }
 
 export async function logout(db: Db, token: string | undefined) {

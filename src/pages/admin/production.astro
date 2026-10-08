@@ -10,6 +10,7 @@ import { compareDryWet, DRY_MONTH_MM, isDryMonth, monthRange, POWER_ATTRIBUTION 
 import { fmt, monthLabel } from '../../lib/chart.ts';
 import { todayBangkok } from '../../lib/validation.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
+import { isOwner } from '../../lib/permissions.ts';
 
 // ผลผลิต + สภาพอากาศ (สิ่งที่เจ้าของฟาร์มอยากได้มากที่สุดจากแบบสอบถาม Phase 4)
 // กราฟเล็กหลายกราฟใช้แกนเวลาเดียวกัน · เดือนแล้งแรเงาตรงกันทุกกราฟ · ไม่ใช้กราฟสองแกน y
@@ -72,7 +73,7 @@ const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3
           class:list={['inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium', range === k ? 'bg-palm-600 text-white' : 'text-ink hover:bg-palm-50']}>{l}</a>
       ))}
     </nav>
-    <p class="text-sm text-muted">{monthLabel(months[0]!)} – {monthLabel(months.at(-1)!)} · พิกัด {settings.farm.lat}, {settings.farm.lng}{settings.farm.isDefault && <> (ประมาณ · <a class="underline" href="/admin/settings#location">ตั้งพิกัดจริง</a>)</>}</p>
+    <p class="text-sm text-muted">{monthLabel(months[0]!)} – {monthLabel(months.at(-1)!)} · พิกัด {settings.farm.lat}, {settings.farm.lng}{settings.farm.isDefault && (isOwner(Astro.locals.user) ? <> (ประมาณ · <a class="underline" href="/admin/settings#location">ตั้งพิกัดจริง</a>)</> : <> (ประมาณ)</>)}</p>
   </div>
 
   {status.error && (

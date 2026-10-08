@@ -7,6 +7,7 @@ import { boxLabel, originLabel } from '../../../../lib/labels.ts';
 import { unknownTopics } from '../../../../lib/unknown-notes.ts';
 import { editHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../../lib/validation.ts';
 import { formatThaiDate } from '../../../../lib/thai-date.ts';
+import { isOwner } from '../../../../lib/permissions.ts';
 
 export const prerender = false;
 
@@ -43,7 +44,7 @@ const cur: Record<string, string> = {
   boxType: hive.boxType,
   queenSourceCode: detail.queenSource ?? '',
   broodSourceCode: detail.broodSource ?? '',
-  purchasePrice: hive.purchasePrice != null ? String(hive.purchasePrice) : '',
+  purchasePrice: hive.purchasePrice != null && isOwner(Astro.locals.user) ? String(hive.purchasePrice) : '',
   collapseReason: hive.collapseReason ?? '',
   publicNote: hive.publicNote ?? '',
   notes: hive.notes ?? '',
@@ -124,9 +125,10 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <p class="hint">แก้ตรงนี้ไม่สร้างประวัติ "แยกรัง" ในรังแม่ให้ (ต่างจากตอนเพิ่มรังใหม่) ถ้าต้องการให้บันทึกในรังแม่ด้วยตัวเอง</p>
     </fieldset>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class:list={['grid gap-3', isOwner(Astro.locals.user) && 'grid-cols-2']}>
       <div><label class="label" for="place">สถานที่ซื้อ</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
-      <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>
+      {/* ราคาซื้อ = เจ้าของเท่านั้น (เซิร์ฟเวอร์ไม่รับค่านี้จากพนักงานอยู่แล้ว) */}
+      {isOwner(Astro.locals.user) && <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>}
     </div>
 
     {hive.status === 'collapsed' && (
@@ -142,7 +144,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
 
     <div>
       <label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label>
-      <textarea class="field" id="notes" name="notes" rows="5" maxlength="2000">{v('notes')}</textarea>
+      <textarea class="field" id="notes" name="notes" data-internal-notes rows="5" maxlength="2000">{v('notes')}</textarea>
       {err('notes') && <p class="error">{err('notes')}</p>}
       <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือข้อมูลที่ยังไม่ทราบ ระบบจะลบให้เองเมื่อเติมข้อมูลนั้นแล้ว ลบเองก็ได้</p>
     </div>

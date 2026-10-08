@@ -23,7 +23,7 @@ const PROFILES = [
   ['iPhone SE รุ่นแรก (จอเล็กสุด 320×568)', devices['iPhone SE']],
 ];
 const PUBLIC = ['/', '/stingless-bee', '/honey', '/products', '/training', '/passport', '/passport/A25', '/contact'];
-const ADMIN = ['/admin', '/admin/lots', '/admin/reports', '/admin/lots/new', '/admin/orders', '/admin/orders/new', '/admin/customers', '/admin/production', '/admin/quick', '/admin/more', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
+const ADMIN = ['/admin', '/admin/lots', '/admin/reports', '/admin/users', '/admin/lots/new', '/admin/orders', '/admin/orders/new', '/admin/customers', '/admin/production', '/admin/quick', '/admin/more', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
 
 /** ล็อกอินแบบที่ใช้จริงบนมือถือ: กรอกแล้วกด Enter (ไม่พึ่ง locator.tap ซึ่งค้างในโหมดจำลองจอแนวนอน) */
 async function login(page) {

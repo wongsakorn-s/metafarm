@@ -6,11 +6,14 @@ import { getDashboard } from '../../server/hives.ts';
 import { orderCounts } from '../../server/orders.ts';
 import { baht, eventIcon, eventLabel, originLabel } from '../../lib/labels.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
+import { isOwner } from '../../lib/permissions.ts';
 
 export const prerender = false;
 
+// พนักงาน: ไม่ดึง/ไม่แสดงตัวเลขออเดอร์และยอดเงิน
+const owner = isOwner(Astro.locals.user);
 const d = await getDashboard(getDb());
-const oc = await orderCounts(getDb());
+const oc = owner ? await orderCounts(getDb()) : { awaiting: 0, awaitingTotal: 0, toShip: 0 };
 const count = (s: string) => d.byStatus.find((x) => x.status === s)?.n ?? 0;
 const total = d.byStatus.reduce((n, x) => n + x.n, 0);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
@@ -26,6 +29,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 ---
 
 <AdminLayout title="ภาพรวม" active="dashboard">
+  {Astro.url.searchParams.get('welcome') && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ตั้งรหัสผ่านใหม่แล้ว — ยินดีต้อนรับ {Astro.locals.user?.name}</p>}
   {/* ตัวเลข 5 ตัวในการ์ดเดียว (เดิม 5 การ์ดใหญ่เต็มจอแรกของมือถือ) — แตะแต่ละตัวเพื่อดูรายการ */}
   <section aria-label="สรุปจำนวนรัง" class="card grid grid-cols-5 divide-x divide-line !p-0">
     {stats.map((s) => (
@@ -59,11 +63,19 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
-    <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
-      <Icon name="checklist" class="size-6 text-palm-700" />
-      <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">สิ่งที่ยังต้องเติม</span></span>
-      <Icon name="chevron" class="size-5 text-muted" />
-    </a></li>
+    {owner ? (
+      <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+        <Icon name="checklist" class="size-6 text-palm-700" />
+        <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">สิ่งที่ยังต้องเติม</span></span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    ) : (
+      <li><a href="/admin/photos" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+        <Icon name="camera" class="size-6 text-palm-700" />
+        <span class="flex-1"><strong>คิวถ่ายรูปรัง</strong> <span class="text-sm text-muted">รังที่ยังไม่มีรูปสมุดพก</span></span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    )}
   </ul>
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
@@ -79,9 +91,13 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
       ) : (
         <p class="text-muted">ยังไม่มีการบันทึกเก็บน้ำหวานในปีนี้ เปิดหน้ารังแล้วกด "เก็บน้ำหวาน" ได้เลย</p>
       )}
-      <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>
-      <p>ขายแล้ว {count('sold')} รัง รวม <strong>{baht(d.sale?.soldTotal)}</strong>
-        {(d.sale?.avgSold ?? 0) > 0 && <span class="text-muted"> (เฉลี่ย {baht(Math.round(d.sale!.avgSold))}/รัง)</span>}</p>
+      {owner && (
+        <>
+          <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>
+          <p>ขายแล้ว {count('sold')} รัง รวม <strong>{baht(d.sale?.soldTotal)}</strong>
+            {(d.sale?.avgSold ?? 0) > 0 && <span class="text-muted"> (เฉลี่ย {baht(Math.round(d.sale!.avgSold))}/รัง)</span>}</p>
+        </>
+      )}
     </section>
 
     <section class="card" aria-labelledby="surv-h">

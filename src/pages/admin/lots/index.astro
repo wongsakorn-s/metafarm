@@ -6,16 +6,19 @@ import { getDb } from '../../../server/db.ts';
 import { listLots, unassignedHarvests } from '../../../server/lots.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { fmt } from '../../../lib/chart.ts';
+import { isOwner } from '../../../lib/permissions.ts';
 
 // ล็อตน้ำผึ้ง: เก็บน้ำหวาน → สร้างล็อต → บรรจุขวด → พิมพ์ฉลาก QR → ขาย (ระบบผูกล็อตเก่าก่อนให้เอง)
 export const prerender = false;
 const db = getDb();
 const [lots, pending] = await Promise.all([listLots(db), unassignedHarvests(db)]);
 const pendingMl = pending.reduce((s, e) => s + (e.ml ?? 0), 0);
+// พนักงาน: ไม่มีแถบหมวดขาย และไม่เห็นยอดขายต่อล็อต
+const owner = isOwner(Astro.locals.user);
 ---
 
-<AdminLayout title="ขาย" active="lots">
-  <SalesTabs active="lots" />
+<AdminLayout title={owner ? 'ขาย' : 'ล็อตน้ำผึ้ง'} active="lots">
+  {owner && <SalesTabs active="lots" />}
 
   <section class="card mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
     <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-6" /></span>
@@ -42,7 +45,7 @@ const pendingMl = pending.reduce((s, e) => s + (e.ml ?? 0), 0);
         return (
           <li><a href={`/admin/lots/${l.code}`} class="card-link flex flex-col gap-1">
             <span class="flex flex-wrap items-baseline gap-2"><span data-num class="text-lg font-bold">{l.code}</span><span class="text-sm text-muted">เก็บ {formatThaiDate(l.harvestedFrom)}{l.harvestedFrom !== l.harvestedTo && ` – ${formatThaiDate(l.harvestedTo)}`} · {l.hives} รัง</span></span>
-            <span class="text-sm" data-num>{fmt(l.totalMl)} มล. · บรรจุแล้ว {fmt(l.bottles)} ขวด · ขายแล้ว {fmt(l.sold)} ขวด{left > 0 && <span class="text-honey-700"> · ยังไม่บรรจุ {fmt(left)} มล.</span>}</span>
+            <span class="text-sm" data-num>{fmt(l.totalMl)} มล. · บรรจุแล้ว {fmt(l.bottles)} ขวด {owner && `· ขายแล้ว ${fmt(l.sold)} ขวด`}{left > 0 && <span class="text-honey-700"> · ยังไม่บรรจุ {fmt(left)} มล.</span>}</span>
           </a></li>
         );
       })}

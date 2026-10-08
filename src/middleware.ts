@@ -3,6 +3,7 @@ import { SESSION_COOKIE, userFromToken } from './server/auth.ts';
 import { securityHeaders } from './lib/security-headers.ts';
 import { getDb } from './server/db.ts';
 import { getSettings } from './server/settings.ts';
+import { isOwner, ownerOnlyPath, passwordChangeAllowed } from './lib/permissions.ts';
 
 const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
 
@@ -18,6 +19,17 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname + ctx.url.search)}`);
     }
     ctx.locals.user = user;
+    const isGet = ctx.request.method === 'GET' || ctx.request.method === 'HEAD';
+    // รหัสผ่านชั่วคราว (เจ้าของสร้าง/รีเซ็ตให้) → ต้องเปลี่ยนก่อนใช้หน้าอื่น
+    if (user.mustChangePassword && !pathname.startsWith('/media/') && !passwordChangeAllowed(pathname)) {
+      if (!isGet) return new Response('ต้องเปลี่ยนรหัสผ่านก่อน', { status: 403 });
+      return ctx.redirect('/admin/account?first=1');
+    }
+    // หมวดขาย ตั้งค่า และจัดการผู้ใช้ = เจ้าของเท่านั้น (กันทั้งเปิดหน้า ส่งฟอร์ม และดาวน์โหลดไฟล์)
+    if (!isOwner(user) && ownerOnlyPath(pathname)) {
+      if (!isGet || /\.[a-z0-9]+$/i.test(pathname)) return new Response('ไม่มีสิทธิ์', { status: 403, headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' } });
+      return next('/admin/forbidden');
+    }
   }
 
   // โหลดการตั้งค่าเว็บ (ช่องทางติดต่อ ฯลฯ) ให้หน้าสาธารณะ — ข้ามไฟล์ (มีนามสกุล), รูป, และหลังบ้านที่ไม่ใช้

@@ -1,7 +1,8 @@
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
-import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers } from '../db/schema.ts';
+import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers, users } from '../db/schema.ts';
+import { isOwner, statusTargets } from '../lib/permissions.ts';
 import type { z } from 'zod';
 import { todayBangkok } from '../lib/validation.ts';
 import type { broodSplitSchema, editHiveSchema, fillSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
@@ -117,9 +118,10 @@ export async function getHiveDetail(db: Db, code: string) {
       .where(eq(hives.id, hive.id))
       .then((r) => r[0]!),
     db
-      .select({ e: hiveEvents, targetCode: target.code })
+      .select({ e: hiveEvents, targetCode: target.code, by: users.name })
       .from(hiveEvents)
       .leftJoin(target, eq(target.id, hiveEvents.targetHiveId))
+      .leftJoin(users, eq(users.id, hiveEvents.createdBy))
       .where(eq(hiveEvents.hiveId, hive.id))
       .orderBy(desc(hiveEvents.occurredOn), desc(hiveEvents.id)),
     db.select().from(hiveMedia).where(eq(hiveMedia.hiveId, hive.id)).orderBy(asc(hiveMedia.kind), asc(hiveMedia.sortOrder), asc(hiveMedia.id)),
@@ -263,10 +265,13 @@ export function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.out
   ];
 }
 
+const STATUS_DENIED = 'พนักงานเปลี่ยนสถานะได้แค่ "ยังอยู่" กับ "ล่ม" — การขายรังให้เจ้าของบันทึกผ่านออเดอร์';
+
 export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>): Promise<Result> {
   const key = idemKey(user, 'status_change', d.idem);
   if (await alreadySaved(db, key)) return { ok: true };
   if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
+  if (!statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
   await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   return { ok: true };
 }
@@ -305,7 +310,8 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
     boxType: d.boxType,
     queenSourceHiveId: queen.id,
     broodSourceHiveId: brood.id,
-    purchasePrice: d.purchasePrice ?? null,
+    // ราคาซื้อ = ข้อมูลเงิน → พนักงานแก้ไม่ได้ (ฟอร์มของพนักงานไม่มีช่องนี้ และค่าที่ส่งมาเองถูกข้าม)
+    purchasePrice: isOwner(user) ? (d.purchasePrice ?? null) : hive.purchasePrice,
     collapseReason: hive.status === 'collapsed' ? (d.collapseReason ?? null) : hive.collapseReason,
     publicNote: d.publicNote ?? null,
     notes,
@@ -323,6 +329,7 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
 }
 
 export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof saleSchema>): Promise<Result> {
+  if (!isOwner(user)) return { ok: false, error: 'การตั้งขายเป็นสิทธิ์ของเจ้าของฟาร์ม' };
   if (d.forSale && hive.status !== 'active') return { ok: false, error: 'ตั้งขายได้เฉพาะรังที่ยังอยู่ (active)' };
   await db.batch([
     db.update(hives).set({ forSale: d.forSale, salePrice: d.forSale ? d.salePrice : hive.salePrice, ...touch }).where(eq(hives.id, hive.id)),
@@ -376,6 +383,7 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
   // สถานะ: ใช้คำสั่งเดียวกับการเปลี่ยนสถานะปกติ (บันทึกเหตุการณ์ + เคลียร์ ??? สถานะรัง)
   // ทั้งหมดอยู่ใน batch เดียว — สำเร็จพร้อมกันหรือไม่บันทึกเลย (เดิมแยก 2 ครั้ง ถ้าครั้งหลังล้ม สถานะเปลี่ยนแต่ข้อมูลอื่นหาย)
   const statusChange = d.status && d.status !== hive.status;
+  if (statusChange && !statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
   const stmts: BatchItem<'sqlite'>[] = statusChange ? statusStatements(db, user, hive, { status: d.status!, occurredOn: todayBangkok() } as z.output<typeof statusSchema>, null) : [];
   const status = statusChange ? d.status! : hive.status;
 
@@ -439,7 +447,7 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
       db.insert(hives).values({
         id, code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
         queenBornOn: d.queenBornOn, boxType: d.boxType, status: 'active', queenSourceHiveId: queen?.id, broodSourceHiveId: brood?.id,
-        purchasePrice: d.purchasePrice, notes: d.notes, createKey,
+        purchasePrice: isOwner(user) ? d.purchasePrice : null, notes: d.notes, createKey,
       }),
       // บันทึกในรังแม่ให้อัตโนมัติ (วันที่ = วันที่ได้มา ถ้ามี)
       ...(brood && acquiredOn ? [db.insert(hiveEvents).values({ hiveId: brood.id, type: 'brood_split', occurredOn: acquiredOn, targetHiveId: id, createdBy: user.id, idempotencyKey: `auto:${code}:brood` }).onConflictDoNothing()] : []),

@@ -4,6 +4,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
 import { auditLogs, bottlings, hiveEvents, hives, honeyLots, lotSources, productVariants, products } from '../db/schema.ts';
 import { lotCode, lotPrefix, maxBottles, nextLotSeq, pickLot, remainingMl, type bottlingSchema, type newLotSchema } from '../lib/lots.ts';
+import { isOwner } from '../lib/permissions.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -107,7 +108,7 @@ export async function addBottling(db: Db, user: SessionUser, code: string, d: z.
   const max = maxBottles(got.remaining, v.sizeMl!);
   if (d.qty > max) return { ok: false, error: `น้ำผึ้งในล็อตเหลือ ${got.remaining.toLocaleString('th-TH')} มล. บรรจุขวด ${v.sizeMl} มล. ได้อีกไม่เกิน ${max} ขวด` };
   await run(db, [
-    db.insert(bottlings).values({ lotId: got.lot.id, variantId: v.id, qty: d.qty, bottledOn: d.bottledOn!, unitCost: d.unitCost ?? null, createKey, createdBy: user.id }),
+    db.insert(bottlings).values({ lotId: got.lot.id, variantId: v.id, qty: d.qty, bottledOn: d.bottledOn!, unitCost: isOwner(user) ? (d.unitCost ?? null) : null, createKey, createdBy: user.id }), // ต้นทุน = เจ้าของเท่านั้น
     db.update(productVariants).set({ stockQty: sql`${productVariants.stockQty} + ${d.qty}`, ...touch }).where(eq(productVariants.id, v.id)),
     audit(db, user, 'lot.bottle', { code, variantId: v.id, qty: d.qty }),
   ]);

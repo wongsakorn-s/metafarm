@@ -7,8 +7,11 @@ import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
+import { isOwner } from '../../../lib/permissions.ts';
 
 export const prerender = false;
+// พนักงาน: เห็นว่ารังไหนตั้งขาย แต่ไม่เห็นราคา
+const owner = isOwner(Astro.locals.user);
 
 const sp = Astro.url.searchParams;
 const filter = {
@@ -91,7 +94,7 @@ const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.s
                 <div class="flex items-center gap-2">
                   <span class="text-lg font-bold">{h.code}</span>
                   <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
-                  {h.forSale && <span class="badge bg-honey-400 text-ink">ขาย {baht(h.salePrice)}</span>}
+                  {h.forSale && <span class="badge bg-honey-400 text-ink">{owner ? `ขาย ${baht(h.salePrice)}` : 'ตั้งขาย'}</span>}
                 </div>
                 <p class="truncate text-sm text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</p>
                 <p class="text-sm text-muted">ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
@@ -135,7 +138,7 @@ const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.s
                 <td class="max-w-56 truncate px-3 py-2 text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</td>
                 <td data-num class="whitespace-nowrap px-3 py-2">{formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}</td>
                 <td data-num class="whitespace-nowrap px-3 py-2 text-muted">{h.lastEventOn ? formatThaiDate(h.lastEventOn) : '–'}</td>
-                <td data-num class="whitespace-nowrap px-3 py-2 text-right">{h.forSale ? <span class="badge bg-honey-400 text-ink">{baht(h.salePrice)}</span> : <span class="text-muted">–</span>}</td>
+                <td data-num class="whitespace-nowrap px-3 py-2 text-right">{h.forSale ? <span class="badge bg-honey-400 text-ink">{owner ? baht(h.salePrice) : 'ตั้งขาย'}</span> : <span class="text-muted">–</span>}</td>
               </tr>
             ))}
           </tbody>

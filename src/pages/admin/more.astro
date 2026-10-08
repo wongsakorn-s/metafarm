@@ -2,10 +2,12 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import type { IconName } from '../../lib/icons.ts';
+import { isOwner, roleLabel } from '../../lib/permissions.ts';
 
 // "เมนู" ของมือถือ: หน้ารองทั้งหมดรวมไว้ที่เดียว (เดิมตั้งค่า/บัญชี/ออกจากระบบ อัดอยู่แถบบนจนตัวอักษรตกบรรทัด)
 export const prerender = false;
 const user = Astro.locals.user!;
+const owner = isOwner(user);
 
 const groups = [
   {
@@ -17,23 +19,29 @@ const groups = [
       { href: '/admin/todo', icon: 'note', label: 'ข้อมูลที่ยังไม่ครบ (???)' },
     ],
   },
+  ...(owner ? [] : [{ title: 'น้ำผึ้ง', items: [{ href: '/admin/lots', icon: 'honey', label: 'ล็อตน้ำผึ้ง', hint: 'สร้างล็อต บรรจุขวด พิมพ์ฉลาก' }] }]),
   {
     title: 'เว็บไซต์',
     items: [
-      { href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ', hint: 'สิ่งที่ยังต้องเติมก่อนเปิดจริง' },
-      { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อ และหลักสูตรอบรม' },
+      ...(owner ? [
+        { href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ', hint: 'สิ่งที่ยังต้องเติมก่อนเปิดจริง' },
+        { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อ และหลักสูตรอบรม' },
+      ] : []),
       { href: '/', icon: 'globe', label: 'ดูหน้าเว็บสาธารณะ', external: true },
     ],
   },
   {
     title: 'บัญชี',
-    items: [{ href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่าน', hint: user.email }],
+    items: [
+      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่าน', hint: user.email },
+      ...(owner ? [{ href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์', hint: 'เพิ่มพนักงาน ปิดบัญชี รีเซ็ตรหัส' }] : []),
+    ],
   },
-];
+] as { title: string; items: { href: string; icon: string; label: string; hint?: string; external?: boolean }[] }[];
 ---
 
 <AdminLayout title="เมนู" active="more">
-  <p class="mb-4 text-muted">เข้าสู่ระบบเป็น <strong class="text-ink">{user.name}</strong></p>
+  <p class="mb-4 text-muted">เข้าสู่ระบบเป็น <strong class="text-ink">{user.name}</strong> ({roleLabel[user.role]})</p>
   <div class="space-y-5">
     {groups.map((g) => (
       <section aria-labelledby={`g-${g.title}`}>
