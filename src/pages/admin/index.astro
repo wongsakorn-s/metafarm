@@ -35,7 +35,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
     {stats.map((s) => (
       <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
         <span data-num class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
-        <span class="text-xs leading-tight text-muted md:text-sm">{s.label}</span>
+        <span class="text-[0.8125rem] leading-tight text-muted md:text-sm">{s.label}</span>
       </a>
     ))}
   </section>
@@ -80,10 +80,8 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 id="honey-h" class="text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {Number(d.year) + 543}</h2>
-        <a class="btn-ghost !px-3 text-sm" href="/admin/production"><Icon name="chart" class="size-4" />กราฟผลผลิต + อากาศ</a>
-      </div>
+      {/* หัวข้อ → ตัวเลข → ลิงก์กราฟ (เดิมปุ่มกราฟคั่นระหว่างหัวข้อกับตัวเลขบนมือถือ) */}
+      <h2 id="honey-h" class="mb-3 text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {Number(d.year) + 543}</h2>
       {d.honey && d.honey.n > 0 ? (
         <p class="text-3xl font-bold text-honey-700">{d.honey.ml.toLocaleString('th-TH')} <span class="text-base font-medium">มล.</span>
           {d.honey.g > 0 && <span class="ml-3 text-xl">+ ชัน {d.honey.g.toLocaleString('th-TH')} กรัม</span>}</p>
@@ -91,6 +89,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
       ) : (
         <p class="text-muted">ยังไม่มีการบันทึกเก็บน้ำหวานในปีนี้ เปิดหน้ารังแล้วกด "เก็บน้ำหวาน" ได้เลย</p>
       )}
+      <a class="mt-2 inline-flex min-h-11 items-center gap-1 font-medium text-palm-700 underline" href="/admin/production"><Icon name="chart" class="size-4" />ดูกราฟผลผลิต + สภาพอากาศ</a>
       {owner && (
         <>
           <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>
@@ -126,7 +125,10 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
   </div>
 
   <section class="card mt-6" aria-labelledby="recent-h">
-    <h2 id="recent-h" class="mb-3 text-lg font-semibold">เหตุการณ์ล่าสุด</h2>
+    <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <h2 id="recent-h" class="text-lg font-semibold">เหตุการณ์ล่าสุด</h2>
+      <a class="inline-flex min-h-11 items-center text-sm font-medium text-palm-700 underline" href="/admin/hives?sort=recent">ดูรังที่บันทึกล่าสุดทั้งหมด</a>
+    </div>
     <ul class="divide-y divide-line">
       {d.recent.map(({ e, code }) => (
         <li class="flex items-center gap-3 py-2">

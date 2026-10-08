@@ -1,0 +1,10 @@
+---
+// แสดงค่าในหลังบ้าน — ค่าที่ยังไม่ทราบ ("???" จาก formatThaiDate/ป้ายชื่อ) เป็นป้ายจาง "ไม่ทราบ" แทนเครื่องหมายดิบ
+// (รีวิว UX: "???" ในรายชื่อ/หน้ารังดูเหมือนระบบพัง) — หมายเหตุภายในที่ขึ้นต้นด้วย ??? ยังเป็นตัวบอกงานค้างตามเดิม
+import { UNKNOWN } from '../lib/thai-date.ts';
+
+interface Props { v: string | null | undefined }
+const { v } = Astro.props;
+---
+
+{v === UNKNOWN || v == null || v === '' ? <span class="badge bg-honey-50 text-honey-700" title="ยังไม่ทราบ — เติมได้ที่ แก้ไขข้อมูล">ไม่ทราบ</span> : v}

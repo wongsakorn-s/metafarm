@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
+import Val from '../../../components/Val.astro';
 import { getDb } from '../../../server/db.ts';
 import { HIVE_SORTS, listHives, type HiveSort } from '../../../server/hives.ts';
 import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
@@ -97,7 +98,7 @@ const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.s
                   {h.forSale && <span class="badge bg-honey-400 text-ink">{owner ? `ขาย ${baht(h.salePrice)}` : 'ตั้งขาย'}</span>}
                 </div>
                 <p class="truncate text-sm text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</p>
-                <p class="text-sm text-muted">ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
+                <p class="text-sm text-muted">ได้มา <Val v={formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')} />{h.lastEventOn ? ` · ล่าสุด ${formatThaiDate(h.lastEventOn)}` : ''}</p>
               </div>
             </a>
           </li>
@@ -136,7 +137,7 @@ const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.s
                 </th>
                 <td class="px-3 py-2"><span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span></td>
                 <td class="max-w-56 truncate px-3 py-2 text-muted">{originLabel[h.origin]}{h.originPlace ? ` · ${h.originPlace}` : ''}</td>
-                <td data-num class="whitespace-nowrap px-3 py-2">{formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}</td>
+                <td data-num class="whitespace-nowrap px-3 py-2"><Val v={formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')} /></td>
                 <td data-num class="whitespace-nowrap px-3 py-2 text-muted">{h.lastEventOn ? formatThaiDate(h.lastEventOn) : '–'}</td>
                 <td data-num class="whitespace-nowrap px-3 py-2 text-right">{h.forSale ? <span class="badge bg-honey-400 text-ink">{owner ? baht(h.salePrice) : 'ตั้งขาย'}</span> : <span class="text-muted">–</span>}</td>
               </tr>

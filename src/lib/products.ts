@@ -7,7 +7,7 @@ export const categoryLabel = { hive_box: 'รังเปล่า', honey: 'น
 
 /** ข้อความสถานะสินค้า — เก็บแค่ "มี/ไม่มี" ไม่เปิดเผยจำนวนสต็อกจริง */
 export const stockLabel = (inStock: boolean) =>
-  inStock ? { text: 'มีสินค้า', tone: 'bg-palm-100 text-palm-900' } : { text: 'สอบถามสต็อกทางไลน์', tone: 'bg-honey-100 text-honey-700' };
+  inStock ? { text: 'มีสินค้า', tone: 'bg-palm-100 text-palm-900' } : { text: 'สอบถามสต็อกก่อนสั่ง', tone: 'bg-honey-100 text-honey-700' };
 
 /** ข้อความที่ส่งไปแชต LINE เมื่อกดสั่ง */
 /** ข้อความสั่งซื้อทาง LINE — ราคาตัวอย่าง (sample) ไม่ใส่ตัวเลข เพื่อไม่ให้ลูกค้าส่งราคาที่ยังไม่ยืนยันมาเหมือนเป็นราคาตกลง */

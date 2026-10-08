@@ -1,5 +1,6 @@
 ---
 import Icon from '../../components/Icon.astro';
+import Val from '../../components/Val.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { listHivesWithoutPhoto } from '../../server/hives.ts';
@@ -35,7 +36,7 @@ const msg = Astro.url.searchParams.get('msg');
             <span class:list={['badge', statusClass[h.status]]}>{statusLabel[h.status]}</span>
             {h.forSale && <span class="badge bg-honey-400 text-ink">ตั้งขาย</span>}
           </div>
-          <p class="text-sm text-muted">{originLabel[h.origin]}{provinceOf(h.originPlace) ? ` · ${provinceOf(h.originPlace)}` : ''} · ได้มา {formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')}</p>
+          <p class="text-sm text-muted">{originLabel[h.origin]}{provinceOf(h.originPlace) ? ` · ${provinceOf(h.originPlace)}` : ''} · ได้มา <Val v={formatThaiDate(h.acquiredOn, h.acquiredOnPrecision ?? 'day')} /></p>
 
           <form method="post" action={`/admin/hives/${h.code}/media`} enctype="multipart/form-data" data-photo-form class="space-y-2">
             <input type="hidden" name="intent" value="upload" /><input type="hidden" name="kind" value="passport" /><input type="hidden" name="back" value="/admin/photos" />

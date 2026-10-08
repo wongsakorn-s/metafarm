@@ -26,7 +26,7 @@ const queueMessage = 'สนใจจองคิวรังชันโรง�
 
 <PublicLayout title="สินค้า" description={`รังสมบูรณ์ชันโรงขนเงิน รังเปล่ารังไม้สัก และน้ำผึ้งชันโรง จาก ${site.name} จ.ระยอง`} active="products">
   <h1 class="text-3xl font-bold">สินค้า</h1>
-  <p class="mt-2 max-w-2xl text-muted">รังชันโรงขนเงินและผลิตภัณฑ์จากฟาร์ม {site.name} สั่งซื้อทางไลน์</p>
+  <p class="mt-2 max-w-2xl text-muted">รังชันโรงขนเงินและผลิตภัณฑ์จากฟาร์ม {site.name} สั่งซื้อทางแชตหรือโทรศัพท์</p>
 
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">
@@ -39,10 +39,10 @@ const queueMessage = 'สนใจจองคิวรังชันโรง�
         <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-surface text-palm-700 shadow-card"><Icon name="hive" class="size-7" /></span>
         <div class="flex-1">
           <p class="text-lg font-semibold">ขณะนี้ยังไม่มีรังที่เปิดขาย</p>
-          <p class="text-muted">รังชุดถัดไปกำลังเลี้ยงให้แข็งแรง ทักไลน์จองคิวไว้ก่อนได้ หรือดูประวัติรังของฟาร์มในสมุดพก</p>
+          <p class="text-muted">รังชุดถัดไปกำลังเลี้ยงให้แข็งแรง ทักแชตหรือโทรจองคิวไว้ก่อนได้ หรือดูประวัติรังของฟาร์มในสมุดพก</p>
         </div>
         <div class="flex flex-wrap justify-center gap-2">
-          <ContactButtons intent="queue" message={queueMessage} />
+          <ContactButtons intent="queue" show="primary" message={queueMessage} />
           <a class="btn-ghost" href="/passport"><Icon name="passport" class="size-5" />ดูสมุดพกรัง</a>
         </div>
       </div>

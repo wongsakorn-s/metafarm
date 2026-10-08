@@ -31,7 +31,9 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 | `danger` | `#b42318` | Errors, destructive actions |
 
 - **Never put raw hex values in components.** Use the tokens above.
-- **One exception:** the LINE button `#05803a`, the brand's green adjusted for contrast.
+- **Chat-app colors** are tokens (`brand-line` `#05803a`, `brand-messenger` `#0866ff`). Use them **only for the icon** of a contact button.
+  - Contact buttons themselves are brand green: `btn-primary` for the primary channel, `btn-ghost` with a coloured icon for the others.
+  - UX review 2026-10-08: blue Messenger buttons drowned the brand green.
 
 ## 3. Fonts
 
@@ -72,11 +74,17 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 | `badge` | Short status label |
 | `disclosure` | Header of a collapsible `<details>`, with an arrow that rotates |
 | `skip-link` | "ข้ามไปเนื้อหาหลัก" link. Already in both layouts |
+| `scroll-fade` | A row that scrolls sideways (filter chips): fades the right edge so users can see there is more |
 
 Components:
 - `Icon`, `NotFound`, `HiveCard`, `HowToOrder` (`kind="training"` for courses), `SampleBadge`
 - `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile)
 - Layouts: `PublicLayout` (`canonical`, `ogImage`, `jsonLd`) and `AdminLayout` (`back`)
+- `ContactButtons`: the only way to show order/ask buttons on public pages. It follows the owner's primary channel.
+  - Show **one set per page**: on product pages pass `HowToOrder buttons={false}`.
+  - On desktop the floating contact is a single "ติดต่อเรา" pill that opens the channel list (it must not cover content).
+- `Val`: admin values. `???` / empty renders as a muted "ไม่ทราบ" chip, never the raw `???`.
+- `SalesTabs`: on mobile all 5 tabs are visible (icon + short label). Don't add a 6th; group it instead.
 
 ## 6. Icons
 
@@ -164,3 +172,16 @@ Components:
 - [ ] Images have width/height and alt text.
 - [ ] Empty states have a message and a next step for the user.
 - [ ] `npm run check:mobile`, `check:browser` and `check:forms` (admin pages) all pass.
+
+## 9. UX review 2026-10-08 (rounds 1–2 applied)
+
+- **One primary action per screen** applies to the quick-record page too. Honey is primary; ordering is secondary.
+- **Readability in the field:** badges and stat labels are at least 13px (`text-[0.8125rem]`).
+- **Hive page:**
+  - a hive that is no longer active shows a notice above the record forms (back-dating is still allowed)
+  - on xl screens the honey form opens by default
+- **Pending (round 3):**
+  - desktop sidebar group headings and an always-visible logout
+  - inline hive filters on desktop
+  - featured products and a real photo in the home hero (waiting for owner photos)
+  - a shorter mobile footer

@@ -1,6 +1,6 @@
 import type { IconName } from './icons.ts';
 // ป้ายภาษาไทยของค่าในฐานข้อมูล
-export const statusLabel = { active: 'ยังอยู่', sold: 'ขายแล้ว', collapsed: 'ล่ม', unknown: '???' } as const;
+export const statusLabel = { active: 'ยังอยู่', sold: 'ขายแล้ว', collapsed: 'ล่ม', unknown: 'ไม่ทราบสถานะ' } as const;
 export const statusClass = {
   active: 'bg-palm-100 text-palm-900',
   sold: 'bg-honey-100 text-honey-700',
@@ -13,7 +13,7 @@ export const originLabel = {
   queen_bred: 'เพาะนางพญาเอง',
   split: 'ขยายรัง',
   natural: 'ขยายเองตามธรรมชาติ',
-  unknown: '???',
+  unknown: 'ไม่ทราบที่มา',
 } as const;
 
 export const boxLabel = { teak_2room: 'รังไม้สัก 2 ห้อง', log: 'ขอนไม้', other: 'อื่น ๆ', unknown: '???' } as const;

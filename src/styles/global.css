@@ -21,6 +21,9 @@
 
   --color-ink: #1f2a24;
   --color-muted: #5b6a61;
+  /* สีของแอปแชต — ใช้กับไอคอนของปุ่มติดต่อเท่านั้น (ปุ่มหลักเป็นสีเขียวแบรนด์) */
+  --color-brand-line: #05803a;
+  --color-brand-messenger: #0866ff;
   --color-line: #dfe6e1;
   --color-surface: #ffffff;
   --color-canvas: #f6f8f6;
@@ -211,7 +214,8 @@
   @apply mt-1 text-sm font-medium text-danger;
 }
 @utility badge {
-  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  /* 13px (เดิม 12px) — อ่านบนมือถือกลางแดดในสวนได้ง่ายขึ้น */
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.8125rem] font-medium;
 }
 /* ข้อความเนื้อหาจากไฟล์ Markdown (content/*.md) */
 @layer components {
@@ -227,4 +231,10 @@
   .prose-mf blockquote > * + * { margin-top: 0.5rem; }
   .prose-mf hr { border: 0; border-top: 1px solid var(--color-line); margin: 2rem 0; }
   .prose-mf strong { font-weight: 600; }
+}
+/* แถวที่เลื่อนแนวนอนได้ (ตัวกรอง/ชิป): ขอบขวาจางลง บอกว่ายังมีต่อ */
+@utility scroll-fade {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }

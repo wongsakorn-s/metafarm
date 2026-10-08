@@ -69,9 +69,9 @@ const jsonLd = product
             );
           })}
         </ul>
-        <p class="mt-4 text-sm text-muted">สินค้าของ {site.name} · สอบถามสต็อกและวิธีรับสินค้าทางไลน์ก่อนสั่ง</p>
+        <p class="mt-4 text-sm text-muted">สินค้าของ {site.name} · สอบถามสต็อกและวิธีรับสินค้าทางแชตหรือโทรก่อนสั่ง</p>
       </section>
     </div>
-    <div class="mt-10"><HowToOrder message={orderMessage(product.name)} /></div>
+    <div class="mt-10"><HowToOrder buttons={false} message={orderMessage(product.name)} /></div>
   </PublicLayout>
 )}

@@ -19,8 +19,9 @@ interface Props {
 const { message, intent = 'ask', show = 'full', phoneHint, block = false, class: className } = Astro.props;
 const actions = contactActions(Astro.locals.settings!.contact, message).filter((a) => show === 'full' || a.primary);
 const icon: Record<Channel, 'line' | 'messenger' | 'phone'> = { line: 'line', messenger: 'messenger', phone: 'phone' };
-// สีแบรนด์ (ตัวอักษรขาวผ่าน WCAG AA) · โทร = ปุ่มหลักของเว็บ
-const tone: Record<Channel, string> = { line: 'bg-[#05803a] text-white hover:brightness-95', messenger: 'bg-[#0866ff] text-white hover:brightness-95', phone: 'bg-palm-600 text-white hover:bg-palm-700' };
+// ปุ่มหลักใช้สีเขียวแบรนด์เสมอ (เดิมเป็นสีของแอปแชต สีน้ำเงิน Messenger แย่งสายตาทั้งหน้า)
+// สีของแอปอยู่ที่ไอคอนของปุ่มรอง ให้ลูกค้าจำช่องทางได้
+const iconTone: Record<Channel, string> = { line: 'text-brand-line', messenger: 'text-brand-messenger', phone: 'text-palm-700' };
 const hasPhone = actions.some((a) => a.channel === 'phone');
 const external = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
 ---
@@ -30,13 +31,13 @@ const external = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
     <div class="flex flex-wrap gap-2">
       {actions.map((a) => a.primary ? (
         <a href={a.href} {...external(a.channel)} data-channel={a.channel} data-copy={a.channel === 'messenger' ? a.message : undefined}
-          class:list={['btn font-semibold shadow-card', tone[a.channel], block ? 'w-full' : 'w-full sm:w-auto']}>
+          class:list={['btn-primary font-semibold', block ? 'w-full' : 'w-full sm:w-auto']}>
           <Icon name={icon[a.channel]} class="size-5" />{actionLabel(a.channel, intent)}
         </a>
       ) : (
         <a href={a.href} {...external(a.channel)} data-channel={a.channel} data-copy={a.channel === 'messenger' ? a.message : undefined}
           class="btn-ghost flex-1 sm:flex-none" aria-label={actionLabel(a.channel, intent)}>
-          <Icon name={icon[a.channel]} class="size-5" />{shortLabel[a.channel]}
+          <Icon name={icon[a.channel]} class:list={['size-5', iconTone[a.channel]]} />{shortLabel[a.channel]}
         </a>
       ))}
     </div>

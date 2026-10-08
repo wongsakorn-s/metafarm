@@ -43,7 +43,7 @@ const jsonLd = course
     <dl class="card mt-5 grid max-w-md grid-cols-[auto_1fr] gap-x-4 gap-y-2">
       <dt class="text-muted">ระยะเวลา</dt><dd>{eff.duration}</dd>
       <dt class="text-muted">ค่าอบรม</dt><dd class="font-semibold text-palm-700">{formatPrice(eff.priceThb)} {eff.priceIsSample && <SampleBadge />}</dd>
-      <dt class="text-muted">รอบอบรม</dt><dd>แจ้งทางไลน์</dd>
+      <dt class="text-muted">รอบอบรม</dt><dd>แจ้งทางแชตหรือโทรศัพท์</dd>
     </dl>
     <ContactButtons class="mt-4" intent="training" message={`สนใจหลักสูตร${fm.title}`} phoneHint={` บอกชื่อหลักสูตร "${fm.title}"`} />
 

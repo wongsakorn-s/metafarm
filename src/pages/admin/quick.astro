@@ -11,8 +11,10 @@ export const prerender = false;
 const db = getDb();
 const ACTIONS = {
   honey: { label: 'เก็บน้ำหวาน', icon: 'honey', to: (c: string) => `/admin/hives/${c}?do=honey#form-honey` },
-  photo: { label: 'ถ่ายรูป', icon: 'camera', to: (c: string) => `/admin/hives/${c}/media` },
+  queen: { label: 'เก็บไข่นางพญา', icon: 'queen', to: (c: string) => `/admin/hives/${c}?do=queen#form-queen` },
+  brood: { label: 'แยกรัง', icon: 'brood', to: (c: string) => `/admin/hives/${c}?do=brood#form-brood` },
   note: { label: 'หมายเหตุ', icon: 'note', to: (c: string) => `/admin/hives/${c}?do=note#form-note` },
+  photo: { label: 'ถ่ายรูป', icon: 'camera', to: (c: string) => `/admin/hives/${c}/media` },
   view: { label: 'เปิดหน้ารัง', icon: 'search', to: (c: string) => `/admin/hives/${c}` },
 } as const;
 type Action = keyof typeof ACTIONS;
@@ -64,10 +66,12 @@ const recent = await recentHiveCodes(db, 8);
     </section>
   )}
 
+  {/* งานอื่นเป็นปุ่มรองทั้งหมด — ปุ่มหลักของหน้านี้มีปุ่มเดียว (เก็บน้ำหวาน) */}
   <section class="mt-6 grid grid-cols-2 gap-3" aria-label="งานอื่น">
+    <h2 class="col-span-2 text-sm font-semibold text-muted">งานอื่น</h2>
     {isOwner(Astro.locals.user)
-      ? <a class="btn-primary col-span-2" href="/admin/orders/new"><Icon name="receipt" class="size-5" />จดออเดอร์ใหม่</a>
-      : <a class="btn-primary col-span-2" href="/admin/lots"><Icon name="honey" class="size-5" />ล็อตน้ำผึ้ง (บรรจุขวด / ฉลาก)</a>}
+      ? <a class="btn-ghost col-span-2" href="/admin/orders/new"><Icon name="receipt" class="size-5" />จดออเดอร์ใหม่</a>
+      : <a class="btn-ghost col-span-2" href="/admin/lots"><Icon name="honey" class="size-5" />ล็อตน้ำผึ้ง (บรรจุขวด / ฉลาก)</a>}
     <a class="btn-ghost" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>
     <a class="btn-ghost" href="/admin/photos"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> คิวถ่ายรูป</a>
   </section>

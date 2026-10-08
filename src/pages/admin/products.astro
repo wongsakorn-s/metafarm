@@ -135,7 +135,7 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
                 <div><label class="label" for={`co-${v.id}`}>ต้นทุน/ชิ้น</label><input class="field" id={`co-${v.id}`} name="unitCost" type="number" inputmode="numeric" min="0" placeholder="ไม่ทราบ" value={errorVariant === v.id ? (posted.unitCost ?? '') : (v.unitCost ?? '')} />{errorVariant === v.id && errorFields.unitCost && <p class="error">{errorFields.unitCost}</p>}</div>
                 <button class="btn-primary col-span-3 sm:col-span-1" type="submit">บันทึก</button>
               </form>
-              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกทางไลน์" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น) · ต้นทุนใช้คิดกำไรในรายงาน ไม่แสดงบนเว็บ (น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดก่อน)</p>
+              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกก่อนสั่ง" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น) · ต้นทุนใช้คิดกำไรในรายงาน ไม่แสดงบนเว็บ (น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดก่อน)</p>
             </li>
           ))}
         </ul>

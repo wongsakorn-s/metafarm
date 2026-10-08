@@ -4,8 +4,9 @@ import { channelName, contactActions } from '../lib/contact.ts';
 
 // ขั้นตอนสั่งซื้อ/สมัครอบรม — ทักแชต (LINE/Messenger) หรือโทร ตามช่องทางที่เจ้าของเปิดไว้ (ช่องทางหลักก่อน)
 // kind="training" ใช้ถ้อยคำของหลักสูตร ไม่ใช่การซื้อสินค้า
-interface Props { message?: string; kind?: 'order' | 'training' }
-const { kind = 'order', message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
+// buttons={false}: หน้าที่มีปุ่มสั่งซื้อของตัวเองอยู่แล้ว (หน้าสินค้า/รังที่ขาย) — แสดงแค่ขั้นตอน ไม่ซ้ำปุ่ม
+interface Props { message?: string; kind?: 'order' | 'training'; buttons?: boolean }
+const { kind = 'order', buttons = true, message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
 const channels = contactActions(Astro.locals.settings!.contact, message).map((a) => channelName[a.channel]);
 const via = channels.length ? channels.join(' / ') : 'ช่องทางติดต่อ';
 const copy = {
@@ -38,5 +39,5 @@ const copy = {
       </li>
     ))}
   </ol>
-  <ContactButtons class="mt-4" intent={kind === 'training' ? 'training' : 'order'} message={message} />
+  {buttons && <ContactButtons class="mt-4" intent={kind === 'training' ? 'training' : 'order'} message={message} />}
 </section>

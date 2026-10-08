@@ -31,7 +31,7 @@ const tel = telHref(c.phone);
 const messenger = messengerBase(c);
 // ปุ่มติดต่อ: ช่องทางหลักก่อน (เจ้าของเลือกในหลังบ้าน) — ดู src/lib/contact.ts
 const actions = contactActions(c, lineMessage);
-const tone = { line: 'bg-[#05803a] text-white', messenger: 'bg-[#0866ff] text-white', phone: 'bg-palm-600 text-white' } as const;
+const iconTone = { line: 'text-brand-line', messenger: 'text-brand-messenger', phone: 'text-palm-700' } as const;
 const copyOf = (ch: string) => (ch === 'messenger' ? lineMessage : undefined);
 
 const nav = [
@@ -154,20 +154,28 @@ const current = nav.find((n) => n.key === active);
       </div>
     </footer>
 
-    {/* ติดต่อ: มือถือ = แถบล่างเต็มความกว้าง (ไม่ลอยทับเนื้อหา) · คอม = ปุ่มลอยมุมขวา
-        ช่องทางหลัก = ปุ่มใหญ่มีข้อความ · ช่องทางอื่น = ปุ่มรอง (Messenger คัดลอกข้อความให้ก่อนเปิดแชต) */}
+    {/* ติดต่อ: มือถือ = แถบล่างเต็มความกว้าง (ไม่ลอยทับเนื้อหา) · คอม = ปุ่มลอย "ติดต่อเรา" ปุ่มเดียว แตะแล้วกางช่องทาง
+        (เดิม 3 ปุ่มกว้าง ~350px บังเนื้อหาขวาล่าง) · ปุ่มหลักสีเขียวแบรนด์ สีของแอปแชตอยู่ที่ไอคอน
+        Messenger คัดลอกข้อความให้ก่อนเปิดแชต (scripts/contact-copy.ts) */}
     {actions.length > 0 && (
-      <div class="fixed bottom-4 right-4 z-20 hidden items-center gap-2 md:flex" data-contact-buttons>
-        {actions.slice(1).map((a) => (
-          <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)} aria-label={actionLabel(a.channel)} title={actionLabel(a.channel)}
-            class:list={['grid size-12 place-items-center rounded-full shadow-lg transition hover:brightness-95', tone[a.channel]]}><Icon name={a.channel} class="size-5" /></a>
-        ))}
-        <a href={actions[0]!.href} rel={actions[0]!.channel === 'phone' ? undefined : 'noopener'} data-channel={actions[0]!.channel} data-copy={copyOf(actions[0]!.channel)}
-          class:list={['inline-flex min-h-12 items-center gap-2 rounded-full px-5 font-semibold shadow-lg transition hover:brightness-95', tone[actions[0]!.channel]]}>
-          <Icon name={actions[0]!.channel} class="size-5" /> {actionLabel(actions[0]!.channel)}
-        </a>
-        <p class="sr-only" role="status" aria-live="polite" data-copy-status></p>
-      </div>
+      <details class="group fixed bottom-4 right-4 z-20 hidden md:block" data-contact-buttons data-contact-pop>
+        <summary class="inline-flex min-h-12 cursor-pointer list-none items-center gap-2 rounded-full bg-palm-600 px-5 font-semibold text-white shadow-lg transition hover:bg-palm-700 [&::-webkit-details-marker]:hidden">
+          <Icon name="messenger" class="size-5" /> ติดต่อเรา
+          <Icon name="chevron" class="size-4 -rotate-90 transition group-open:rotate-90" />
+        </summary>
+        <div class="absolute bottom-14 right-0 w-80 rounded-2xl border border-line bg-surface p-2 shadow-raised">
+          <p class="px-3 pb-1 pt-2 text-sm text-muted">ทักแชตหรือโทรหาเราได้เลย</p>
+          {actions.map((a) => (
+            <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)}
+              class="flex min-h-12 items-center gap-3 rounded-xl px-3 font-medium hover:bg-canvas">
+              <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-canvas"><Icon name={a.channel} class:list={['size-5', iconTone[a.channel]]} /></span>
+              <span class="flex-1">{actionLabel(a.channel)}{a.channel === 'phone' && <span class="block text-sm font-normal text-muted">{c.phone}</span>}</span>
+              {a.primary && <span class="badge bg-palm-100 text-palm-900">หลัก</span>}
+            </a>
+          ))}
+          <p class="hint hidden px-3 pb-2" role="status" aria-live="polite" data-copy-status></p>
+        </div>
+      </details>
     )}
     {actions.length > 0 && (
       <div class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden" data-contact-buttons>
@@ -175,10 +183,10 @@ const current = nav.find((n) => n.key === active);
         <div class="mx-auto flex max-w-md gap-2">
           {actions.map((a) => a.primary ? (
             <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)}
-              class:list={['inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl font-semibold active:brightness-95', tone[a.channel]]}><Icon name={a.channel} class="size-5" /> {actionLabel(a.channel)}</a>
+              class="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-palm-600 font-semibold text-white active:bg-palm-700"><Icon name={a.channel} class="size-5" /> {actionLabel(a.channel)}</a>
           ) : (
             <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)} aria-label={actionLabel(a.channel)}
-              class="inline-flex min-h-12 min-w-12 flex-col items-center justify-center rounded-xl border border-line px-2 text-xs font-semibold text-ink active:bg-canvas"><Icon name={a.channel} class="size-5" />{shortLabel[a.channel]}</a>
+              class="inline-flex min-h-12 min-w-12 flex-col items-center justify-center rounded-xl border border-line px-2 text-xs font-semibold text-ink active:bg-canvas"><Icon name={a.channel} class:list={['size-5', iconTone[a.channel]]} />{shortLabel[a.channel]}</a>
           ))}
         </div>
       </div>
@@ -189,6 +197,12 @@ const current = nav.find((n) => n.key === active);
 <script>
   import '../scripts/contact-copy';
   // ปิดเมนูมือถือเมื่อแตะนอกเมนู หรือกด Esc (เปิด/ปิดด้วยปุ่มได้เองโดยไม่ต้องมีสคริปต์นี้)
+  // ปุ่มลอย "ติดต่อเรา" (คอม): ปิดเมื่อแตะนอกกล่อง หรือกด Esc
+  const pop = document.querySelector<HTMLDetailsElement>('[data-contact-pop]');
+  if (pop) {
+    document.addEventListener('click', (e) => { if (pop.open && !pop.contains(e.target as Node)) pop.open = false; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pop.open) { pop.open = false; pop.querySelector('summary')?.focus(); } });
+  }
   const menu = document.querySelector<HTMLDetailsElement>('[data-site-menu]');
   if (menu) {
     document.addEventListener('click', (e) => { if (menu.open && !menu.contains(e.target as Node)) menu.open = false; });

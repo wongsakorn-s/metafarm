@@ -1,19 +1,25 @@
 ---
 // แถบย่อยของหมวด "ขาย": ออเดอร์ · ลูกค้า · ล็อต · สินค้า · รายงาน (มือถือเข้าจากแท็บล่าง "ขาย")
+// มือถือ: 5 ช่องเท่ากัน ไอคอน + ชื่อสั้น เห็นครบไม่ต้องเลื่อน (เดิมเลื่อนแนวนอน "รายงาน" ตกขอบจนมองไม่เห็น) · คอม: ชื่อเต็ม
+import Icon from './Icon.astro';
+
 interface Props { active: 'orders' | 'customers' | 'lots' | 'products' | 'reports' }
 const { active } = Astro.props;
 const tabs = [
-  { key: 'orders', href: '/admin/orders', label: 'ออเดอร์' },
-  { key: 'customers', href: '/admin/customers', label: 'ลูกค้า' },
-  { key: 'lots', href: '/admin/lots', label: 'ล็อตน้ำผึ้ง' },
-  { key: 'products', href: '/admin/products', label: 'สินค้า / ราคา / สต็อก' },
-  { key: 'reports', href: '/admin/reports', label: 'รายงาน' },
+  { key: 'orders', href: '/admin/orders', icon: 'receipt', short: 'ออเดอร์', label: 'ออเดอร์' },
+  { key: 'customers', href: '/admin/customers', icon: 'users', short: 'ลูกค้า', label: 'ลูกค้า' },
+  { key: 'lots', href: '/admin/lots', icon: 'honey', short: 'ล็อต', label: 'ล็อตน้ำผึ้ง' },
+  { key: 'products', href: '/admin/products', icon: 'cart', short: 'สินค้า', label: 'สินค้า / ราคา / สต็อก' },
+  { key: 'reports', href: '/admin/reports', icon: 'report', short: 'รายงาน', label: 'รายงาน' },
 ] as const;
 ---
 
-<nav aria-label="หมวดขาย" class="-mt-1 mb-4 flex gap-1 overflow-x-auto border-b border-line">
+<nav aria-label="หมวดขาย" class="-mt-1 mb-4 grid grid-cols-5 border-b border-line md:flex md:gap-1">
   {tabs.map((t) => (
     <a href={t.href} aria-current={active === t.key ? 'page' : undefined}
-      class:list={['-mb-px inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 px-3 font-medium', active === t.key ? 'border-palm-600 text-palm-700' : 'border-transparent text-muted hover:text-ink']}>{t.label}</a>
+      class:list={['-mb-px flex min-h-14 flex-col items-center justify-center gap-0.5 border-b-2 px-1 text-xs font-medium md:min-h-11 md:flex-row md:gap-2 md:px-3 md:text-base', active === t.key ? 'border-palm-600 text-palm-700' : 'border-transparent text-muted hover:text-ink']}>
+      <Icon name={t.icon} class="size-5 md:size-4" />
+      <span class="md:hidden">{t.short}</span><span class="hidden md:inline">{t.label}</span>
+    </a>
   ))}
 </nav>
