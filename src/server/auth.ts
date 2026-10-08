@@ -1,13 +1,13 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { AstroCookies } from 'astro';
 import { auditLogs, loginAttempts, sessions, users } from '../db/schema.ts';
 import { newToken, passwordProblem, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
+import { LIMITS, lockedBy, throttleKeys, WINDOW_MIN } from '../lib/auth/throttle.ts';
 import type { Db } from './db.ts';
 
 export const SESSION_COOKIE = 'mf_session';
 const SESSION_DAYS = 30;
-const MAX_FAILURES = 5; // ครั้ง
-const WINDOW_MIN = 15; // นาที
+const MAX_FAILURES = 5; // ครั้ง (เปลี่ยนรหัสผ่าน: ใส่รหัสเดิมผิด)
 
 export interface SessionUser {
   id: number;
@@ -27,25 +27,31 @@ export type LoginResult = { ok: true; user: SessionUser; token: string } | { ok:
 
 export async function login(db: Db, emailRaw: string, password: string, ip: string): Promise<LoginResult> {
   const email = emailRaw.trim().toLowerCase();
-  const key = await sha256Hex(`${email}|${ip}`);
-  const since = isoIn(-WINDOW_MIN * 60_000);
-
-  const [{ n }] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.keyHash, key), gt(loginAttempts.at, since)));
-  if (n >= MAX_FAILURES) return { ok: false, reason: 'locked' };
+  const raw = throttleKeys(email, ip);
+  const keys = { pair: await sha256Hex(raw.pair), email: await sha256Hex(raw.email), ip: await sha256Hex(raw.ip) };
+  const counts = await failureCounts(db, Object.values(keys));
+  const n = { pair: counts.get(keys.pair) ?? 0, email: counts.get(keys.email) ?? 0, ip: counts.get(keys.ip) ?? 0 };
+  // ล็อกแล้ว → ตอบทันทีโดยไม่ตรวจรหัสผ่าน (เดาต่อไม่ได้ และไม่บอกว่ารหัสถูกหรือไม่)
+  if (lockedBy(n).length) return { ok: false, reason: 'locked' };
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   dummyHash ??= hashPassword('dummy-password-for-timing');
   const ok = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
   if (!user || !user.active || !ok) {
-    await db.insert(loginAttempts).values({ keyHash: key });
+    await db.batch([
+      db.insert(loginAttempts).values({ keyHash: keys.pair }),
+      db.insert(loginAttempts).values({ keyHash: keys.email }),
+      db.insert(loginAttempts).values({ keyHash: keys.ip }),
+      // บัญชีนี้เพิ่งถูกล็อกจากการเดารหัสหลาย IP → จดไว้ให้เจ้าของเห็น (เฉพาะบัญชีที่มีจริง ครั้งที่ถึงขีดพอดี)
+      ...(user && n.email + 1 === LIMITS.email ? [db.insert(auditLogs).values({ userId: null, action: 'login.locked', entity: 'user', entityId: user.id })] : []),
+    ]);
     // ล้างของเก่าเป็นครั้งคราวด้วย (เดิมล้างเฉพาะตอนล็อกอินสำเร็จ — บอทที่เดารหัสไม่หยุดทำให้ตารางโตไม่จำกัด)
     if (Math.random() < 0.05) await cleanup(db);
     return { ok: false, reason: 'invalid' };
   }
 
+  // สำเร็จ: ล้างเฉพาะคู่ อีเมล+IP นี้ — ตัวนับรายอีเมล/รายIP คงไว้ (บอทที่เดาอยู่ไม่ได้โควตาใหม่เพราะเจ้าของล็อกอินสำเร็จ)
+  const key = keys.pair;
   await db.delete(loginAttempts).where(eq(loginAttempts.keyHash, key));
   const token = newToken();
   await db.insert(sessions).values({
@@ -130,3 +136,29 @@ export function setSessionCookie(cookies: AstroCookies, token: string) {
   });
 }
 export const clearSessionCookie = (cookies: AstroCookies) => cookies.delete(SESSION_COOKIE, { path: '/' });
+
+/** จำนวนครั้งที่ผิดในหน้าต่างเวลา ต่อกุญแจ (hash) */
+async function failureCounts(db: Db, keyHashes: string[]): Promise<Map<string, number>> {
+  if (!keyHashes.length) return new Map();
+  const rows = await db
+    .select({ k: loginAttempts.keyHash, n: sql<number>`count(*)` })
+    .from(loginAttempts)
+    .where(and(inArray(loginAttempts.keyHash, keyHashes), gt(loginAttempts.at, isoIn(-WINDOW_MIN * 60_000))))
+    .groupBy(loginAttempts.keyHash);
+  return new Map(rows.map((r) => [r.k, r.n]));
+}
+
+/** ล็อกอินผิดต่ออีเมล (รวมทุก IP) ใน 15 นาทีล่าสุด — สำหรับหน้าจัดการผู้ใช้ */
+export async function emailFailures(db: Db, emails: string[]): Promise<Map<string, { n: number; locked: boolean }>> {
+  const hashes = await Promise.all(emails.map((e) => sha256Hex(throttleKeys(e, '').email)));
+  const counts = await failureCounts(db, hashes);
+  return new Map(emails.map((e, i) => {
+    const n = counts.get(hashes[i]!) ?? 0;
+    return [e, { n, locked: n >= LIMITS.email }];
+  }));
+}
+
+/** ปลดล็อกรายอีเมล (เจ้าของกดให้พนักงานที่ถูกล็อก) — ตัวนับราย IP ยังอยู่ */
+export async function unlockEmail(db: Db, email: string) {
+  await db.delete(loginAttempts).where(eq(loginAttempts.keyHash, await sha256Hex(throttleKeys(email, '').email)));
+}

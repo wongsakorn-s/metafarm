@@ -659,6 +659,40 @@ console.log('\n15) สิทธิ์พนักงาน: เพิ่มพ�
   await sctx.close();
 }
 
+console.log('\n16) ล็อกอินผิด: จำกัดต่ออีเมลรวมทุก IP · ต่อ IP รวมทุกอีเมล · เจ้าของปลดล็อกพนักงานได้');
+{
+  // ใช้บัญชีพนักงานจากข้อ 15 · จำลอง IP ด้วย cf-connecting-ip (บนเครื่องเท่านั้น — Cloudflare ตั้งค่านี้เองบนเว็บจริง)
+  const sc = readFileSync('private/dev-staff.txt', 'utf8').split('\n');
+  const sEmail = sc[0].split(/:\s*/)[1].trim();
+  const sPw = sc[1].split(/:\s*/)[1].trim();
+  const tryLogin = async (email, password, ip) => {
+    const r = await fetch(BASE + '/admin/login', { method: 'POST', redirect: 'manual', body: new URLSearchParams({ email, password }), headers: { Origin: BASE, 'cf-connecting-ip': ip } });
+    const t = r.status === 200 ? await r.text() : '';
+    return r.status >= 300 && r.status < 400 ? 'ok' : t.includes('ลองผิดหลายครั้งเกินไป') ? 'locked' : t.includes('อีเมลหรือรหัสผ่านไม่ถูกต้อง') ? 'invalid' : 'other:' + r.status;
+  };
+  const run = Date.now().toString().slice(-4);
+  // บอทเปลี่ยน IP ทุก 4 ครั้ง (ไม่ติดขีด 5 ครั้ง/IP เดิม) → ครั้งที่ 10 ติดขีดรายอีเมล
+  const res = [];
+  for (let i = 0; i < 10; i++) res.push(await tryLogin(sEmail, 'wrong-password-' + i, '10.' + run.slice(0, 2) + '.' + Math.floor(i / 4) + '.1'));
+  const right = await tryLogin(sEmail, sPw, '10.' + run.slice(0, 2) + '.200.1');
+  check(res.every((x) => x === 'invalid') && right === 'locked', 'เดารหัสบัญชีเดียวจาก 3 IP ครบ 10 ครั้ง → ล็อก (แม้รหัสถูกจาก IP ใหม่)', 'ล็อกรายอีเมลไม่ทำงาน: ' + res.join(',') + ' → ' + right);
+  // หน้าผู้ใช้ของเจ้าของ: เห็นว่าถูกล็อก → ปลดล็อก → ล็อกอินได้
+  await page.goto(BASE + '/admin/users');
+  const row = page.locator('li:has-text("' + sEmail + '")');
+  const shown = await row.locator('[data-failures]').textContent().catch(() => '');
+  page.once('dialog', (d) => d.accept());
+  await Promise.all([page.waitForURL(/saved=unlock/), row.locator('button:has-text("ปลดล็อก")').click()]);
+  const after = await tryLogin(sEmail, sPw, '10.' + run.slice(0, 2) + '.201.1');
+  check((shown ?? '').includes('ล็อกชั่วคราว') && after === 'ok', 'หน้าผู้ใช้แสดง "ล็อกชั่วคราว" · เจ้าของกดปลดล็อก (ถามยืนยัน) → ล็อกอินได้', 'ปลดล็อกไม่ทำงาน (' + shown + ' → ' + after + ')');
+  // ไล่เดาหลายบัญชีจาก IP เดียว (แต่ละอีเมลไม่ถึง 5 ครั้ง) → ครบ 30 ครั้ง IP นี้ถูกล็อก · IP อื่นไม่กระทบ
+  const ip = '10.' + run.slice(2) + '.99.9';
+  const spray = [];
+  for (let i = 0; i < 30; i++) spray.push(await tryLogin('nobody' + run + '-' + i + '@example.com', 'x-' + i, ip));
+  const blocked = await tryLogin(sEmail, sPw, ip);
+  const other = await tryLogin(sEmail, sPw, '10.' + run.slice(2) + '.98.9');
+  check(spray.every((x) => x === 'invalid') && blocked === 'locked' && other === 'ok', 'เดา 30 บัญชีจาก IP เดียว → IP นั้นถูกล็อก · คนอื่นล็อกอินได้ตามปกติ', 'ล็อกราย IP ไม่ทำงาน: ' + [...new Set(spray)].join(',') + ' → ' + blocked + ' / ' + other);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

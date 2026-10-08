@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { auditLogs, sessions, users } from '../db/schema.ts';
 import { hashPassword, tempPassword } from '../lib/auth/password.ts';
 import { isOwner } from '../lib/permissions.ts';
-import type { SessionUser } from './auth.ts';
+import { unlockEmail, type SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -72,6 +72,15 @@ export async function setStaffActive(db: Db, by: SessionUser, id: number, active
     db.delete(sessions).where(eq(sessions.userId, id)),
     audit(db, by, active ? 'user.enable' : 'user.disable', id),
   ]);
+  return { ok: true };
+}
+
+/** ปลดล็อกพนักงานที่ใส่รหัสผิดเกินจำนวน (ตัวนับรายอีเมล) — เจ้าของยืนยันตัวตนกับพนักงานเองก่อนกด */
+export async function unlockStaff(db: Db, by: SessionUser, id: number): Promise<Result> {
+  const t = await staffTarget(db, by, id);
+  if ('error' in t) return { ok: false, error: t.error! };
+  await unlockEmail(db, t.user.email);
+  await audit(db, by, 'user.unlock', id);
   return { ok: true };
 }
 
