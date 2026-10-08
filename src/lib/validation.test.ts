@@ -82,3 +82,23 @@ describe('status / sale / new hive', () => {
     expect(parseForm(newHiveSchema, form({ origin: 'queen_bred', queenSourceCode: 'A55', broodSourceCode: 'A89', queenBornOn: today }))).toMatchObject({ ok: true, data: { boxType: 'teak_2room' } });
   });
 });
+
+describe('newHiveSchema: รหัสรังตั้งเอง', () => {
+  const base = { origin: 'split', boxType: 'teak_2room' };
+  const code = (c: string) => {
+    const r = newHiveSchema.safeParse({ ...base, code: c });
+    return r.success ? r.data.code : 'ERR';
+  };
+  it('พิมพ์แค่เลข / ตัวเล็ก / เลข 0 นำหน้า → A + เลข', () => {
+    expect(code('150')).toBe('A150');
+    expect(code('a150')).toBe('A150');
+    expect(code(' A0150 ')).toBe('A150');
+    expect(code('')).toBeUndefined();
+  });
+  it('รูปแบบอื่นไม่รับ (id ของรัง = เลขในรหัส)', () => {
+    expect(code('B12')).toBe('ERR');
+    expect(code('A0')).toBe('ERR');
+    expect(code('A123456')).toBe('ERR');
+    expect(code('A12x')).toBe('ERR');
+  });
+});

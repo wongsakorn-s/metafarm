@@ -59,7 +59,19 @@ export const saleSchema = z
   .object({ forSale: z.preprocess((v) => v === 'on' || v === '1', z.boolean()), salePrice: opt(int(1_000_000)) })
   .refine((d) => !d.forSale || (d.salePrice ?? 0) > 0, { message: 'ตั้งขายต้องใส่ราคา', path: ['salePrice'] });
 
+/**
+ * รหัสรังที่ตั้งเอง (ตรงกับป้ายบนตัวรัง): A + เลข 1–5 หลัก — พิมพ์แค่เลขก็ได้ · ตัดเลข 0 นำหน้า (A025 → A25)
+ * รูปแบบนี้ตายตัว เพราะ id ของรัง = เลขในรหัส และลิงก์สมุดพก/QR/ทุกหน้าใช้รูปแบบ A123
+ */
+const newHiveCode = z.preprocess(
+  (v) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/^(?=\d)/, 'A').replace(/^A0+(?=\d)/, 'A') : v),
+  z.string().regex(/^A[1-9]\d{0,4}$/, 'รหัสรังเป็น A ตามด้วยเลข เช่น A150 (พิมพ์แค่ 150 ก็ได้)'),
+);
+
 export const newHiveSchema = z.object({
+  /** ว่าง หรือเท่ากับรหัสที่ระบบเสนอ (suggested) = ใช้รหัสถัดไปอัตโนมัติ */
+  code: opt(newHiveCode),
+  suggested: opt(z.string().max(10)),
   origin: z.enum(HIVE_ORIGINS).refine((o) => o !== 'unknown', 'เลือกที่มา'),
   originPlace: opt(z.string().max(100)),
   acquiredOn: opt(date),

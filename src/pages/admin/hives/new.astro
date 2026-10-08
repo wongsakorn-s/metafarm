@@ -30,11 +30,22 @@ const v = (k: string, d = '') => values[k] ?? d;
 const err = (k: string) => errors[k];
 ---
 
-<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title={`เพิ่มรังใหม่ (${nextCode})`} active="new">
+<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title="เพิ่มรังใหม่" active="new">
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   <form method="post" class="card max-w-xl space-y-4">
     <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />
-    <p class="rounded-xl bg-palm-50 p-3">รหัสรังใหม่จะเป็น <strong>{nextCode}</strong> (ระบบกำหนดให้อัตโนมัติ)</p>
+    {/* รหัสรัง: เสนอรหัสถัดไปไว้ให้ แก้ให้ตรงกับป้ายบนตัวรังได้ (ไม่แก้ = อัตโนมัติ ชนกับคนอื่นแล้วระบบเลื่อนให้) */}
+    <input type="hidden" name="suggested" value={nextCode} />
+    <div>
+      <label class="label" for="code">รหัสรัง</label>
+      <div class="flex items-stretch">
+        <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-canvas px-4 text-xl font-bold text-muted" aria-hidden="true">A</span>
+        <input class="field rounded-l-none text-xl font-bold tracking-wide" id="code" name="code" inputmode="numeric" autocomplete="off" required
+          pattern="[Aa]?0*[1-9][0-9]{0,4}" value={v('code', nextCode).replace(/^A/i, '')} aria-describedby="code-hint" />
+      </div>
+      {err('code') && <p class="error">{err('code')}</p>}
+      <p id="code-hint" class="hint">ระบบเสนอรหัสถัดไป <strong>{nextCode}</strong> ให้ · แก้ให้ตรงกับป้ายบนตัวรังได้ (ใช้รหัสที่มีในทะเบียนแล้วไม่ได้ แม้รังนั้นล่มหรือขายไปแล้ว)</p>
+    </div>
 
     <div>
       <label class="label" for="origin">ที่มา</label>
@@ -73,7 +84,17 @@ const err = (k: string) => errors[k];
     <div><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
 
     <div class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-      <button class="btn-primary w-full" type="submit">สร้างรัง {nextCode}</button>
+      <button class="btn-primary w-full" type="submit" id="create-btn">สร้างรัง <span data-code-label>{v('code', nextCode).replace(/^a?/i, 'A')}</span></button>
     </div>
   </form>
 </AdminLayout>
+
+<script>
+  // ปุ่มบอกรหัสที่จะสร้างตามที่พิมพ์ (กันสร้างผิดรหัส)
+  const input = document.getElementById('code') as HTMLInputElement | null;
+  const label = document.querySelector<HTMLElement>('[data-code-label]');
+  input?.addEventListener('input', () => {
+    const n = input.value.trim().replace(/^a/i, '').replace(/^0+(?=\d)/, '');
+    if (label) label.textContent = n ? `A${n}` : '';
+  });
+</script>

@@ -862,6 +862,35 @@ console.log('\n19) รูปหัวหน้าแรก: เจ้าขอ�
   if (before) await post('/admin/settings', { intent: 'hero', heroHive: before });
 }
 
+console.log('\n20) เพิ่มรังด้วยรหัสที่ตั้งเอง: ตรงกับป้ายบนรัง · รหัสซ้ำ = ปฏิเสธพร้อมบอกรหัสว่าง');
+{
+  await page.goto(BASE + '/admin/hives/new');
+  const suggested = await page.inputValue('input[name=suggested]');
+  const want = 'A' + (Number(suggested.slice(1)) + 500 + Math.floor(Math.random() * 300));
+  // พิมพ์แค่เลข มี 0 นำหน้า → ปุ่มบอกรหัสที่จะสร้าง
+  await page.fill('#code', '0' + want.slice(1));
+  const btn = (await page.textContent('#create-btn'))?.replace(/\s+/g, ' ').trim();
+  await page.selectOption('#origin', 'split');
+  await page.fill('#notes', 'form-check: รหัสตั้งเอง (ลบได้)');
+  await Promise.all([page.waitForURL(/saved=created/), page.click('#create-btn')]);
+  const made = page.url().match(/hives\/(A\d+)/)?.[1];
+  check(btn === 'สร้างรัง ' + want && made === want, 'พิมพ์ "0' + want.slice(1) + '" → ปุ่มบอก "สร้างรัง ' + want + '" → ได้รัง ' + want, 'ได้รัง ' + made + ' (คาด ' + want + ', ปุ่ม "' + btn + '")');
+  // รหัสที่มีแล้ว (แม้เป็นรังเก่า) → ปฏิเสธ ข้อมูลที่กรอกยังอยู่ และบอกรหัสว่างถัดไป
+  await page.goto(BASE + '/admin/hives/new');
+  await page.fill('#code', want.slice(1));
+  await page.selectOption('#origin', 'split');
+  await page.fill('#notes', 'ยังอยู่ไหม');
+  await Promise.all([page.waitForLoadState('load'), page.click('#create-btn')]);
+  const alert = (await page.locator('[role=alert]').first().textContent().catch(() => '')) ?? '';
+  check(alert.includes('รหัส ' + want + ' มีในทะเบียนแล้ว') && alert.includes('รหัสว่างถัดไปคือ A') && (await page.inputValue('#notes')) === 'ยังอยู่ไหม',
+    'รหัสซ้ำ → "' + alert.trim().slice(0, 60) + '…" ข้อมูลที่กรอกยังอยู่', 'รหัสซ้ำไม่ถูกปฏิเสธ: ' + alert);
+  // ไม่แก้รหัสที่ระบบเสนอ = อัตโนมัติ (รหัสถัดไปเลื่อนตามรหัสสูงสุด)
+  await page.goto(BASE + '/admin/hives/new');
+  const next = await page.inputValue('input[name=suggested]');
+  check(next === 'A' + (Number(want.slice(1)) + 1), 'รหัสที่ระบบเสนอครั้งถัดไป = ' + next + ' (ต่อจากรหัสสูงสุด)', 'รหัสที่เสนอไม่ถูก: ' + next);
+  console.log('   ℹ️ รังทดสอบ: ' + want);
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

@@ -444,10 +444,17 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
   if (d.queenSourceCode && !queen) return { ok: false, error: `ไม่พบรังแม่ ${d.queenSourceCode}` };
   if (d.broodSourceCode && !brood) return { ok: false, error: `ไม่พบรังแม่ ${d.broodSourceCode}` };
 
-  const code = await nextHiveCode(db);
-  const id = codeToId(code);
+  // รหัสตั้งเอง (ตรงกับป้ายบนรัง) — ถ้าเท่ากับที่ระบบเสนอไว้ ถือว่าใช้รหัสอัตโนมัติ (ชนกับคนอื่นแล้วเลื่อนให้เอง)
+  const manual = d.code && d.code !== d.suggested ? d.code : null;
+  const taken = async (c: string) => !!(await db.query.hives.findFirst({ where: or(eq(hives.code, c), eq(hives.id, codeToId(c))), columns: { id: true } }));
+  const takenError = async (c: string) => ({ ok: false as const, error: `รหัส ${c} มีในทะเบียนแล้ว (รังที่ล่ม/ขายแล้วก็ใช้ซ้ำไม่ได้ เพราะสมุดพกเดิมยังอ้างถึง) — รหัสว่างถัดไปคือ ${await nextHiveCode(db)}` });
+  if (manual && (await taken(manual))) return takenError(manual);
+
   const acquiredOn = d.acquiredOn ?? null;
-  const stmts: BatchItem<'sqlite'>[] = [
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = manual ?? (await nextHiveCode(db));
+    const id = codeToId(code);
+    const stmts: BatchItem<'sqlite'>[] = [
       db.insert(hives).values({
         id, code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
         queenBornOn: d.queenBornOn, boxType: d.boxType, status: 'active', queenSourceHiveId: queen?.id, broodSourceHiveId: brood?.id,
@@ -456,16 +463,19 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
       // บันทึกในรังแม่ให้อัตโนมัติ (วันที่ = วันที่ได้มา ถ้ามี)
       ...(brood && acquiredOn ? [db.insert(hiveEvents).values({ hiveId: brood.id, type: 'brood_split', occurredOn: acquiredOn, targetHiveId: id, createdBy: user.id, idempotencyKey: `auto:${code}:brood` }).onConflictDoNothing()] : []),
       ...(queen && acquiredOn ? [db.insert(hiveEvents).values({ hiveId: queen.id, type: 'queen_cell_taken', occurredOn: acquiredOn, queenCells: 1, targetHiveId: id, createdBy: user.id, idempotencyKey: `auto:${code}:queen` }).onConflictDoNothing()] : []),
-      audit(db, user, 'hive.create', id, { code, origin: d.origin }),
-  ];
-  try {
-    await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
-  } catch (e) {
-    // คำขอซ้ำที่มาพร้อมกันจะชนกันตรงนี้ → ถ้าอีกคำขอสร้างสำเร็จแล้ว ตอบรังนั้น
-    const dup = await existing();
-    if (dup) return { ok: true, code: dup.code };
-    if (/UNIQUE/i.test(String(e))) return { ok: false, error: 'สร้างรังไม่สำเร็จ (อาจมีคนสร้างรหัสเดียวกันพร้อมกัน) ลองอีกครั้ง' };
-    throw e;
+      audit(db, user, 'hive.create', id, { code, origin: d.origin, manualCode: !!manual }),
+    ];
+    try {
+      await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+      return { ok: true, code };
+    } catch (e) {
+      // คำขอซ้ำ (คีย์เดิม) ที่มาพร้อมกัน → ถ้าอีกคำขอสร้างสำเร็จแล้ว ตอบรังนั้น
+      const dup = await existing();
+      if (dup) return { ok: true, code: dup.code };
+      if (!/UNIQUE/i.test(String(e))) throw e;
+      // รหัสชน: ตั้งเอง = แจ้งให้เลือกใหม่ · อัตโนมัติ = มีคนเพิ่มรังพร้อมกัน ลองรหัสถัดไป
+      if (manual) return takenError(manual);
+    }
   }
-  return { ok: true, code };
+  return { ok: false, error: 'สร้างรังไม่สำเร็จ (มีคนเพิ่มรังพร้อมกันหลายรัง) ลองอีกครั้ง' };
 }
