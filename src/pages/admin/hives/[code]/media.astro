@@ -134,7 +134,8 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
 
 <script>
   import { appendPrepared, resizeAll } from '../../../../scripts/resize-image';
-  import { describeUploadError, newBatchId, postUpload } from '../../../../scripts/upload';
+  import { describeUploadError, newBatchId } from '../../../../scripts/upload';
+  import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../../../scripts/outbox';
 
   // ย่อรูปก่อนอัปโหลด แล้วส่งด้วย fetch (ถ้า JS ใช้ไม่ได้ ฟอร์มจะส่งไฟล์เดิมตามปกติ)
   // ยืนยันก่อนลบ/กันกดซ้ำ อยู่ในสคริปต์กลางของหลังบ้าน (scripts/admin-forms.ts)
@@ -165,8 +166,13 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
       appendPrepared(fd, small);
       const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
       say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
-      const r = await postUpload(form.action || location.href, fd, after);
-      location.href = r.redirect ?? location.href;
+      // คิวรอส่ง: เก็บรูปในเครื่องก่อน · สัญญาณไม่ดี = ส่งเองทีหลัง (รหัสชุดเดิม เซิร์ฟเวอร์ไม่บันทึกซ้ำ)
+      const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `${form.dataset.code} · รูป ${small.length} รูป`, bytes: after });
+      if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
+      if (o.kind === 'invalid') say(`ไม่ได้บันทึกรูป: ${o.message}`, true);
+      else if (o.kind === 'unsaved') say(UNSAVED_MSG, true);
+      else { say(o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG); form.reset(); batch = newBatchId(); }
+      btn && (btn.disabled = false);
     } catch (err) {
       say(describeUploadError(err), true);
       btn && (btn.disabled = false);

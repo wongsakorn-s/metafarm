@@ -104,7 +104,8 @@ console.log(`\n2) เปลี่ยนสถานะรัง ${HIVE}: ต้�
   await page.click('summary:has-text("เปลี่ยนสถานะรัง")');
   await page.selectOption('#st-s', 'active');
   page.once('dialog', (d) => d.accept());
-  await Promise.all([page.waitForURL(/saved=status/), page.click('button:has-text("ยืนยันเปลี่ยนสถานะ")')]);
+  // URL มี saved=status อยู่แล้ว → รอการโหลดหน้าใหม่จริง (คิวรอส่งสั่งโหลดซ้ำเมื่อปลายทางเป็น URL เดิม)
+  await Promise.all([page.waitForEvent('load'), page.click('button:has-text("ยืนยันเปลี่ยนสถานะ")')]);
   ok('คืนสถานะ "ยังอยู่" แล้ว');
 }
 
@@ -150,20 +151,20 @@ console.log('\n4) คิวถ่ายรูป: ผลจริงจากเ
   check(t1.includes('ไม่ได้บันทึกรูป') && !t1.includes('เพิ่มแล้ว'), `ไฟล์ที่ไม่ใช่รูป → "${t1}"`, `ขึ้นว่าสำเร็จทั้งที่เซิร์ฟเวอร์ไม่บันทึก: "${t1}"`);
   check((await left()) === before, 'ตัวนับคิวไม่ลด', 'ตัวนับคิวลดทั้งที่ไม่ได้บันทึก');
 
-  // สัญญาณหลุด → ปุ่ม "ส่งรูปเดิมอีกครั้ง" → สัญญาณกลับ กดแล้วสำเร็จ (ไม่ต้องถ่ายใหม่)
+  // สัญญาณหลุด → รูปเก็บในเครื่อง (คิวรอส่ง) → สัญญาณกลับ ระบบส่งเอง (ไม่ต้องถ่ายใหม่ ไม่ต้องกดซ้ำ)
   const cdp = await ctx.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await pick(c2, 'image');
-  const retry = page.locator(`li[data-code="${c2}"] [data-retry]`);
-  await retry.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-  check(await retry.isVisible(), 'สัญญาณหลุด → มีปุ่ม "ส่งรูปเดิมอีกครั้ง"', 'สัญญาณหลุดแล้วไม่มีปุ่มส่งซ้ำ (ต้องถ่ายใหม่)');
+  await stateOf(c2).filter({ hasText: 'เก็บไว้ในเครื่องแล้ว' }).waitFor({ timeout: 20000 }).catch(() => {});
+  const q = (await stateOf(c2).textContent()).trim();
+  const badge = page.locator('[data-outbox-badge]');
+  check(q.includes('เก็บไว้ในเครื่องแล้ว') && (await badge.isVisible()), 'สัญญาณหลุด → "เก็บไว้ในเครื่องแล้ว" + แถบ "รอส่ง"', `สัญญาณหลุดแล้วไม่เข้าคิว: "${q}"`);
   await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-  await retry.click();
-  await stateOf(c2).filter({ hasText: 'เพิ่มแล้ว' }).waitFor({ timeout: 20000 }).catch(() => {});
-  const t2 = (await stateOf(c2).textContent()).trim();
-  check(t2.includes('เพิ่มแล้ว 1 รูป') && (await stateOf(c2).getAttribute('class')).includes('text-palm-700'), `กดส่งซ้ำสำเร็จ → "${t2}"`, `ส่งซ้ำไม่สำเร็จ: "${t2}"`);
-  check((await left()) === before - 1, 'ตัวนับคิวลดลง 1', 'ตัวนับคิวไม่ลด');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await badge.waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+  await page.goto(BASE + '/admin/photos');
+  check(!(await badge.isVisible()) && (await left()) === before - 1 && (await page.locator(`li[data-code="${c2}"]`).count()) === 0, 'สัญญาณกลับ → ส่งเอง · รัง ' + c2 + ' ได้รูปแล้ว (ตัวนับคิวลด 1)', 'ส่งเองไม่สำเร็จ (คิวเหลือ ' + (await left()) + ')');
 
   // ชุดเดิมส่งซ้ำพร้อมกัน (เน็ตหลุดหลังเซิร์ฟเวอร์ได้รับ) → บันทึกรูปเดียว
   const batch = crypto.randomUUID();

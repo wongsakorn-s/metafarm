@@ -1,5 +1,4 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
 import { auditLogs, productVariants, products } from '../db/schema.ts';
 import type { publishSchema, variantSchema } from '../lib/validation.ts';

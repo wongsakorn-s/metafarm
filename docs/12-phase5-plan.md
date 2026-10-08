@@ -1,6 +1,6 @@
 # Phase 5 — multiple users and hardening
 
-> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. **5.4 done** (2026-10-08): contact buttons LINE / Messenger / phone (replaces LINE notifications). Next: 5.5.
+> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. **5.4 done** (2026-10-08): contact buttons LINE / Messenger / phone (replaces LINE notifications). **5.5 done** (2026-10-08): outbox for hive records and photos, installable app. Phase 5 complete apart from the palm module.
 
 ## Work order
 
@@ -11,7 +11,7 @@
 | 5.3 | Optimistic concurrency (two people editing the same hive/order) | Needed once there is more than one user. |
 | ~~5.4~~ | ~~LINE notifications~~ | Dropped (2026-10-08): the owner talks to buyers on Facebook or by phone, so nobody would read them. |
 | 5.4 | Contact buttons: LINE · Messenger · phone | Public buttons were LINE-only; buyers actually use Facebook and phone. |
-| 5.5 | Offline mode for the field | Weak signal in the garden; large piece of work, last. |
+| 5.5 | "Saved even if the signal drops" (outbox) | Signal at the hives is slow and drops often (owner, 2026-10-08); records are made at the hive. |
 | — | Palm module | Scope still to be agreed with the owner. |
 
 ## 5.1 Roles (as built)
@@ -103,3 +103,33 @@ Decision (user, 2026-10-08): plain links that open a chat or a call. No LINE Off
   - `src/lib/contact.test.ts`
   - `check:forms` section 18 — Messenger primary, copy then open m.me, phone primary with LINE hidden, contact page order, unconvertible share link warning, settings restored
   - section 5 also scans Messenger links and copied text for sample prices
+
+## 5.5 Outbox for weak signal (as built)
+
+Owner's answers (2026-10-08):
+- signal at the hives is **slow and drops often** (not absent)
+- records are usually made at the hive, sometimes later at home
+- the owner uses **Android**; the admin uses **iPhone**
+
+So there is no offline page viewing and no service worker. Instead, saving goes through a local queue that behaves the same on both platforms.
+
+- **Hive record forms** (`data-outbox` on honey / queen cells / split / note / status):
+  - `src/scripts/outbox.ts` stores the submission in IndexedDB first, then sends it with `Accept: application/json` (15 s timeout). The hive page answers JSON.
+  - **Sent:** go to the result page as before (reloads when only the `#hash` differs).
+  - **Server rejects** (422): the item is dropped from the queue and the form is submitted natively, so the server shows field errors as usual.
+  - **Network fails / timeout / session expired:** the item stays queued. The form is cleared for the next record (date kept), and the user is told "เก็บไว้ในเครื่องแล้ว".
+  - **Storing on the device fails:** the user is told the truth ("ยังไม่ได้บันทึก"), and the form keeps its values.
+- **Photos** (hive media page, photo queue page) go through the same queue. Resized files are stored as ArrayBuffer, because WebKit cannot store Blob/File in IndexedDB reliably. The existing `batch` id prevents duplicates.
+- **Retry triggers:** page load, the `online` event, returning to the tab, and every 30 s while items remain. Items run in order and stop at the first network or session failure. Web Locks prevent two tabs sending at once. Re-sending is safe (`idem` / `batch`).
+  - Items belong to the user who made them, and are sent only while that user is logged in.
+  - Failed items (bad data) wait on **`/admin/outbox`** with the reason, plus buttons to send again, delete, or open the hive.
+  - A **"รอส่ง N"** badge sits above the bottom bar; it turns red when something needs action.
+  - Logging out with items pending shows a warning; the items stay on the device.
+- **Installable:** `public/manifest.webmanifest` and icons (192/512 from the brand logo), plus "add to home screen" instructions on the menu page (hidden when already installed). This matters for iPhone, which keeps site storage longer for installed apps.
+- **Not built:** offline page viewing, editing or adding hives offline, background sending after the app is closed (Android Background Sync). Revisit only if field use shows a need.
+- **Tests:**
+  - `src/scripts/outbox-core.test.ts`
+  - **`npm run check:offline`** (Chromium) and **`-- --webkit`** (iPhone engine) cover: 3 records offline → all sent once; reply lost after the server saved → no duplicate; >15 s slow → queued then one record; bad hive code online (field error) and offline (waits with reason, deletable); session expired → sent after login; photo offline → exactly one photo.
+  - WebKit simulates the dropped signal by aborting server requests, because Playwright's WebKit offline mode also blocks reading local files.
+  - `check:forms` section 4 and `check:mobile` field flow now expect queue behaviour.
+- **Found while building:** a toast covering the next form's button for 6 s would have swallowed the next tap. It is now `pointer-events-none`.

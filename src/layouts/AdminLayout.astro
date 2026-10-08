@@ -62,9 +62,14 @@ const sideMore = [
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    {/* ติดตั้งเป็นแอปบนหน้าจอโฮม (Phase 5.5) — iPhone เก็บข้อมูลในเครื่อง (คิวรอส่ง) ได้นานกว่าเมื่อติดตั้ง */}
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="MetaFarm" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>{title} · {site.name} หลังบ้าน</title>
   </head>
-  <body class="min-h-dvh pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-60">
+  <body class="min-h-dvh pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-60" data-user-id={user?.id} data-user-name={user?.name}>
     <a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
     {/* เมนูข้าง (คอม) */}
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-y-auto border-r border-line bg-surface p-4 md:flex">
@@ -107,6 +112,14 @@ const sideMore = [
       <slot />
     </main>
 
+    {/* คิวรอส่ง (Phase 5.5): แสดงเมื่อมีรายการที่ยังไม่ได้ส่งขึ้นระบบ — สคริปต์ scripts/outbox.ts อัปเดตเอง */}
+    <a href="/admin/outbox" hidden data-outbox-badge
+      class="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-1/2 z-30 inline-flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-honey-700 px-4 font-semibold text-white shadow-lg md:bottom-4 md:left-auto md:right-4 md:translate-x-0">
+      <Icon name="status" class="size-4" /><span data-outbox-text>รอส่ง</span>
+    </a>
+    <p id="outbox-toast" hidden role="status" aria-live="polite"
+      class="pointer-events-none fixed inset-x-3 bottom-[calc(8rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-2xl bg-ink/90 p-3 text-sm font-medium text-white shadow-lg md:bottom-20"></p>
+
     {/* แถบล่าง (มือถือ) */}
     <nav class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="เมนูหลัก">
       <ul class="grid grid-cols-5">
@@ -137,4 +150,6 @@ const sideMore = [
 <script>
   // ยืนยันก่อนลบ/เปลี่ยนสถานะ · กันกดซ้ำ · เลื่อนไปช่องที่กรอกผิด (ทุกหน้าหลังบ้าน)
   import '../scripts/admin-forms';
+  import { init as initOutbox } from '../scripts/outbox';
+  initOutbox();
 </script>

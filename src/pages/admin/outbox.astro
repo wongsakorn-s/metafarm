@@ -1,0 +1,115 @@
+---
+// คิวรอส่ง (Phase 5.5) — รายการที่บันทึกตอนสัญญาณไม่ดี เก็บอยู่ในเครื่องนี้ (IndexedDB) จนกว่าจะส่งขึ้นระบบได้
+// หน้านี้เป็นแค่โครง: รายการอ่านจากเครื่องด้วยสคริปต์ (เซิร์ฟเวอร์ไม่รู้ว่ามีอะไรค้างในเครื่อง)
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Icon from '../../components/Icon.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รอส่ง" active="more">
+  <p class="mb-4 max-w-2xl text-muted">รายการที่บันทึกตอนสัญญาณไม่ดี เก็บไว้ใน<strong class="text-ink">เครื่องนี้</strong> ระบบจะส่งขึ้นเองเมื่อสัญญาณกลับมา (ไม่ต้องบันทึกซ้ำ — ส่งซ้ำก็ไม่เกิดรายการซ้ำ)</p>
+
+  <div class="mb-4 flex flex-wrap items-center gap-3">
+    <button class="btn-primary" type="button" id="send-now"><Icon name="status" class="size-5" />ส่งตอนนี้</button>
+    <p class="text-sm text-muted" id="net" role="status" aria-live="polite"></p>
+  </div>
+
+  <div id="empty" class="flex max-w-xl flex-col items-center gap-3 rounded-3xl border border-dashed border-line bg-surface px-5 py-8 text-center" hidden>
+    <span class="grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="check" class="size-6" /></span>
+    <p class="font-semibold">ไม่มีรายการค้าง — ส่งขึ้นระบบครบแล้ว</p>
+  </div>
+  <ul id="list" class="max-w-2xl space-y-3" aria-live="polite"></ul>
+  <noscript><p class="text-sm text-muted">หน้านี้ต้องเปิด JavaScript</p></noscript>
+</AdminLayout>
+
+<script>
+  import { currentUser, flush, listItems, removeItem, retryItem } from '../../scripts/outbox';
+  import type { OutboxItem } from '../../scripts/outbox-core';
+
+  const list = document.getElementById('list')!;
+  const empty = document.getElementById('empty')!;
+  const net = document.getElementById('net')!;
+  const sendNow = document.getElementById('send-now') as HTMLButtonElement;
+  const urls: string[] = [];
+
+  const time = (iso: string) => new Date(iso).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const STATUS: Record<OutboxItem['status'], [string, string]> = {
+    pending: ['รอส่ง', 'bg-honey-100 text-honey-700'],
+    failed: ['ส่งไม่ผ่าน — ต้องแก้', 'bg-red-50 text-danger'],
+    session: ['รอล็อกอินใหม่', 'bg-red-50 text-danger'],
+  };
+
+  function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  async function render() {
+    urls.splice(0).forEach((u) => URL.revokeObjectURL(u));
+    const me = currentUser();
+    const items = await listItems().catch(() => [] as OutboxItem[]);
+    list.replaceChildren();
+    empty.hidden = items.length > 0;
+    sendNow.hidden = items.length === 0;
+    for (const it of items) {
+      const li = el('li', 'card flex gap-3');
+      li.dataset.outboxItem = it.id;
+      // รูป: แสดงรูปแรก
+      const file = it.fields.find((f) => f.length === 4 && f[0] === 'file');
+      if (file && file.length === 4) {
+        const u = URL.createObjectURL(new Blob([file[1]], { type: file[3] }));
+        urls.push(u);
+        const img = el('img', 'size-16 shrink-0 rounded-xl bg-palm-50 object-cover');
+        img.src = u;
+        img.alt = '';
+        li.appendChild(img);
+      }
+      const body = el('div', 'min-w-0 flex-1 space-y-1');
+      body.appendChild(el('p', 'font-semibold break-words', it.label));
+      const [label, tone] = STATUS[it.status];
+      const meta = el('p', 'flex flex-wrap items-center gap-2 text-sm text-muted');
+      meta.appendChild(el('span', `badge ${tone}`, label));
+      meta.appendChild(el('span', '', `บันทึกเมื่อ ${time(it.createdAt)}`));
+      if (it.userId !== me.id) meta.appendChild(el('span', 'text-danger', `ของ ${it.userName} — ส่งได้เมื่อ ${it.userName} ล็อกอิน`));
+      body.appendChild(meta);
+      if (it.error) body.appendChild(el('p', 'text-sm font-medium text-danger', it.error));
+      const actions = el('div', 'flex flex-wrap gap-2 pt-1');
+      const hive = /\/admin\/hives\/(A\d+)/.exec(it.url)?.[1];
+      if (hive) { const a = el('a', 'btn-ghost', `เปิดหน้ารัง ${hive}`); a.href = `/admin/hives/${hive}`; actions.appendChild(a); }
+      if (it.status === 'session') { const a = el('a', 'btn-primary', 'ล็อกอินใหม่'); a.href = `/admin/login?next=${encodeURIComponent('/admin/outbox')}`; actions.appendChild(a); }
+      if (it.status !== 'pending') {
+        const b = el('button', 'btn-ghost', 'ส่งอีกครั้ง');
+        b.type = 'button';
+        b.addEventListener('click', async () => { b.disabled = true; await retryItem(it.id); });
+        actions.appendChild(b);
+      }
+      const del = el('button', 'btn-ghost text-danger', 'ลบรายการนี้');
+      del.type = 'button';
+      del.addEventListener('click', async () => {
+        if (!confirm(`ลบ "${it.label}" ออกจากเครื่อง? รายการนี้ยังไม่ได้ส่งขึ้นระบบ — ลบแล้วจะหายไป`)) return;
+        await removeItem(it.id);
+      });
+      actions.appendChild(del);
+      body.appendChild(actions);
+      li.appendChild(body);
+      list.appendChild(li);
+    }
+  }
+
+  const showNet = () => (net.textContent = navigator.onLine ? '' : 'ตอนนี้ไม่มีสัญญาณ — จะส่งเมื่อสัญญาณกลับมา');
+  sendNow.addEventListener('click', async () => {
+    sendNow.disabled = true;
+    net.textContent = 'กำลังส่ง…';
+    await flush();
+    sendNow.disabled = false;
+    showNet();
+  });
+  window.addEventListener('outbox:change', () => void render());
+  window.addEventListener('online', showNet);
+  window.addEventListener('offline', showNet);
+  showNet();
+  void render();
+</script>

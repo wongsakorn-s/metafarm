@@ -23,7 +23,7 @@ const PROFILES = [
   ['iPhone SE รุ่นแรก (จอเล็กสุด 320×568)', devices['iPhone SE']],
 ];
 const PUBLIC = ['/', '/stingless-bee', '/honey', '/products', '/training', '/passport', '/passport/A25', '/contact'];
-const ADMIN = ['/admin', '/admin/lots', '/admin/reports', '/admin/users', '/admin/lots/new', '/admin/orders', '/admin/orders/new', '/admin/customers', '/admin/production', '/admin/quick', '/admin/more', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
+const ADMIN = ['/admin', '/admin/lots', '/admin/reports', '/admin/users', '/admin/outbox', '/admin/lots/new', '/admin/orders', '/admin/orders/new', '/admin/customers', '/admin/production', '/admin/quick', '/admin/more', '/admin/hives', '/admin/hives/A25', '/admin/hives/A25/edit', '/admin/hives/A25/media', '/admin/hives/new', '/admin/account', '/admin/readiness', '/admin/photos', '/admin/todo', '/admin/settings', '/admin/products'];
 
 /** ล็อกอินแบบที่ใช้จริงบนมือถือ: กรอกแล้วกด Enter (ไม่พึ่ง locator.tap ซึ่งค้างในโหมดจำลองจอแนวนอน) */
 async function login(page) {
@@ -185,19 +185,22 @@ if (FLOWS) {
   // 1) สัญญาณหลุดกลางทาง → ต้องมีข้อความภาษาไทยที่เข้าใจได้ (ไม่ใช่ "Failed to fetch") และรังยังอยู่ในคิว
   await net({ offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await pick(code);
-  const errText = await waitText(code, 'ยังไม่ได้ถูกส่ง', 90000);
-  errText ? ok(`สัญญาณหลุดระหว่างอัปโหลด → "${errText.trim()}"`) : fail('สัญญาณหลุดแล้วไม่มีข้อความผิดพลาดที่เข้าใจได้ให้ผู้ใช้เห็น');
-  errText && /fetch|TypeError|Load failed/i.test(errText) ? fail('ข้อความผิดพลาดยังเป็นศัพท์เทคนิคภาษาอังกฤษ') : ok('ข้อความผิดพลาดเป็นภาษาไทย ไม่มีศัพท์เทคนิค');
-  (await left()) === before ? ok('รังยังอยู่ในคิว (ไม่นับว่าสำเร็จทั้งที่ส่งไม่ถึง)') : fail('นับว่าสำเร็จทั้งที่สัญญาณหลุด');
+  // คิวรอส่ง (Phase 5.5): สัญญาณหลุด → รูปเก็บในเครื่อง พร้อมข้อความภาษาไทย · ยังไม่นับว่าสำเร็จ
+  const errText = await waitText(code, 'เก็บไว้ในเครื่องแล้ว', 90000);
+  errText ? ok(`สัญญาณหลุดระหว่างอัปโหลด → "${errText.trim()}"`) : fail('สัญญาณหลุดแล้วไม่บอกว่ารูปเก็บไว้ในเครื่อง');
+  errText && /fetch|TypeError|Load failed/i.test(errText) ? fail('ข้อความยังเป็นศัพท์เทคนิคภาษาอังกฤษ') : ok('ข้อความเป็นภาษาไทย ไม่มีศัพท์เทคนิค');
+  (await left()) === before ? ok('รังยังอยู่ในคิวถ่ายรูป (ไม่นับว่าสำเร็จทั้งที่ส่งไม่ถึง)') : fail('นับว่าสำเร็จทั้งที่ส่งไม่ถึง');
 
-  // 2) สัญญาณกลับมา (ยังช้า) → เลือกรูปใหม่ ส่งสำเร็จ
+  // 2) สัญญาณกลับมา (ยังช้า) → ระบบส่งรูปเดิมจากเครื่องเอง ไม่ต้องเลือก/ถ่ายใหม่
   await net(slow);
   const t0 = Date.now();
-  await pick(code);
-  const done = await waitText(code, 'เพิ่มแล้ว', 120000);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.locator('[data-outbox-badge]').waitFor({ state: 'hidden', timeout: 120000 }).catch(() => {});
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  done ? ok(`ลองใหม่สำเร็จบนเน็ตช้า + CPU ช้า 4 เท่า ภายใน ${secs} วินาที (รูปเดิม ${(origBytes / 1048576).toFixed(1)} MB) — "${done.trim()}"`) : fail('ลองใหม่ไม่สำเร็จภายใน 120 วินาที');
-  (await left()) === before - 1 ? ok(`ตัวนับในคิวลดลงเป็น ${before - 1}`) : fail(`ตัวนับในคิวไม่ลดลง (${before} → ${await left()})`);
+  await page.reload();
+  const sent = (await left()) === before - 1;
+  sent ? ok(`สัญญาณกลับ (เน็ตช้า + CPU ช้า 4 เท่า) → ส่งรูปเดิมเองภายใน ${secs} วินาที (รูปเดิม ${(origBytes / 1048576).toFixed(1)} MB)`) : fail(`ส่งเองไม่สำเร็จ (${secs} วินาที)`);
+  sent ? ok(`ตัวนับในคิวลดลงเป็น ${before - 1}`) : fail(`ตัวนับในคิวไม่ลดลง (${before} → ${await left()})`);
   await page.screenshot({ path: `${OUT}/photos-queue-after.png` });
 
   // 3) ล็อกอินหมดอายุกลางทาง (ล้างคุกกี้) → ต้องบอกให้ล็อกอินใหม่ ห้ามนับว่าสำเร็จ (เดิมจะเห็นหน้าล็อกอินตอบ 200 แล้วเข้าใจผิด)

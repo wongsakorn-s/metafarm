@@ -9,6 +9,7 @@ import { formatThaiDate, UNKNOWN } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
 import { isOwner, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
+import { jsonResult, wantsJson } from '../../../lib/http.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
 export const prerender = false;
@@ -25,6 +26,7 @@ const today = todayBangkok();
 let detail = await getHiveDetail(db, code);
 if (!detail) return new Response('ไม่พบรังนี้', { status: 404 });
 
+const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
 let errors: FieldErrors = {};
 let values: Record<string, string> = {};
 let openIntent = Astro.url.searchParams.get('do') ?? '';
@@ -51,6 +53,12 @@ if (Astro.request.method === 'POST') {
   else if (intent === 'status') res = await run(parseForm(statusSchema, form), (d) => changeStatus(db, user, hive, d));
   else if (intent === 'sale') res = await run(parseForm(saleSchema, form), (d) => updateSale(db, user, hive, d));
   else errors = { _: 'คำสั่งไม่ถูกต้อง' };
+  // คิวรอส่ง (scripts/outbox.ts) ขอผลเป็น JSON — ฟอร์มธรรมดาได้ redirect/หน้าเว็บตามเดิม
+  if (wantsJson(Astro.request)) {
+    if (res) return jsonResult({ ok: true, message: savedLabel[intent] ?? 'บันทึกแล้ว', redirect: res.headers.get('location') ?? `/admin/hives/${code}` });
+    const first = errors._ ?? Object.values(errors)[0];
+    return jsonResult({ ok: false, message: first ? `${hive.code}: ${first}` : 'ข้อมูลไม่ถูกต้อง', errors });
+  }
   if (res) return res;
 }
 
@@ -72,7 +80,6 @@ const fieldErrors = Object.keys(errors).filter((k) => k !== '_').length > 0;
 const idem = () => crypto.randomUUID();
 const noteLines = (hive.notes ?? '').split('\n').filter(Boolean);
 const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–');
-const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
 ---
 
 <AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title={`รัง ${hive.code}`} active="hives">
@@ -171,7 +178,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
       <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
-        <form method="post" class="mt-3 space-y-3">
+        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บน้ำหวาน`}>
           <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
           <div><label class="label" for="h-date">วันที่</label><input class="field" id="h-date" name="occurredOn" type="date" max={today} value={f.honey.v('occurredOn', today)} required />{f.honey.err('occurredOn') && <p class="error">{f.honey.err('occurredOn')}</p>}</div>
           <div class="grid grid-cols-2 gap-3">
@@ -185,7 +192,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
       <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
-        <form method="post" class="mt-3 space-y-3">
+        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บไข่นางพญา`}>
           <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
           <div><label class="label" for="q-date">วันที่</label><input class="field" id="q-date" name="occurredOn" type="date" max={today} value={f.queen.v('occurredOn', today)} required />{f.queen.err('occurredOn') && <p class="error">{f.queen.err('occurredOn')}</p>}</div>
           <div class="grid grid-cols-2 gap-3">
@@ -199,7 +206,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
       <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
-        <form method="post" class="mt-3 space-y-3">
+        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · แยกรัง`}>
           <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
           <div><label class="label" for="b-date">วันที่</label><input class="field" id="b-date" name="occurredOn" type="date" max={today} value={f.brood.v('occurredOn', today)} required />{f.brood.err('occurredOn') && <p class="error">{f.brood.err('occurredOn')}</p>}</div>
           <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น A148" value={f.brood.v('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}</div>
@@ -210,7 +217,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
 
       <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
-        <form method="post" class="mt-3 space-y-3">
+        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · หมายเหตุ`}>
           <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
           <div><label class="label" for="n-date">วันที่</label><input class="field" id="n-date" name="occurredOn" type="date" max={today} value={f.note.v('occurredOn', today)} required />{f.note.err('occurredOn') && <p class="error">{f.note.err('occurredOn')}</p>}</div>
           <div><label class="label" for="n-note">ข้อความ</label><textarea class="field" id="n-note" name="note" rows="3" maxlength="1000" required>{f.note.v('note')}</textarea>{f.note.err('note') && <p class="error">{f.note.err('note')}</p>}</div>
@@ -237,7 +244,7 @@ const savedLabel: Record<string, string> = { honey: 'บันทึกการ
       {targets.length > 0 && (
       <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="status" class="size-6 text-palm-700" />เปลี่ยนสถานะรัง</summary>
-        <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`}>
+        <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`} data-outbox={`${hive.code} · เปลี่ยนสถานะ`}>
           <input type="hidden" name="intent" value="status" /><input type="hidden" name="idem" value={f.status.v('idem') || idem()} />
           <div><label class="label" for="st-s">สถานะใหม่</label>
             <select class="field" id="st-s" name="status" required>

@@ -33,6 +33,7 @@
         "backup:prepare": "node scripts/prepare-restore.mjs",
         "check:forms": "node scripts/form-check.mjs",
         "check:staff": "node --no-warnings scripts/check-staff.mjs",
+        "check:offline": "node scripts/offline-check.mjs",
         "backup:media": "node scripts/backup-media.mjs"
     },
     "dependencies": {

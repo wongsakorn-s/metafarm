@@ -17,6 +17,7 @@ const groups = [
       { href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
       { href: '/admin/photos', icon: 'camera', label: 'คิวถ่ายรูปรัง', hint: 'รังที่ยังไม่มีรูปสมุดพก' },
       { href: '/admin/todo', icon: 'note', label: 'ข้อมูลที่ยังไม่ครบ (???)' },
+      { href: '/admin/outbox', icon: 'status', label: 'รอส่ง (บันทึกตอนสัญญาณไม่ดี)', hint: 'รายการที่ยังเก็บอยู่ในเครื่องนี้' },
     ],
   },
   ...(owner ? [] : [{ title: 'น้ำผึ้ง', items: [{ href: '/admin/lots', icon: 'honey', label: 'ล็อตน้ำผึ้ง', hint: 'สร้างล็อต บรรจุขวด พิมพ์ฉลาก' }] }]),
@@ -59,8 +60,22 @@ const groups = [
         </ul>
       </section>
     ))}
+    <section id="install" class="rounded-2xl border border-line bg-surface p-4" aria-labelledby="install-h">
+      <h2 id="install-h" class="font-semibold">ติดตั้งเป็นแอปบนหน้าจอโฮม</h2>
+      <p class="hint mb-2">เปิดได้เร็วจากไอคอน และรายการที่บันทึกตอนสัญญาณไม่ดีจะเก็บในเครื่องได้นานขึ้น (สำคัญกับ iPhone)</p>
+      <ul class="space-y-1 text-sm">
+        <li><strong>iPhone (Safari):</strong> กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรขึ้น) → "เพิ่มไปยังหน้าจอโฮม"</li>
+        <li><strong>Android (Chrome):</strong> กดเมนู ⋮ มุมขวาบน → "เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</li>
+      </ul>
+    </section>
     <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?">
       <button class="flex min-h-14 w-full items-center justify-center rounded-2xl border border-line bg-surface font-semibold text-danger active:bg-red-50" type="submit">ออกจากระบบ</button>
     </form>
   </div>
 </AdminLayout>
+
+<script>
+  // เปิดจากไอคอนบนหน้าจอโฮมอยู่แล้ว → ไม่ต้องแสดงวิธีติดตั้ง
+  const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone;
+  if (standalone) document.getElementById('install')?.remove();
+</script>

@@ -47,7 +47,7 @@ const report = (p, m) => { bad++; console.log(`FAIL ${p}  ${m}`); };
 const strip = (html) => html.replace(/<(\w+)[^>]*data-internal-notes[^>]*>[\s\S]*?<\/\1>/g, ' ');
 const textOf = (html) => norm(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' '));
 
-const pages = ['/admin', '/admin/hives', '/admin/hives?forSale=1', '/admin/hives?status=sold', '/admin/hives/new', '/admin/production', '/admin/quick', '/admin/photos', '/admin/todo', '/admin/more', '/admin/account', '/admin/lots', '/admin/lots/new',
+const pages = ['/admin', '/admin/outbox', '/admin/hives', '/admin/hives?forSale=1', '/admin/hives?status=sold', '/admin/hives/new', '/admin/production', '/admin/quick', '/admin/photos', '/admin/todo', '/admin/more', '/admin/account', '/admin/lots', '/admin/lots/new',
   ...hives.flatMap((h) => [`/admin/hives/${h.code}`, `/admin/hives/${h.code}/edit`]),
   ...lots.flatMap((l) => [`/admin/lots/${l.code}`, `/admin/lots/${l.code}/labels`])];
 for (const p of pages) {
