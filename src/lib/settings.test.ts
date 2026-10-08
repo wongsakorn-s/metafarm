@@ -88,12 +88,13 @@ describe('courseSchema', () => {
 });
 
 describe('heroSchema (รูปหัวหน้าแรก)', () => {
-  it('รับรหัสรัง (เติม A ให้ถ้าพิมพ์แค่เลข) หรือว่าง = ใช้โลโก้', async () => {
+  it('รับรหัสรังทุกชุดตัวอักษร หรือว่าง = ใช้โลโก้', async () => {
     const { heroSchema, parseSettingRows } = await import('./settings.ts');
     expect(heroSchema.parse({ heroHive: ' a25 ' }).heroHive).toBe('A25');
-    expect(heroSchema.parse({ heroHive: '25' }).heroHive).toBe('A25');
+    expect(heroSchema.parse({ heroHive: 'g-108' }).heroHive).toBe('G108');
+    expect(heroSchema.safeParse({ heroHive: '25' }).success).toBe(false);
     expect(heroSchema.parse({ heroHive: '' }).heroHive).toBe('');
-    expect(heroSchema.safeParse({ heroHive: 'B12' }).success).toBe(false);
+    expect(heroSchema.safeParse({ heroHive: 'B12' }).success).toBe(true);
     expect(parseSettingRows([]).heroHive).toBe('');
     expect(parseSettingRows([{ key: 'site.heroHive', value: 'A7' }]).heroHive).toBe('A7');
   });

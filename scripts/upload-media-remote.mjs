@@ -34,7 +34,7 @@ if (values.tree) {
 } else {
   for (const file of readdirSync(values.dir)) {
     const type = TYPES[extname(file).toLowerCase()];
-    const m = /^(A\d+)-\d+\./.exec(file);
+    const m = /^([A-Z]{1,3}\d+)-\d+\./.exec(file);
     if (type && m) jobs.push({ key: `hives/${m[1]}/${file}`, path: join(values.dir, file), type });
   }
 }

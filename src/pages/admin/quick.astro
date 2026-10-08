@@ -2,7 +2,8 @@
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { recentHiveCodes } from '../../server/hives.ts';
+import { codesByNumber, hivePrefixes, recentHiveCodes } from '../../server/hives.ts';
+import { bareNumber, normalizeHiveCode } from '../../lib/hive-code.ts';
 import { isOwner } from '../../lib/permissions.ts';
 
 // บันทึกด่วนในสวน: พิมพ์เลขรัง (เช่น 25) แล้วเลือกงาน → ไปที่ฟอร์มนั้นของรังทันที ไม่ต้องค้นในรายการ 150 รัง
@@ -21,16 +22,23 @@ type Action = keyof typeof ACTIONS;
 
 const sp = Astro.url.searchParams;
 const raw = (sp.get('code') ?? '').trim();
+// ชุดตัวอักษรของรหัสรัง (A, B, G …) — เลือกชุดแล้วพิมพ์แค่เลขด้วยแป้นตัวเลข · พิมพ์รหัสเต็ม (B12) ก็ได้
+const prefixes = await hivePrefixes(db);
+const prefix = (sp.get('prefix') ?? '').toUpperCase() || prefixes[0] || 'A';
+const act = (sp.get('do') ?? 'view') as Action;
 let error = '';
+let choices: string[] = [];
 if (raw) {
-  const num = raw.replace(/^a/i, '');
-  const act = (sp.get('do') ?? 'view') as Action;
-  if (!/^\d{1,5}$/.test(num)) error = 'พิมพ์เฉพาะเลขรัง เช่น 25 หรือ A25';
+  const n = bareNumber(raw);
+  const code = normalizeHiveCode(raw) ?? (n ? normalizeHiveCode(`${prefix}${n}`) : null);
+  if (!code) error = 'พิมพ์เลขรัง เช่น 25 หรือรหัสเต็ม เช่น B12';
   else {
-    const code = `A${Number(num)}`;
     const hive = await db.query.hives.findFirst({ where: (h, { eq }) => eq(h.code, code), columns: { code: true } });
-    if (!hive) error = `ไม่พบรัง ${code}`;
-    else return Astro.redirect((ACTIONS[act] ?? ACTIONS.view).to(code), 303);
+    if (hive) return Astro.redirect((ACTIONS[act] ?? ACTIONS.view).to(code), 303);
+    // ไม่เจอในชุดที่เลือก → เสนอรังเลขเดียวกันในชุดอื่น
+    choices = n ? await codesByNumber(db, n) : [];
+    if (choices.length === 1 && !normalizeHiveCode(raw)) return Astro.redirect((ACTIONS[act] ?? ACTIONS.view).to(choices[0]!), 303);
+    error = choices.length ? `ไม่พบรัง ${code} — หมายถึงรังไหน?` : `ไม่พบรัง ${code}`;
   }
 }
 const recent = await recentHiveCodes(db, 8);
@@ -41,12 +49,26 @@ const recent = await recentHiveCodes(db, 8);
     <div>
       <label class="label text-base" for="code">เลขรัง</label>
       <div class="flex items-stretch">
-        <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-canvas px-4 text-xl font-bold text-muted" aria-hidden="true">A</span>
-        <input class="field rounded-l-none text-2xl font-bold tracking-wide" id="code" name="code" inputmode="numeric" pattern="[Aa]?[0-9]{1,5}" autocomplete="off" enterkeyhint="go"
-          placeholder="25" value={raw.replace(/^a/i, '')} required autofocus aria-describedby={error ? 'code-err' : undefined} aria-invalid={error ? 'true' : undefined} />
+        {prefixes.length > 1 ? (
+          <>
+            <label class="sr-only" for="prefix">ชุดตัวอักษร</label>
+            <select id="prefix" name="prefix" class="min-w-16 rounded-l-xl border border-r-0 border-line bg-canvas px-3 text-xl font-bold text-ink">
+              {prefixes.map((p) => <option value={p} selected={p === prefix}>{p}</option>)}
+            </select>
+          </>
+        ) : (
+          <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-canvas px-4 text-xl font-bold text-muted" aria-hidden="true">{prefix}</span>
+        )}
+        <input class="field rounded-l-none text-2xl font-bold tracking-wide" id="code" name="code" inputmode="numeric" autocomplete="off" enterkeyhint="go"
+          placeholder="25" value={raw} required autofocus aria-describedby={error ? 'code-err' : 'code-hint'} aria-invalid={error ? 'true' : undefined} />
       </div>
       {error && <p id="code-err" class="error" role="alert">{error}</p>}
-      <p class="hint">ดูเลขที่ป้ายบนตัวรัง แล้วเลือกงานด้านล่าง</p>
+      {choices.length > 0 && (
+        <ul class="mt-2 flex flex-wrap gap-2">
+          {choices.map((c) => <li><a class="inline-flex min-h-11 min-w-16 items-center justify-center rounded-full border border-palm-600 bg-surface px-4 font-semibold text-palm-700" href={(ACTIONS[act] ?? ACTIONS.view).to(c)}>{c}</a></li>)}
+        </ul>
+      )}
+      <p id="code-hint" class="hint">ดูเลขที่ป้ายบนตัวรัง{prefixes.length > 1 ? ' เลือกตัวอักษรหน้าเลขก่อน' : ''} แล้วเลือกงานด้านล่าง</p>
     </div>
     <div class="grid grid-cols-2 gap-3">
       {(Object.entries(ACTIONS) as [Action, (typeof ACTIONS)[Action]][]).map(([k, a], i) => (

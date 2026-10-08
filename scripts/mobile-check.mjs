@@ -34,7 +34,7 @@ async function login(page) {
 }
 /** แตะด้วยนิ้วที่กึ่งกลางองค์ประกอบ (เลื่อนให้เห็นก่อน) */
 async function tapAt(page, selector) {
-  await page.locator(selector).first().evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await page.locator(selector).first().evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   const b = await page.locator(selector).first().boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
 }

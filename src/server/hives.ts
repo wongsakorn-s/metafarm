@@ -3,6 +3,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers, users } from '../db/schema.ts';
 import { isOwner, statusTargets } from '../lib/permissions.ts';
+import { suggestNextCode } from '../lib/hive-code.ts';
 import { CONFLICT_ERROR } from '../lib/concurrency.ts';
 import { auditIfChanged, type Saved } from './versioned.ts';
 import type { z } from 'zod';
@@ -16,7 +17,11 @@ export const PAGE_SIZE = 40;
 type Hive = typeof hives.$inferSelect;
 type Result = { ok: true } | { ok: false; error: string };
 
-const codeToId = (code: string) => Number(code.slice(1));
+// รหัสรัง = ตัวอักษร + เลข (A25, B12, G108) ไม่ผูกกับ id — ดู src/lib/hive-code.ts
+// เรียงแบบคนอ่าน: ตัวอักษรก่อน แล้วเลข (A2 < A10 < B1) · ใช้ชื่อตาราง hives ตรง ๆ (คิวรีตารางเดียวของ drizzle ตัดชื่อตาราง)
+const PREFIX = sql`rtrim(hives.code, '0123456789')`;
+const NUMBER = sql`cast(substr(hives.code, length(rtrim(hives.code, '0123456789')) + 1) as integer)`;
+export const byCode = (dir: 'asc' | 'desc' = 'asc'): SQL[] => (dir === 'asc' ? [asc(PREFIX), asc(NUMBER)] : [desc(PREFIX), desc(NUMBER)]);
 // คีย์กันบันทึกซ้ำ (กดสองครั้ง/ส่งซ้ำตอนเน็ตช้า) — ใส่ชนิดเหตุการณ์ด้วย เพื่อให้คีย์ของฟอร์มหนึ่งไม่ไปกลืนอีกฟอร์ม
 const idemKey = (user: SessionUser, type: string, idem?: string) => (idem ? `ui:${user.id}:${type}:${idem}` : null);
 /** ส่งซ้ำด้วยคีย์เดิม = บันทึกไปแล้ว → ตอบสำเร็จโดยไม่เขียนอะไรเพิ่ม (ไม่มี audit ซ้ำ ไม่เปลี่ยนสถานะซ้ำ) */
@@ -50,11 +55,12 @@ const hasUnknownNote = sql`${hives.notes} LIKE '%???%'`;
 const lastEventSql = sql`(select max(occurred_on) from hive_events e where e.hive_id = hives.id)`;
 function sortOrder(sort: HiveSort = 'new'): SQL[] {
   switch (sort) {
-    case 'old': return [asc(hives.id)];
+    // "รหัส ↓/↑" = เรียงตามรหัส (รหัสไม่ต้องเรียงตามลำดับที่เพิ่ม — นำเข้ารหัสเก่าทีหลังได้)
+    case 'old': return byCode('asc');
     // ค่าว่าง (ไม่เคยบันทึก/ไม่ทราบวันที่) ไปท้ายสุด
     case 'recent': return [sql`${lastEventSql} is null`, desc(lastEventSql), desc(hives.id)];
     case 'acquired': return [sql`${hives.acquiredOn} is null`, desc(hives.acquiredOn), desc(hives.id)];
-    default: return [desc(hives.id)];
+    default: return byCode('desc');
   }
 }
 
@@ -131,7 +137,7 @@ export async function getHiveDetail(db: Db, code: string) {
       .select({ code: hives.code, status: hives.status, acquiredOn: hives.acquiredOn, viaQueen: sql<boolean>`${hives.queenSourceHiveId} = ${hive.id}`, viaBrood: sql<boolean>`${hives.broodSourceHiveId} = ${hive.id}` })
       .from(hives)
       .where(or(eq(hives.queenSourceHiveId, hive.id), eq(hives.broodSourceHiveId, hive.id)))
-      .orderBy(asc(hives.id)),
+      .orderBy(...byCode()),
   ]);
 
   const totals = events.reduce(
@@ -175,8 +181,8 @@ export async function getDashboard(db: Db) {
 
 async function findTarget(db: Db, selfId: number, code?: string): Promise<{ id: number | null; error?: string }> {
   if (!code) return { id: null };
-  if (codeToId(code) === selfId) return { id: null, error: 'รังเป้าหมายต้องไม่ใช่รังเดียวกัน' };
   const t = await db.query.hives.findFirst({ where: eq(hives.code, code), columns: { id: true } });
+  if (t?.id === selfId) return { id: null, error: 'รังเป้าหมายต้องไม่ใช่รังเดียวกัน' };
   return t ? { id: t.id } : { id: null, error: `ไม่พบรัง ${code}` };
 }
 
@@ -350,7 +356,7 @@ export async function listHivesWithoutPhoto(db: Db, includeAll = false) {
     .select({ code: hives.code, status: hives.status, origin: hives.origin, originPlace: hives.originPlace, acquiredOn: hives.acquiredOn, acquiredOnPrecision: hives.acquiredOnPrecision, forSale: hives.forSale })
     .from(hives)
     .where(and(includeAll ? undefined : eq(hives.status, 'active'), sql`not exists (select 1 from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null)`))
-    .orderBy(asc(hives.id));
+    .orderBy(...byCode());
 }
 
 /** รังที่ยังมีข้อมูล ??? ค้างอยู่ พร้อมสิ่งที่ต้องใช้ตัดสินว่าหัวข้อไหนเติมแล้ว */
@@ -363,7 +369,7 @@ export async function listIncompleteHives(db: Db) {
     .leftJoin(queenSrc, eq(queenSrc.id, hives.queenSourceHiveId))
     .leftJoin(broodSrc, eq(broodSrc.id, hives.broodSourceHiveId))
     .where(hasUnknownNote)
-    .orderBy(asc(hives.id));
+    .orderBy(...byCode());
 }
 
 /** เติมเฉพาะข้อมูลที่รู้ (ช่องที่ไม่ส่งมาไม่ถูกแตะ) แล้วลบบรรทัด ??? ที่เติมแล้ว */
@@ -427,10 +433,22 @@ export async function recentHiveCodes(db: Db, limit = 8): Promise<string[]> {
   return rows.map((r) => r.code);
 }
 
-/** รหัสรังถัดไป (A148 …) */
+/** รหัสที่เสนอให้รังใหม่: ชุดตัวอักษรของรังที่เพิ่มล่าสุด ต่อจากเลขสูงสุดของชุดนั้น (แก้เองได้เสมอ) */
 export async function nextHiveCode(db: Db): Promise<string> {
-  const [{ max }] = await db.select({ max: sql<number>`coalesce(max(hives.id), 0)` }).from(hives);
-  return `A${max + 1}`;
+  const rows = await db.select({ code: hives.code }).from(hives).orderBy(desc(hives.id));
+  return suggestNextCode(rows[0]?.code ?? null, rows.map((r) => r.code));
+}
+
+/** ชุดตัวอักษรที่มีในทะเบียน (ใช้มากก่อน) เช่น ['A', 'B'] — หน้าบันทึกด่วนให้เลือกชุดแล้วพิมพ์แค่เลข */
+export async function hivePrefixes(db: Db): Promise<string[]> {
+  const rows = await db.select({ p: sql<string>`${PREFIX}`, n: sql<number>`count(*)` }).from(hives).groupBy(PREFIX).orderBy(desc(sql`count(*)`));
+  return rows.map((r) => r.p);
+}
+
+/** รังที่เลขตรงกัน ทุกชุดตัวอักษร (คนพิมพ์แค่ "12" → A12, B12) */
+export async function codesByNumber(db: Db, n: number): Promise<string[]> {
+  const rows = await db.select({ code: hives.code }).from(hives).where(sql`${NUMBER} = ${n}`).orderBy(...byCode());
+  return rows.map((r) => r.code);
 }
 
 export async function createHive(db: Db, user: SessionUser, d: z.output<typeof newHiveSchema>): Promise<Result & { code?: string }> {
@@ -446,17 +464,18 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
 
   // รหัสตั้งเอง (ตรงกับป้ายบนรัง) — ถ้าเท่ากับที่ระบบเสนอไว้ ถือว่าใช้รหัสอัตโนมัติ (ชนกับคนอื่นแล้วเลื่อนให้เอง)
   const manual = d.code && d.code !== d.suggested ? d.code : null;
-  const taken = async (c: string) => !!(await db.query.hives.findFirst({ where: or(eq(hives.code, c), eq(hives.id, codeToId(c))), columns: { id: true } }));
+  const taken = async (c: string) => !!(await db.query.hives.findFirst({ where: eq(hives.code, c), columns: { id: true } }));
   const takenError = async (c: string) => ({ ok: false as const, error: `รหัส ${c} มีในทะเบียนแล้ว (รังที่ล่ม/ขายแล้วก็ใช้ซ้ำไม่ได้ เพราะสมุดพกเดิมยังอ้างถึง) — รหัสว่างถัดไปคือ ${await nextHiveCode(db)}` });
   if (manual && (await taken(manual))) return takenError(manual);
 
   const acquiredOn = d.acquiredOn ?? null;
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = manual ?? (await nextHiveCode(db));
-    const id = codeToId(code);
+    // id ให้ฐานข้อมูลออกเอง (ไม่ผูกกับเลขในรหัส — B12 กับ A12 อยู่ร่วมกันได้) · คำสั่งอื่นใน batch อ้างถึงด้วยรหัส
+    const id = sql`(select id from hives where code = ${code})` as unknown as number;
     const stmts: BatchItem<'sqlite'>[] = [
       db.insert(hives).values({
-        id, code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
+        code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
         queenBornOn: d.queenBornOn, boxType: d.boxType, status: 'active', queenSourceHiveId: queen?.id, broodSourceHiveId: brood?.id,
         purchasePrice: isOwner(user) ? d.purchasePrice : null, notes: d.notes, createKey,
       }),

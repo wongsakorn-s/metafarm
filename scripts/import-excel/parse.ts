@@ -44,8 +44,9 @@ export interface Issue {
   message: string;
 }
 
-const HIVE_CODE = /^A\d+$/;
-const REF = '(A\\d+|AXX|XX)';
+// รหัสรัง: ตัวอักษร 1–3 ตัว + เลข (A25, B12, G108) — ดู src/lib/hive-code.ts
+const HIVE_CODE = /^[A-Z]{1,3}\d+$/;
+const REF = '([A-Z]{1,3}\\d+|AXX|XX)';
 const PHONE = /0\d{8,9}/;
 
 const num = (v: string | undefined): number | null => {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BOX_TYPES, HIVE_ORIGINS, HIVE_STATUSES } from '../db/schema.ts';
+import { HIVE_CODE_RE, normalizeHiveCode } from './hive-code.ts';
 
 /** วันนี้ตามเวลาไทย (YYYY-MM-DD) */
 export const todayBangkok = (now = new Date()) =>
@@ -14,7 +15,9 @@ const date = z.preprocess(
   z.iso.date('วันที่ไม่ถูกต้อง').refine((d) => d <= todayBangkok(), 'วันที่ต้องไม่เกินวันนี้'),
 );
 const int = (max: number) => z.preprocess(blank, z.coerce.number('ต้องเป็นตัวเลข').int('ต้องเป็นจำนวนเต็ม').min(0, 'ต้องไม่ติดลบ').max(max, `ต้องไม่เกิน ${max.toLocaleString()}`));
-const hiveCode = z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase() : v), z.string().regex(/^A\d{1,5}$/, 'รหัสรังต้องเป็นรูปแบบ A123'));
+// รหัสรัง: ตัวอักษร + เลข (A25, B12, G108) — แปลงด้วย normalizeHiveCode (ตัวเล็ก/ขีด/0 นำหน้า) · ดู src/lib/hive-code.ts
+const CODE_MSG = 'รหัสรังเป็นตัวอักษรอังกฤษตามด้วยเลข เช่น A25, B12, G108';
+const hiveCode = z.preprocess((v) => (typeof v === 'string' ? (normalizeHiveCode(v) ?? v.trim()) : v), z.string().regex(HIVE_CODE_RE, CODE_MSG));
 const note = opt(z.string().max(1000, 'ยาวเกิน 1,000 ตัวอักษร'));
 const idem = opt(z.string().min(8).max(64));
 
@@ -59,13 +62,10 @@ export const saleSchema = z
   .object({ forSale: z.preprocess((v) => v === 'on' || v === '1', z.boolean()), salePrice: opt(int(1_000_000)) })
   .refine((d) => !d.forSale || (d.salePrice ?? 0) > 0, { message: 'ตั้งขายต้องใส่ราคา', path: ['salePrice'] });
 
-/**
- * รหัสรังที่ตั้งเอง (ตรงกับป้ายบนตัวรัง): A + เลข 1–5 หลัก — พิมพ์แค่เลขก็ได้ · ตัดเลข 0 นำหน้า (A025 → A25)
- * รูปแบบนี้ตายตัว เพราะ id ของรัง = เลขในรหัส และลิงก์สมุดพก/QR/ทุกหน้าใช้รูปแบบ A123
- */
+/** รหัสรังที่ตั้งเอง (ตรงกับป้ายบนตัวรัง) — ต้องมีตัวอักษรนำหน้า (พิมพ์แค่เลขแยก A12 กับ B12 ไม่ได้) */
 const newHiveCode = z.preprocess(
-  (v) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/^(?=\d)/, 'A').replace(/^A0+(?=\d)/, 'A') : v),
-  z.string().regex(/^A[1-9]\d{0,4}$/, 'รหัสรังเป็น A ตามด้วยเลข เช่น A150 (พิมพ์แค่ 150 ก็ได้)'),
+  (v) => (typeof v === 'string' ? (normalizeHiveCode(v) ?? v.trim()) : v),
+  z.string().regex(HIVE_CODE_RE, `${CODE_MSG} (ใส่ตัวอักษรนำหน้าด้วย)`),
 );
 
 export const newHiveSchema = z.object({

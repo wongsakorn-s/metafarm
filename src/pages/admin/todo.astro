@@ -1,4 +1,5 @@
 ---
+import { isHiveCode, normalizeHiveCode } from '../../lib/hive-code.ts';
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
@@ -24,9 +25,9 @@ const saved = Astro.url.searchParams.get('saved');
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const code = String(form.get('code') ?? '').toUpperCase();
+  const code = normalizeHiveCode(String(form.get('code') ?? '')) ?? '';
   const intent = String(form.get('intent') ?? '');
-  const detail = /^A\d{1,5}$/.test(code) ? await getHiveDetail(db, code) : null;
+  const detail = code ? await getHiveDetail(db, code) : null;
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   errorCode = code;
   if (!detail) error = 'ไม่พบรังนี้';

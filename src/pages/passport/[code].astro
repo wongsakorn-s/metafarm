@@ -1,4 +1,5 @@
 ---
+import { isHiveCode, normalizeHiveCode } from '../../lib/hive-code.ts';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
@@ -13,10 +14,10 @@ import { breadcrumbLd } from '../../lib/seo.ts';
 
 export const prerender = false;
 
-const code = (Astro.params.code ?? '').toUpperCase();
+const code = normalizeHiveCode(Astro.params.code) ?? (Astro.params.code ?? '').toUpperCase();
 // /passport/a25 → /passport/A25 (URL เดียวต่อหนึ่งรัง ไม่ให้ Google เห็นหน้าซ้ำ)
-if (/^A\d{1,5}$/.test(code) && Astro.params.code !== code) return Astro.redirect(`/passport/${code}`, 301);
-const hive = /^A\d{1,5}$/.test(code) ? await getPublicHive(getDb(), code) : null;
+if (isHiveCode(code) && Astro.params.code !== code) return Astro.redirect(`/passport/${code}`, 301);
+const hive = isHiveCode(code) ? await getPublicHive(getDb(), code) : null;
 
 if (!hive) {
   Astro.response.status = 404;

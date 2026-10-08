@@ -112,16 +112,16 @@ console.log(`\n2) เปลี่ยนสถานะรัง ${HIVE}: ต้�
 console.log('\n3) เพิ่มรัง: ส่งซ้ำพร้อมกันด้วยคีย์เดิม → ได้รังเดียว');
 {
   await page.goto(BASE + '/admin/hives/new');
-  const next = (await page.textContent('button:has-text("สร้างรัง")')).match(/A\d+/)[0];
+  const next = (await page.textContent('button:has-text("สร้างรัง")')).match(/[A-Z]{1,3}\d+/)[0];
   const fields = await page.$eval('form:has([name=origin])', (f) => Object.fromEntries([...new FormData(f)].filter(([, v]) => typeof v === 'string')));
   fields.origin = 'split';
   fields.notes = 'form-check: รังทดสอบ (ลบได้)';
   const [r1, r2] = await Promise.all([post('/admin/hives/new', fields), post('/admin/hives/new', fields)]);
-  const codes = [r1.url, r2.url].map((u) => u.match(/hives\/(A\d+)/)?.[1]);
+  const codes = [r1.url, r2.url].map((u) => u.match(/hives\/([A-Z]{1,3}\d+)/)?.[1]);
   check(codes[0] === next && codes[1] === next, `ทั้งสองคำขอได้รัง ${next} เดียวกัน`, `ได้รัง ${codes.join(' / ')} (คาด ${next} ทั้งคู่)`);
   await page.goto(BASE + '/admin/hives/new');
-  const after = (await page.textContent('button:has-text("สร้างรัง")')).match(/A\d+/)[0];
-  check(after === `A${Number(next.slice(1)) + 1}`, `รังถัดไปเป็น ${after} (สร้างเพิ่มแค่ 1 รัง)`, `รังถัดไปเป็น ${after} — สร้างซ้ำ`);
+  const after = (await page.textContent('button:has-text("สร้างรัง")')).match(/[A-Z]{1,3}\d+/)[0];
+  check(after === next.replace(/\d+$/, (d) => String(Number(d) + 1)), `รังถัดไปเป็น ${after} (สร้างเพิ่มแค่ 1 รัง)`, `รังถัดไปเป็น ${after} — สร้างซ้ำ`);
 }
 
 console.log('\n4) คิวถ่ายรูป: ผลจริงจากเซิร์ฟเวอร์ / สัญญาณหลุดแล้วส่งรูปเดิมซ้ำ / ไม่บันทึกซ้ำ');
@@ -851,44 +851,62 @@ console.log('\n19) รูปหัวหน้าแรก: เจ้าขอ�
     if (r.includes('/img/hives/')) { code = c; break; }
   }
   const home = async () => page.evaluate(async () => (await fetch('/?t=' + Date.now(), { credentials: 'omit' })).text());
-  const r1 = await post('/admin/settings', { intent: 'hero', heroHive: code.slice(1) });
+  const r1 = await post('/admin/settings', { intent: 'hero', heroHive: code.toLowerCase() });
   const h1 = await home();
   const r2 = await page.evaluate(async () => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', 'A99999'); return (await fetch('/admin/settings', { method: 'POST', body: fd })).text(); });
   check(code && h1.includes('alt="รังชันโรงขนเงิน ' + code) && h1.includes('/passport/' + code) && r2.includes('ยังไม่มีรูปสมุดพก'),
-    'เลือกรัง ' + code + ' (พิมพ์แค่เลข) → หน้าแรกใช้รูปสมุดพกรังนั้น · รังที่ไม่มีรูป → ปฏิเสธ', 'รูปหน้าแรกไม่ถูก (' + code + ', ' + r1.status + ')');
+    'เลือกรัง ' + code + ' (พิมพ์ตัวเล็ก) → หน้าแรกใช้รูปสมุดพกรังนั้น · รังที่ไม่มีรูป → ปฏิเสธ', 'รูปหน้าแรกไม่ถูก (' + code + ', ' + r1.status + ')');
   await post('/admin/settings', { intent: 'hero', heroHive: '' });
   const h2 = await home();
   check(h2.includes('/brand/logo-round.webp') && !h2.includes('alt="รังชันโรงขนเงิน'), 'เว้นว่าง → หน้าแรกกลับไปใช้โลโก้', 'เว้นว่างแล้วยังใช้รูปรัง');
   if (before) await post('/admin/settings', { intent: 'hero', heroHive: before });
 }
 
-console.log('\n20) เพิ่มรังด้วยรหัสที่ตั้งเอง: ตรงกับป้ายบนรัง · รหัสซ้ำ = ปฏิเสธพร้อมบอกรหัสว่าง');
+console.log('\n20) รหัสรังตั้งเอง: ตัวอักษรอะไรก็ได้ + เลข (B12, G108) ไม่ต้องเรียงลำดับ · ซ้ำ = ปฏิเสธ · บันทึกด่วนเลือกชุดได้');
 {
-  await page.goto(BASE + '/admin/hives/new');
-  const suggested = await page.inputValue('input[name=suggested]');
-  const want = 'A' + (Number(suggested.slice(1)) + 500 + Math.floor(Math.random() * 300));
-  // พิมพ์แค่เลข มี 0 นำหน้า → ปุ่มบอกรหัสที่จะสร้าง
-  await page.fill('#code', '0' + want.slice(1));
-  const btn = (await page.textContent('#create-btn'))?.replace(/\s+/g, ' ').trim();
-  await page.selectOption('#origin', 'split');
-  await page.fill('#notes', 'form-check: รหัสตั้งเอง (ลบได้)');
-  await Promise.all([page.waitForURL(/saved=created/), page.click('#create-btn')]);
-  const made = page.url().match(/hives\/(A\d+)/)?.[1];
-  check(btn === 'สร้างรัง ' + want && made === want, 'พิมพ์ "0' + want.slice(1) + '" → ปุ่มบอก "สร้างรัง ' + want + '" → ได้รัง ' + want, 'ได้รัง ' + made + ' (คาด ' + want + ', ปุ่ม "' + btn + '")');
-  // รหัสที่มีแล้ว (แม้เป็นรังเก่า) → ปฏิเสธ ข้อมูลที่กรอกยังอยู่ และบอกรหัสว่างถัดไป
-  await page.goto(BASE + '/admin/hives/new');
-  await page.fill('#code', want.slice(1));
-  await page.selectOption('#origin', 'split');
-  await page.fill('#notes', 'ยังอยู่ไหม');
-  await Promise.all([page.waitForLoadState('load'), page.click('#create-btn')]);
+  const n = 9000 + Math.floor(Math.random() * 900); // เลขที่ไม่มีในข้อมูลจริง
+  const create = async (typed, notes = 'form-check: รหัสตั้งเอง (ลบได้)') => {
+    await page.goto(BASE + '/admin/hives/new');
+    await page.fill('#code', typed);
+    const btn = (await page.textContent('#create-btn'))?.replace(/\s+/g, ' ').trim();
+    await page.selectOption('#origin', 'split');
+    await page.fill('#notes', notes);
+    await Promise.all([page.waitForLoadState('load'), page.click('#create-btn')]);
+    return { btn, made: page.url().match(/hives\/([A-Z]{1,3}\d+)\?saved=created/)?.[1] };
+  };
+  // ตัวเล็ก + ขีด + 0 นำหน้า → รหัสมาตรฐาน · ชุด B และ G เลขเดียวกันอยู่ร่วมกันได้
+  const b = await create('b-0' + n);
+  const g = await create('g' + n);
+  check(b.btn === 'สร้างรัง B' + n && b.made === 'B' + n && g.made === 'G' + n, 'พิมพ์ "b-0' + n + '" → ได้ B' + n + ' · และ G' + n + ' (เลขเดียวกันคนละชุด) อยู่ร่วมกันได้', 'สร้างรหัสตั้งเองไม่ถูก (' + JSON.stringify([b, g]) + ')');
+  // รหัสเก่า (เลขน้อยกว่ารังล่าสุด) ได้ — ไม่ต้องเรียงลำดับ
+  const old = await create('G' + (n - 8000));
+  check(old.made === 'G' + (n - 8000), 'นำเข้ารหัสเก่าเลขน้อยกว่า (G' + (n - 8000) + ') ได้ ไม่ต้องเรียงลำดับ', 'สร้างรหัสเลขน้อยไม่ได้: ' + JSON.stringify(old));
+  // ซ้ำ = ปฏิเสธ ข้อมูลยังอยู่ · เลขล้วน = ให้ใส่ตัวอักษร
+  const dup = await create('B' + n, 'ยังอยู่ไหม');
   const alert = (await page.locator('[role=alert]').first().textContent().catch(() => '')) ?? '';
-  check(alert.includes('รหัส ' + want + ' มีในทะเบียนแล้ว') && alert.includes('รหัสว่างถัดไปคือ A') && (await page.inputValue('#notes')) === 'ยังอยู่ไหม',
-    'รหัสซ้ำ → "' + alert.trim().slice(0, 60) + '…" ข้อมูลที่กรอกยังอยู่', 'รหัสซ้ำไม่ถูกปฏิเสธ: ' + alert);
-  // ไม่แก้รหัสที่ระบบเสนอ = อัตโนมัติ (รหัสถัดไปเลื่อนตามรหัสสูงสุด)
+  const kept = await page.inputValue('#notes');
+  await page.goto(BASE + '/admin/hives/new');
+  await page.fill('#code', String(n + 1));
+  await page.selectOption('#origin', 'split');
+  await page.evaluate(() => document.getElementById('code').removeAttribute('pattern')); // ข้ามการตรวจของเบราว์เซอร์ ให้เห็นข้อความจากเซิร์ฟเวอร์
+  await Promise.all([page.waitForLoadState('load'), page.click('#create-btn')]);
+  const bare = (await page.locator('.error').first().textContent().catch(() => '')) ?? '';
+  check(!dup.made && alert.includes('รหัส B' + n + ' มีในทะเบียนแล้ว') && kept === 'ยังอยู่ไหม' && bare.includes('ใส่ตัวอักษรนำหน้า'),
+    'รหัสซ้ำ → ปฏิเสธ ข้อมูลที่กรอกยังอยู่ · พิมพ์แค่เลข → ให้ใส่ตัวอักษรนำหน้า', 'ไม่ปฏิเสธรหัสซ้ำ/เลขล้วน (' + alert.slice(0, 50) + ' | ' + bare + ')');
+  // รหัสที่เสนอ = ชุดของรังที่เพิ่มล่าสุด ต่อจากเลขสูงสุดของชุดนั้น
   await page.goto(BASE + '/admin/hives/new');
   const next = await page.inputValue('input[name=suggested]');
-  check(next === 'A' + (Number(want.slice(1)) + 1), 'รหัสที่ระบบเสนอครั้งถัดไป = ' + next + ' (ต่อจากรหัสสูงสุด)', 'รหัสที่เสนอไม่ถูก: ' + next);
-  console.log('   ℹ️ รังทดสอบ: ' + want);
+  check(/^G\d+$/.test(next) && Number(next.slice(1)) > n, 'รหัสที่เสนอครั้งถัดไป = ' + next + ' (ชุดของรังล่าสุด ต่อจากเลขสูงสุดของชุด)', 'รหัสที่เสนอไม่ถูก: ' + next);
+  // บันทึกด่วน: พิมพ์แค่เลขที่มีหลายชุด → ให้เลือกรัง
+  await page.goto(BASE + '/admin/quick?prefix=A&do=note&code=' + n);
+  const choices = await page.$$eval('a[href*="?do=note"]', (as) => as.map((a) => a.textContent.trim()));
+  await page.goto(BASE + '/admin/quick?prefix=G&do=note&code=' + n);
+  const direct = page.url();
+  check(choices.join(',') === 'B' + n + ',G' + n && direct.includes('/admin/hives/G' + n), 'บันทึกด่วน: เลข ' + n + ' ไม่มีในชุด A → เสนอ B' + n + ', G' + n + ' · เลือกชุด G → เปิด G' + n + ' ทันที', 'บันทึกด่วนไม่ถูก (' + choices + ' / ' + direct + ')');
+  // สมุดพก: เปิดด้วยตัวเล็กได้ (เปลี่ยนเป็นตัวใหญ่ให้)
+  const pub = await page.evaluate(async (c) => { const r = await fetch('/passport/' + c, { credentials: 'omit', redirect: 'follow' }); return r.url; }, 'g' + n);
+  check(pub.endsWith('/passport/G' + n), 'สมุดพก /passport/g' + n + ' → /passport/G' + n, 'สมุดพกตัวเล็กไม่ redirect: ' + pub);
+  console.log('   ℹ️ รังทดสอบ: B' + n + ', G' + n + ', G' + (n - 8000));
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

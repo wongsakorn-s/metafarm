@@ -1,4 +1,5 @@
 ---
+import { isHiveCode, normalizeHiveCode } from '../../../lib/hive-code.ts';
 import Icon from '../../../components/Icon.astro';
 import Val from '../../../components/Val.astro';
 import type { z } from 'zod';
@@ -15,8 +16,9 @@ import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellS
 
 export const prerender = false;
 
-const code = (Astro.params.code ?? '').toUpperCase();
-if (!/^A\d{1,5}$/.test(code)) return new Response(null, { status: 404 });
+// รหัสรัง: ตัวอักษร + เลข (A25, B12, G108) — พิมพ์ตัวเล็กใน URL ก็เปิดได้
+const code = normalizeHiveCode(Astro.params.code) ?? '';
+if (!code) return new Response(null, { status: 404 });
 
 const db = getDb();
 const user = Astro.locals.user!;

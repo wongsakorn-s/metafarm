@@ -7,6 +7,7 @@ import { lotCode, lotPrefix, maxBottles, nextLotSeq, pickLot, remainingMl, type 
 import { isOwner } from '../lib/permissions.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
+import { byCode } from './hives.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const touch = { updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` };
@@ -56,7 +57,7 @@ export async function getLot(db: Db, code: string) {
   const [sources, bottled] = await Promise.all([
     db.select({ occurredOn: hiveEvents.occurredOn, ml: hiveEvents.honeyMl, code: hives.code }).from(lotSources)
       .innerJoin(hiveEvents, eq(hiveEvents.id, lotSources.eventId)).innerJoin(hives, eq(hives.id, hiveEvents.hiveId))
-      .where(eq(lotSources.lotId, lot.id)).orderBy(asc(hiveEvents.occurredOn), asc(hives.id)),
+      .where(eq(lotSources.lotId, lot.id)).orderBy(asc(hiveEvents.occurredOn), ...byCode()),
     db.select({ id: bottlings.id, qty: bottlings.qty, bottledOn: bottlings.bottledOn, unitCost: bottlings.unitCost, variantId: bottlings.variantId, sizeMl: productVariants.sizeMl, label: productVariants.label, product: products.name, sold: soldSql(lot.id, bottlings.variantId) })
       .from(bottlings).innerJoin(productVariants, eq(productVariants.id, bottlings.variantId)).innerJoin(products, eq(products.id, productVariants.productId))
       .where(eq(bottlings.lotId, lot.id)).orderBy(asc(bottlings.bottledOn), asc(bottlings.id)),

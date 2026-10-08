@@ -27,7 +27,10 @@ describe('honeyHarvestSchema', () => {
 describe('queenCell / brood split', () => {
   it('รหัสรังเป้าหมายแปลงเป็นตัวพิมพ์ใหญ่และตรวจรูปแบบ', () => {
     expect(parseForm(queenCellSchema, form({ occurredOn: today, queenCells: '2', targetCode: ' a12 ' }))).toMatchObject({ ok: true, data: { targetCode: 'A12', queenCells: 2 } });
-    expect(parseForm(broodSplitSchema, form({ occurredOn: today, targetCode: 'B1' })).ok).toBe(false);
+    // ตัวอักษรอื่นได้ (B1, G108) · เลขล้วน/ผิดรูปแบบไม่ได้
+    expect(parseForm(broodSplitSchema, form({ occurredOn: today, targetCode: 'b-01' }))).toMatchObject({ ok: true, data: { targetCode: 'B1' } });
+    expect(parseForm(broodSplitSchema, form({ occurredOn: today, targetCode: '12' })).ok).toBe(false);
+    expect(parseForm(broodSplitSchema, form({ occurredOn: today, targetCode: 'A12B' })).ok).toBe(false);
     expect(parseForm(broodSplitSchema, form({ occurredOn: today })).ok).toBe(true);
   });
   it('จำนวนไข่นางพญาต้อง ≥ 1', () => {
@@ -42,7 +45,8 @@ describe('editHiveSchema', () => {
     expect(r).toMatchObject({ ok: true, data: { queenBornOn: undefined, purchasePrice: 700, queenSourceCode: 'A55', notes: undefined } });
   });
   it('รหัสรังผิดรูปแบบ วันที่อนาคต ราคาติดลบ ถูกปฏิเสธ', () => {
-    expect(parseForm(editHiveSchema, form({ ...ok, queenSourceCode: 'X1' })).ok).toBe(false);
+    expect(parseForm(editHiveSchema, form({ ...ok, queenSourceCode: 'X' })).ok).toBe(false);
+    expect(parseForm(editHiveSchema, form({ ...ok, queenSourceCode: 'ABCD1' })).ok).toBe(false);
     expect(parseForm(editHiveSchema, form({ ...ok, queenBornOn: '2999-01-01' })).ok).toBe(false);
     expect(parseForm(editHiveSchema, form({ ...ok, purchasePrice: '-1' })).ok).toBe(false);
     expect(parseForm(editHiveSchema, form({ ...ok, origin: 'alien' })).ok).toBe(false);
@@ -89,14 +93,15 @@ describe('newHiveSchema: รหัสรังตั้งเอง', () => {
     const r = newHiveSchema.safeParse({ ...base, code: c });
     return r.success ? r.data.code : 'ERR';
   };
-  it('พิมพ์แค่เลข / ตัวเล็ก / เลข 0 นำหน้า → A + เลข', () => {
-    expect(code('150')).toBe('A150');
+  it('ตัวเล็ก / ขีด / เลข 0 นำหน้า → รหัสมาตรฐาน · ตัวอักษรอื่นได้', () => {
     expect(code('a150')).toBe('A150');
+    expect(code('g-0108')).toBe('G108');
+    expect(code('B12')).toBe('B12');
     expect(code(' A0150 ')).toBe('A150');
     expect(code('')).toBeUndefined();
   });
-  it('รูปแบบอื่นไม่รับ (id ของรัง = เลขในรหัส)', () => {
-    expect(code('B12')).toBe('ERR');
+  it('เลขล้วน (แยก A12/B12 ไม่ได้) และรูปแบบอื่นไม่รับ', () => {
+    expect(code('150')).toBe('ERR');
     expect(code('A0')).toBe('ERR');
     expect(code('A123456')).toBe('ERR');
     expect(code('A12x')).toBe('ERR');

@@ -8,6 +8,7 @@ import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
+import { byCode } from './hives.ts';
 
 export const PUBLIC_EVENT_TYPES = ['honey_harvest', 'queen_cell_taken', 'brood_split'] as const;
 
@@ -82,7 +83,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
       .select({ code: hives.code, viaQueen: sql<boolean>`${hives.queenSourceHiveId} = ${row.id}`, viaBrood: sql<boolean>`${hives.broodSourceHiveId} = ${row.id}` })
       .from(hives)
       .where(or(eq(hives.queenSourceHiveId, row.id), eq(hives.broodSourceHiveId, row.id)))
-      .orderBy(asc(hives.id)),
+      .orderBy(...byCode()),
     db
       .select({
         type: hiveEvents.type,
@@ -282,7 +283,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
 /** รายการ URL สาธารณะที่ให้ search engine เก็บได้ (sitemap) — คืนเฉพาะรหัสรัง/slug ไม่มีข้อมูลอื่น */
 export async function getSitemapData(db: Db) {
   const [allHives, sale, prods] = await Promise.all([
-    db.select({ code: hives.code }).from(hives).orderBy(asc(hives.id)),
+    db.select({ code: hives.code }).from(hives).orderBy(...byCode()),
     getSaleHives(db),
     getPublicProducts(db),
   ]);
@@ -317,11 +318,17 @@ export async function getHeroPhoto(db: Db, code: string): Promise<{ key: string;
   return r?.key ? { key: r.key, code: r.code } : null;
 }
 
-/** ค้นหารหัสรัง (ค้นแบบตรงกับรหัส/ขึ้นต้นด้วย) — คืนเฉพาะรหัส */
+/**
+ * ค้นหารหัสรัง — คืนเฉพาะรหัส
+ * พิมพ์แค่เลข ("12") = รังเลข 12 ทุกชุดตัวอักษร (A12, B12) · อย่างอื่น = รหัสที่ขึ้นต้นด้วยคำค้น
+ */
 export async function searchHiveCodes(db: Db, q: string, limit = 12): Promise<string[]> {
-  const term = q.replace(/[%_\\]/g, '').trim().toUpperCase();
+  const term = q.replace(/[%_\\\s-]/g, '').toUpperCase();
   if (!term) return [];
-  const rows = await db.select({ code: hives.code }).from(hives).where(like(hives.code, `${term}%`)).orderBy(asc(hives.id)).limit(limit);
+  const where = /^\d{1,5}$/.test(term)
+    ? sql`cast(substr(hives.code, length(rtrim(hives.code, '0123456789')) + 1) as integer) = ${Number(term)}`
+    : like(hives.code, `${term}%`);
+  const rows = await db.select({ code: hives.code }).from(hives).where(where).orderBy(...byCode()).limit(limit);
   return rows.map((r) => r.code);
 }
 
@@ -356,6 +363,6 @@ export async function getPublicLot(db: Db, code: string): Promise<PublicLot | nu
   if (!lot) return null;
   const rows = await db.selectDistinct({ code: hives.code, id: hives.id }).from(lotSources)
     .innerJoin(hiveEvents, eq(hiveEvents.id, lotSources.eventId)).innerJoin(hives, eq(hives.id, hiveEvents.hiveId))
-    .where(eq(lotSources.lotId, lot.id)).orderBy(asc(hives.id));
+    .where(eq(lotSources.lotId, lot.id)).orderBy(...byCode());
   return { code: lot.code, harvestedFrom: lot.harvestedFrom, harvestedTo: lot.harvestedTo, hives: rows.map((r) => r.code) };
 }

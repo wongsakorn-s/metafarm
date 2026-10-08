@@ -19,7 +19,7 @@ try {
   const wanted = new Set<string>();
   for (const file of readdirSync(values.dir)) {
     const type = TYPES[extname(file).toLowerCase()];
-    const m = /^(A\d+)-\d+\./.exec(file);
+    const m = /^([A-Z]{1,3}\d+)-\d+\./.exec(file);
     if (!type || !m) { bad++; continue; }
     const key = `hives/${m[1]}/${file}`;
     wanted.add(key);

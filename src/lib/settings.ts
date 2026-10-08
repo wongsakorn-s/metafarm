@@ -1,6 +1,7 @@
 // การตั้งค่าที่เจ้าของฟาร์มแก้เองได้จากหลังบ้าน (ช่องทางติดต่อ, ราคา/ระยะเวลาหลักสูตรอบรม)
 // เก็บในตาราง settings แบบ key/value — ไม่ผูกกับ runtime จึงทดสอบได้
 import { z } from 'zod';
+import { HIVE_CODE_RE, normalizeHiveCode } from './hive-code.ts';
 import { DEFAULT_FARM_LOCATION, parseLatLng, type FarmLocation } from './weather.ts';
 
 export interface ContactSettings {
@@ -196,7 +197,7 @@ export function locationToRows(d: z.output<typeof locationSchema>): { key: strin
 
 /** รูปหัวหน้าแรก: รหัสรัง (ว่าง = ใช้โลโก้) */
 export const heroSchema = z.object({
-  heroHive: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/^(\d)/, 'A$1') : v), z.string().regex(/^(A\d{1,5})?$/, 'ใส่รหัสรัง เช่น A25 (เว้นว่าง = ใช้โลโก้)')),
+  heroHive: z.preprocess((v) => (typeof v === 'string' ? (v.trim() === '' ? '' : (normalizeHiveCode(v) ?? v.trim())) : v), z.string().refine((c) => c === '' || HIVE_CODE_RE.test(c), 'ใส่รหัสรัง เช่น A25 หรือ B12 (เว้นว่าง = ใช้โลโก้)')),
 });
 
 export const paymentSchema = z.object({ paymentInfo: z.preprocess(blank, z.string().max(500, 'ยาวเกินไป (ไม่เกิน 500 ตัวอักษร)')) });

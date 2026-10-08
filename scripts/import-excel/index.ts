@@ -49,7 +49,14 @@ for (const img of [...sheet.images].sort((a, b) => a.row - b.row || a.col - b.co
 // ---------- SQL ----------
 const q = (v: string | number | boolean | null | undefined): string =>
   v == null ? 'NULL' : typeof v === 'number' ? String(v) : typeof v === 'boolean' ? (v ? '1' : '0') : `'${v.replace(/'/g, "''")}'`;
-const id = (code: string | null) => (code ? Number(code.slice(1)) : null);
+// id ในฐานข้อมูลบนเครื่อง: รหัส A ใช้เลขในรหัส (คงค่าเดิมของข้อมูลที่มีอยู่) · ชุดอื่นบวกช่วงของตัวอักษร (B12 → 2_000_012) ไม่ชนกัน
+// (บนระบบจริง id ให้ฐานข้อมูลออกเอง — สคริปต์นี้ใช้ล้างข้อมูลในเครื่องเท่านั้น)
+const id = (code: string | null) => {
+  if (!code) return null;
+  const m = /^([A-Z]{1,3})(\d+)$/.exec(code)!;
+  const offset = m[1] === 'A' ? 0 : [...m[1]!].reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0) * 1_000_000;
+  return offset + Number(m[2]);
+};
 
 const sql: string[] = [
   '-- สร้างโดย scripts/import-excel — ห้ามแก้มือ',

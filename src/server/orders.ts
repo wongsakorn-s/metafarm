@@ -9,7 +9,7 @@ import { canMove, nextSeq, orderCode, type OrderStatus, type customerSchema, typ
 import type { SessionUser } from './auth.ts';
 import { isOnceConflict, once } from './versioned.ts';
 import type { Db } from './db.ts';
-import { statusStatements } from './hives.ts';
+import { byCode, statusStatements } from './hives.ts';
 import { lotForSale } from './lots.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -72,7 +72,7 @@ export async function orderFormOptions(db: Db) {
       .from(productVariants).innerJoin(products, eq(products.id, productVariants.productId)).orderBy(asc(products.sortOrder), asc(productVariants.sortOrder), asc(productVariants.id)),
     db.select({ id: hives.id, code: hives.code, forSale: hives.forSale, salePrice: hives.salePrice }).from(hives)
       .where(and(eq(hives.status, 'active'), sql`not exists (select 1 from order_items i join orders o on o.id = i.order_id where i.hive_id = hives.id and o.status in ('awaiting_payment', 'paid'))`))
-      .orderBy(desc(hives.forSale), asc(hives.id)),
+      .orderBy(desc(hives.forSale), ...byCode()),
   ]);
   return { customers: cust, variants, hives: sellable };
 }

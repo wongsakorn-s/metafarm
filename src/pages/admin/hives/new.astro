@@ -6,6 +6,7 @@ import { createHive, nextHiveCode } from '../../../server/hives.ts';
 import { boxLabel, originLabel } from '../../../lib/labels.ts';
 import { newHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 import { isOwner } from '../../../lib/permissions.ts';
+import { normalizeHiveCode } from '../../../lib/hive-code.ts';
 
 export const prerender = false;
 
@@ -38,13 +39,10 @@ const err = (k: string) => errors[k];
     <input type="hidden" name="suggested" value={nextCode} />
     <div>
       <label class="label" for="code">รหัสรัง</label>
-      <div class="flex items-stretch">
-        <span class="grid place-items-center rounded-l-xl border border-r-0 border-line bg-canvas px-4 text-xl font-bold text-muted" aria-hidden="true">A</span>
-        <input class="field rounded-l-none text-xl font-bold tracking-wide" id="code" name="code" inputmode="numeric" autocomplete="off" required
-          pattern="[Aa]?0*[1-9][0-9]{0,4}" value={v('code', nextCode).replace(/^A/i, '')} aria-describedby="code-hint" />
-      </div>
+      <input class="field text-xl font-bold tracking-wide uppercase" id="code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" required
+        pattern="[A-Za-z]{1,3}[\s\-]?0*[1-9][0-9]{0,4}" value={v('code', nextCode)} aria-describedby="code-hint" />
       {err('code') && <p class="error">{err('code')}</p>}
-      <p id="code-hint" class="hint">ระบบเสนอรหัสถัดไป <strong>{nextCode}</strong> ให้ · แก้ให้ตรงกับป้ายบนตัวรังได้ (ใช้รหัสที่มีในทะเบียนแล้วไม่ได้ แม้รังนั้นล่มหรือขายไปแล้ว)</p>
+      <p id="code-hint" class="hint">ตัวอักษรอังกฤษตามด้วยเลข เช่น A150, B12, G108 · ระบบเสนอ <strong>{nextCode}</strong> ไว้ให้ แก้ให้ตรงกับป้ายบนตัวรังได้ ไม่ต้องเรียงลำดับ (นำเข้ารหัสรังเก่าทีหลังได้) · ใช้รหัสที่มีในทะเบียนแล้วไม่ได้ แม้รังนั้นล่มหรือขายไปแล้ว</p>
     </div>
 
     <div>
@@ -58,7 +56,7 @@ const err = (k: string) => errors[k];
 
     <div class="grid grid-cols-2 gap-3">
       <div><label class="label" for="acq">วันที่ได้มา / วันที่ขยาย</label><input class="field" id="acq" name="acquiredOn" type="date" max={today} value={v('acquiredOn', today)} />{err('acquiredOn') && <p class="error">{err('acquiredOn')}</p>}</div>
-      <div><label class="label" for="qb">วันเกิดนางพญา</label><input class="field" id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />{err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}<p class="hint">ถ้ายังไม่ทราบ เว้นว่างได้ (จะแสดง ???)</p></div>
+      <div><label class="label" for="qb">วันเกิดนางพญา</label><input class="field" id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />{err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}<p class="hint">ถ้ายังไม่ทราบ เว้นว่างได้ (จะแสดงว่า "ไม่ทราบ" เติมทีหลังได้)</p></div>
     </div>
 
     <fieldset class="rounded-xl border border-line p-3">
@@ -84,7 +82,7 @@ const err = (k: string) => errors[k];
     <div><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
 
     <div class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-      <button class="btn-primary w-full" type="submit" id="create-btn">สร้างรัง <span data-code-label>{v('code', nextCode).replace(/^a?/i, 'A')}</span></button>
+      <button class="btn-primary w-full" type="submit" id="create-btn">สร้างรัง <span data-code-label>{normalizeHiveCode(v('code', nextCode)) ?? v('code', nextCode).toUpperCase()}</span></button>
     </div>
   </form>
 </AdminLayout>
@@ -94,7 +92,8 @@ const err = (k: string) => errors[k];
   const input = document.getElementById('code') as HTMLInputElement | null;
   const label = document.querySelector<HTMLElement>('[data-code-label]');
   input?.addEventListener('input', () => {
-    const n = input.value.trim().replace(/^a/i, '').replace(/^0+(?=\d)/, '');
-    if (label) label.textContent = n ? `A${n}` : '';
+    // แบบเดียวกับ normalizeHiveCode: ตัวใหญ่ · ตัดช่องว่าง/ขีด · ตัด 0 นำหน้าเลข
+    const m = /^([A-Z]{1,3})0*(\d{1,5})$/.exec(input.value.trim().toUpperCase().replace(/[\s\-_.]/g, ''));
+    if (label) label.textContent = m ? `${m[1]}${Number(m[2])}` : input.value.trim().toUpperCase();
   });
 </script>

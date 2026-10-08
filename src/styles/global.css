@@ -90,6 +90,9 @@
   /* ช่องวันที่ที่ยังว่าง: iOS แสดง "วันนี้" ทั้งที่ยังไม่ได้เลือก → ซ่อนตัวเลขแล้วแสดง "ยังไม่ระบุ" แทน
      (สคริปต์ admin-forms.ts ใส่ data-empty และป้าย .date-placeholder ให้) */
   input[data-empty]:not(:focus) { color: transparent; }
+  /* Chrome/Android วาด "mm/dd/yyyy" ในส่วนย่อยของช่อง (ไม่รับสีจากช่อง) จึงซ้อนกับป้าย "ยังไม่ระบุ" → ซ่อนส่วนนั้นด้วย
+     แตะช่องแล้ว (:focus) กลับมาแสดงตามปกติให้พิมพ์/เลือกวันที่ */
+  input[data-empty]:not(:focus)::-webkit-datetime-edit { opacity: 0; }
   .date-wrap { position: relative; display: block; min-width: 0; }
   .date-placeholder {
     position: absolute;
