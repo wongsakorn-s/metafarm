@@ -5,18 +5,28 @@ import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { site } from '../config/site.ts';
 import { lineChatUrl, telHref } from '../lib/settings.ts';
+import { messengerBase } from '../lib/contact.ts';
 
 export const prerender = false;
 
 const c = Astro.locals.settings!.contact;
 const line = lineChatUrl(c, 'สอบถามข้อมูล');
 const tel = telHref(c.phone);
+const messenger = messengerBase(c);
+// ช่องทางหลัก (เจ้าของเลือกในหลังบ้าน) ขึ้นก่อน พร้อมป้าย "ช่องทางหลัก"
+const PRIMARY_NOTE = 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย';
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
+const chat = [
+  messenger && { key: 'messenger', icon: 'messenger', label: 'Messenger', value: 'แชตกับ MetaFarm', href: messenger, note: '' },
+  line && { key: 'line', icon: 'line', label: 'LINE', value: c.lineId, href: line, note: '' },
+  tel && { key: 'phone', icon: 'phone', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
+].filter(Boolean) as { key: string; icon: IconName; label: string; value: string; href: string; note: string }[];
+chat.sort((a, b) => Number(b.key === c.primary) - Number(a.key === c.primary));
+if (chat[0]) chat[0].note = PRIMARY_NOTE;
 const channels = [
-  line && { icon: 'line', label: 'LINE', value: c.lineId, href: line, note: 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย' },
-  tel && { icon: 'phone', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
-  c.facebookUrl && { icon: 'thumbs', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
+  ...chat,
+  c.facebookUrl && { key: 'facebook', icon: 'thumbs', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
 ].filter(Boolean) as { icon: IconName; label: string; value: string; href: string; note: string }[];
 ---
 

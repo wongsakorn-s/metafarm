@@ -189,11 +189,12 @@ console.log('\n5) หน้าสินค้า: ราคาตัวอย่
 {
   await page.goto(BASE + '/products/stingless-honey');
   const sample = await page.locator('text=ราคาตัวอย่าง').count();
-  const lines = await page.$$eval('a[href*="line.me"]', (as) => as.map((a) => decodeURIComponent(a.href)));
+  // ลิงก์แชตทุกช่องทาง (LINE / Messenger) + ข้อความที่ปุ่ม Messenger คัดลอกให้
+  const lines = await page.$$eval('a[href*="line.me"], a[href*="m.me/"], a[data-copy]', (as) => as.map((a) => decodeURIComponent(a.href) + ' ' + (a.dataset.copy ?? '')));
   const desc = await page.getAttribute('meta[name=description]', 'content');
   if (sample === 0) ok('ราคายืนยันแล้ว — ข้ามการตรวจ');
   else {
-    check(lines.length > 0 && lines.every((l) => !/ราคา \d/.test(l)), `ลิงก์ LINE ${lines.length} ลิงก์ไม่มีตัวเลขราคาตัวอย่าง`, `ลิงก์ LINE มีราคาตัวอย่าง: ${lines.find((l) => /ราคา \d/.test(l))}`);
+    check(lines.length > 0 && lines.every((l) => !/ราคา \d/.test(l)), `ลิงก์แชต ${lines.length} ลิงก์ไม่มีตัวเลขราคาตัวอย่าง`, `ลิงก์ LINE มีราคาตัวอย่าง: ${lines.find((l) => /ราคา \d/.test(l))}`);
     check(!/ราคาเริ่มต้น/.test(desc ?? ''), 'คำอธิบายหน้า (meta) ไม่มีราคาตัวอย่าง', `meta description มีราคาตัวอย่าง: ${desc}`);
   }
 }
@@ -767,6 +768,72 @@ console.log('\n17) กันเขียนทับกัน: สองคน�
   await page.goto(BASE + '/admin/products');
   const afterCancel = Number(await page.inputValue('#st-' + vid));
   check(cancelled.every((x) => x === 200) && afterCancel === before, 'กด "ยกเลิก" พร้อมกัน 4 ครั้ง → สต็อกคืนเป็น ' + afterCancel + ' (คืนครั้งเดียว)', 'คืนสต็อกซ้ำ: ' + afterCancel + ' (คาด ' + before + ')');
+}
+
+console.log('\n18) ปุ่มติดต่อ: ช่องทางหลัก Messenger / โทร · เว้นว่าง = ซ่อน · Messenger คัดลอกข้อความให้');
+{
+  // เก็บค่าเดิมไว้คืนตอนจบ
+  await page.goto(BASE + '/admin/settings');
+  const orig = await page.$$eval('#contact input, #contact select', (els) => Object.fromEntries(els.filter((e) => e.name && (e.type !== 'radio' || e.checked)).map((e) => [e.name, e.type === 'checkbox' ? (e.checked ? 'on' : '') : e.value])));
+  const save = (o) => post('/admin/settings', { intent: 'contact', lineId: '@metafarm-test', phone: '081-234-5678', facebookUrl: 'https://www.facebook.com/metafarm.test', messengerUrl: '', mapUrl: '', primary: 'messenger', ...o });
+  // หน้าสาธารณะมีแคช 5 นาที → เปิดด้วย context ใหม่ + query กันแคช
+  const pub = async (path, mobile = true) => {
+    const c = await browser.newContext(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 860 } });
+    const pg = await c.newPage();
+    await pg.goto(BASE + path + (path.includes('?') ? '&' : '?') + 't=' + Date.now());
+    return { c, pg };
+  };
+
+  await save({});
+  {
+    const { c, pg } = await pub('/products/stingless-honey');
+    const card = await pg.locator('main [data-contact-buttons] a').first().getAttribute('href');
+    const bar = await pg.$$eval('div.fixed.inset-x-0[data-contact-buttons] a', (as) => as.map((a) => a.dataset.channel));
+    const copy = await pg.locator('main [data-contact-buttons] a').first().getAttribute('data-copy');
+    check(card?.startsWith('https://m.me/metafarm.test?text=') && copy?.includes('น้ำผึ้ง') && bar.join(',') === 'messenger,line,phone',
+      'ช่องทางหลัก Messenger: ปุ่มสินค้า → m.me/metafarm.test พร้อมข้อความ · แถบล่าง Messenger, LINE, โทร', 'ปุ่มไม่ตามช่องทางหลัก (' + card + ' / ' + bar + ')');
+    await c.close();
+  }
+  {
+    // กดปุ่ม Messenger → คัดลอกข้อความ แล้วค่อยเปิดแชต (ไม่ออกเน็ตจริง)
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, permissions: ['clipboard-read', 'clipboard-write'] });
+    await c.route('https://m.me/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>messenger</p>' }));
+    const pg = await c.newPage();
+    await pg.goto(BASE + '/products/hives?t=' + Date.now());
+    const btn = pg.locator('div.fixed.inset-x-0[data-contact-buttons] a[data-channel=messenger]');
+    const want = await btn.getAttribute('data-copy');
+    await btn.dispatchEvent('click'); // แถบเครื่องมือของ astro dev บังแถบล่างในโหมด dev เท่านั้น
+    await pg.waitForTimeout(150);
+    const status = await pg.locator('div.fixed.inset-x-0 [data-copy-status]').textContent();
+    const clip = await pg.evaluate(() => navigator.clipboard.readText());
+    await pg.waitForURL(/m\.me\/metafarm\.test/, { timeout: 5000 });
+    check(clip === want && (status ?? '').includes('คัดลอกข้อความแล้ว'), 'กดปุ่ม Messenger → คัดลอก "' + want + '" แล้วเปิด m.me', 'ไม่คัดลอกข้อความ (' + clip + ')');
+    await c.close();
+  }
+  // โทรเป็นหลัก + ไม่มี LINE → ปุ่มใหญ่เป็น tel: และไม่มีลิงก์ LINE เลย
+  await save({ primary: 'phone', lineId: '' });
+  {
+    const { c, pg } = await pub('/products/hives/' + (await (async () => { await page.goto(BASE + '/products/hives'); return (await page.getAttribute('a[href^="/products/hives/A"]', 'href'))?.split('/')[3]; })()));
+    const first = await pg.locator('main [data-contact-buttons] a').first().getAttribute('href');
+    const hint = (await pg.locator('main [data-contact-buttons] .hint').first().textContent()) ?? '';
+    const lineLinks = await pg.locator('a[href*="line.me"]').count();
+    check(first === 'tel:0812345678' && /บอกว่าสนใจรัง A\d+/.test(hint) && lineLinks === 0, 'ช่องทางหลักโทร: ปุ่มใหญ่ tel: พร้อม "' + hint.trim() + '" · LINE ว่าง = ไม่มีลิงก์ LINE ทั้งหน้า', 'ปุ่มโทร/ซ่อน LINE ไม่ถูก (' + first + ', LINE ' + lineLinks + ')');
+    await c.close();
+  }
+  {
+    const { c, pg } = await pub('/contact', false);
+    const firstCard = (await pg.locator('main ul li').first().textContent()) ?? '';
+    check(firstCard.includes('โทรศัพท์') && firstCard.includes('ช่องทางหลัก'), 'หน้าติดต่อเรา: ช่องทางหลักขึ้นก่อนพร้อมป้าย "ช่องทางหลัก"', 'หน้าติดต่อไม่เรียงตามช่องทางหลัก: ' + firstCard.slice(0, 60));
+    await c.close();
+  }
+  // ลิงก์ Facebook แบบแชร์ (แปลงไม่ได้) → หลังบ้านเตือนให้ใส่ m.me เอง
+  await save({ facebookUrl: 'https://www.facebook.com/share/1AbCdEf/' });
+  await page.goto(BASE + '/admin/settings');
+  check((await page.textContent('#contact')).includes('สร้างลิงก์ Messenger จากลิงก์ Facebook นี้ไม่ได้'), 'ลิงก์ Facebook แบบแชร์ → หลังบ้านเตือนให้ใส่ลิงก์ m.me เอง', 'ไม่เตือนลิงก์ที่แปลงไม่ได้');
+  // คืนค่าเดิม
+  await post('/admin/settings', { intent: 'contact', ...orig });
+  await page.goto(BASE + '/admin/settings');
+  check(await page.inputValue('#lineId') === (orig.lineId ?? ''), 'คืนค่าช่องทางติดต่อเดิมแล้ว', 'คืนค่าช่องทางติดต่อไม่สำเร็จ');
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

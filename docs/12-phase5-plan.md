@@ -1,6 +1,6 @@
 # Phase 5 — multiple users and hardening
 
-> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. Next: 5.4.
+> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. **5.4 done** (2026-10-08): contact buttons LINE / Messenger / phone (replaces LINE notifications). Next: 5.5.
 
 ## Work order
 
@@ -9,7 +9,8 @@
 | **5.1** | **Owner / staff roles** | Must exist before a second user is added. |
 | 5.2 | Per-email login throttle | Lockout was keyed only by email + IP; rotating IPs gave unlimited guesses. |
 | 5.3 | Optimistic concurrency (two people editing the same hive/order) | Needed once there is more than one user. |
-| 5.4 | LINE notifications (unpaid orders, harvest reminders) | Owner request. |
+| ~~5.4~~ | ~~LINE notifications~~ | Dropped (2026-10-08): the owner talks to buyers on Facebook or by phone, so nobody would read them. |
+| 5.4 | Contact buttons: LINE · Messenger · phone | Public buttons were LINE-only; buyers actually use Facebook and phone. |
 | 5.5 | Offline mode for the field | Weak signal in the garden; large piece of work, last. |
 | — | Palm module | Scope still to be agreed with the owner. |
 
@@ -74,3 +75,31 @@ Decisions (user, 2026-10-08, "as recommended"): staff have **no** access to sale
 - `check:forms` section 17 fires 4 simultaneous pay and cancel requests. With the guard removed it reproduced the bug (stock 7 → 3); with it, 7 → 5 → 7.
 
 **Not covered (single-owner pages, last write wins):** customer edit, order note, settings, hive "list for sale". Concurrent bottling of the same lot could slightly exceed the lot's remaining ml; that is rare and visible on the lot page.
+
+## 5.4 Contact buttons (as built)
+
+Decision (user, 2026-10-08): plain links that open a chat or a call. No LINE Official Account and no Messaging API. Facebook may be a Page **or** a personal profile.
+
+- **Settings** (`/admin/settings`):
+  - optional Messenger link (`contact.messengerUrl`)
+  - **primary channel** (`contact.primary`: messenger · line · phone, default messenger)
+  - a blank channel is hidden; test links for each channel
+- **Messenger link** (`messengerBase` in `src/lib/contact.ts`):
+  - the explicit m.me link wins
+  - otherwise derived from the Facebook URL: `facebook.com/<name>` · `fb.me/<name>` → `m.me/<name>`; `profile.php?id=` and `people/<name>/<id>` → `m.me/<id>`
+  - share links cannot be converted, so the settings page tells the owner to paste an m.me link
+- **Buttons:** `components/ContactButtons.astro` and the layout's floating button / mobile bottom bar use `contactActions()`.
+  - The primary channel is the big button; the other filled channels are smaller.
+  - Labels follow the context (ask / order / training / queue).
+  - LINE pre-fills the message. Messenger sends `?text=` as well, but because m.me often ignores it, the click copies the message first (`scripts/contact-copy.ts`), shows "วางในแชตได้เลย", then opens the chat.
+  - Phone buttons show what to mention ("บอกว่าสนใจรัง A25").
+- **Public pages:** "How to order" text, the contact page (primary first, labelled), and the footer (Messenger link added) are no longer LINE-specific.
+- **Back office:**
+  - order channel "โทรศัพท์" added (text enum, no migration); a new order's default channel follows the primary channel
+  - summary/copy wording says "chat" instead of LINE
+  - customer "chat name" label
+- `predeploy-check` needs at least one real channel, and requires the primary channel to be real. A LINE ID is no longer mandatory.
+- **Tests:**
+  - `src/lib/contact.test.ts`
+  - `check:forms` section 18 — Messenger primary, copy then open m.me, phone primary with LINE hidden, contact page order, unconvertible share link warning, settings restored
+  - section 5 also scans Messenger links and copied text for sample prices

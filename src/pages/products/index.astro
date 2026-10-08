@@ -1,9 +1,9 @@
 ---
-import { lineChatUrl } from '../../lib/settings.ts';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import HiveCard from '../../components/HiveCard.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
+import ContactButtons from '../../components/ContactButtons.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts, getSaleHives } from '../../server/public.ts';
@@ -21,7 +21,7 @@ const range = (p: (typeof products)[number]) => {
   const lo = Math.min(...prices), hi = Math.max(...prices);
   return lo === hi ? formatPrice(lo) : `${formatPrice(lo)} – ${formatPrice(hi)}`;
 };
-const queueLine = lineChatUrl(Astro.locals.settings!.contact, 'สนใจจองคิวรังชันโรงขนเงินชุดถัดไป');
+const queueMessage = 'สนใจจองคิวรังชันโรงขนเงินชุดถัดไป';
 ---
 
 <PublicLayout title="สินค้า" description={`รังสมบูรณ์ชันโรงขนเงิน รังเปล่ารังไม้สัก และน้ำผึ้งชันโรง จาก ${site.name} จ.ระยอง`} active="products">
@@ -42,7 +42,7 @@ const queueLine = lineChatUrl(Astro.locals.settings!.contact, 'สนใจจ�
           <p class="text-muted">รังชุดถัดไปกำลังเลี้ยงให้แข็งแรง ทักไลน์จองคิวไว้ก่อนได้ หรือดูประวัติรังของฟาร์มในสมุดพก</p>
         </div>
         <div class="flex flex-wrap justify-center gap-2">
-          {queueLine && <a class="btn-primary" href={queueLine} rel="noopener"><Icon name="line" class="size-5" />จองคิวทางไลน์</a>}
+          <ContactButtons intent="queue" message={queueMessage} />
           <a class="btn-ghost" href="/passport"><Icon name="passport" class="size-5" />ดูสมุดพกรัง</a>
         </div>
       </div>

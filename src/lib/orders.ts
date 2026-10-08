@@ -18,7 +18,7 @@ export const orderStatusClass: Record<OrderStatus, string> = {
   fulfilled: 'bg-slate-200 text-slate-700',
   cancelled: 'bg-red-50 text-danger',
 };
-export const channelLabel: Record<(typeof ORDER_CHANNELS)[number], string> = { line: 'LINE', facebook: 'Facebook', farm: 'ที่ฟาร์ม', other: 'อื่น ๆ' };
+export const channelLabel: Record<(typeof ORDER_CHANNELS)[number], string> = { line: 'LINE', facebook: 'Facebook / Messenger', phone: 'โทรศัพท์', farm: 'ที่ฟาร์ม', other: 'อื่น ๆ' };
 export const payMethodLabel: Record<(typeof PAY_METHODS)[number], string> = { transfer: 'โอนเข้าบัญชี', promptpay: 'พร้อมเพย์ / QR', cash: 'เงินสด', other: 'อื่น ๆ' };
 export const shipMethodLabel: Record<(typeof SHIP_METHODS)[number], string> = {
   pickup: 'มารับที่ฟาร์ม',
@@ -51,7 +51,7 @@ export const subtotal = (items: LineItem[]) => items.reduce((s, i) => s + i.qty 
 export const orderTotal = (items: LineItem[], shipFee: number) => subtotal(items) + shipFee;
 
 const baht = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
-/** ข้อความสรุปออเดอร์สำหรับคัดลอกไปวางในแชต LINE */
+/** ข้อความสรุปออเดอร์สำหรับคัดลอกไปวางในแชตกับลูกค้า (LINE / Messenger) */
 export function orderSummaryText(o: { code: string; status: OrderStatus; shipFee: number; shipMethod: keyof typeof shipMethodLabel; trackingNo?: string | null }, items: LineItem[], farmName: string, paymentInfo?: string): string {
   const lines = [`สรุปออเดอร์ ${o.code} · ${farmName}`, ''];
   for (const i of items) lines.push(`• ${i.label}${i.qty > 1 ? ` × ${i.qty}` : ''} = ${baht(i.qty * i.unitPrice)}`);

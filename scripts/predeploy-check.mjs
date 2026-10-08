@@ -24,9 +24,11 @@ try {
   const c = settings.contact;
   check(blockers, c.confirmed, 'ยืนยันช่องทางติดต่อจริงแล้ว', 'ช่องทางติดต่อยังไม่ได้ยืนยันว่าเป็นข้อมูลจริง (เว็บขึ้นแถบเหลือง "ข้อมูลตัวอย่าง") — กรอกและติ๊กยืนยันที่ /admin/settings');
   const isSample = (v) => /sample|000-0000/i.test(v);
-  check(blockers, c.lineId !== '' && !isSample(c.lineId), 'มี LINE ID จริง', `LINE ID ยังว่างหรือเป็นตัวอย่าง (${c.lineId || 'ว่าง'})`);
-  check(warnings, c.phone !== '' && !isSample(c.phone), 'มีเบอร์โทรจริง', `เบอร์โทรว่างหรือเป็นตัวอย่าง (${c.phone || 'ว่าง'})`);
-  check(warnings, c.facebookUrl !== '' && !isSample(c.facebookUrl), 'มีลิงก์ Facebook จริง', `ลิงก์ Facebook ว่างหรือเป็นตัวอย่าง (${c.facebookUrl || 'ว่าง'})`);
+  // Phase 5.4: LINE / Messenger / โทร ช่องทางไหนก็ได้ — ต้องมีช่องทางจริงอย่างน้อยหนึ่งช่อง และช่องทางหลักต้องใช้ได้
+  const real = { line: c.lineId !== '' && !isSample(c.lineId), messenger: (c.facebookUrl !== '' && !isSample(c.facebookUrl)) || (c.messengerUrl !== '' && !isSample(c.messengerUrl)), phone: c.phone !== '' && !isSample(c.phone) };
+  check(blockers, real.line || real.messenger || real.phone, 'มีช่องทางติดต่อจริงอย่างน้อยหนึ่งช่อง', 'LINE / Facebook-Messenger / เบอร์โทร ยังว่างหรือเป็นตัวอย่างทั้งหมด');
+  check(blockers, real[c.primary], `ช่องทางหลัก (${c.primary}) เป็นข้อมูลจริง`, `ช่องทางหลัก (${c.primary}) ยังว่างหรือเป็นตัวอย่าง — ปุ่มใหญ่บนเว็บจะพาลูกค้าไปผิดที่`);
+  for (const [k, label] of [['line', 'LINE ID'], ['messenger', 'ลิงก์ Facebook/Messenger'], ['phone', 'เบอร์โทร']]) if (!real[k]) warnings.push(`${label} ว่างหรือเป็นตัวอย่าง (ปุ่มนี้จะไม่แสดงถ้าว่าง)`);
   // แผนที่: ลิงก์ค้นหาตามที่อยู่ (?q=…) ไม่ใช่ตำแหน่งฟาร์มจริง
   check(warnings, c.mapUrl !== '' && !/[?&]q=/.test(c.mapUrl), 'มีลิงก์แผนที่ตำแหน่งฟาร์ม', `ลิงก์แผนที่ว่างหรือเป็นลิงก์ค้นหาตามที่อยู่ ไม่ใช่ตำแหน่งฟาร์ม (${c.mapUrl || 'ว่าง'})`);
 

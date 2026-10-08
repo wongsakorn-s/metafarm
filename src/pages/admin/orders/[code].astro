@@ -93,7 +93,7 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
 
       <section class="card" aria-labelledby="sum-h">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="sum-h" class="font-semibold">ข้อความสรุปสำหรับส่งทาง LINE</h2>
+          <h2 id="sum-h" class="font-semibold">ข้อความสรุปสำหรับส่งให้ลูกค้า</h2>
           <button type="button" class="btn-primary" id="copy-btn"><Icon name="copy" class="size-5" />คัดลอกข้อความสรุป</button>
         </div>
         <textarea id="summary" class="field mt-3 min-h-40 font-[inherit] text-sm" readonly aria-label="ข้อความสรุปออเดอร์">{summary}</textarea>
@@ -110,7 +110,7 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
           <>
             <a class="text-lg font-semibold text-palm-700 underline" href={`/admin/customers/${customer.id}`}>{customer.name}</a>
             {customer.phone && <p>{tel ? <a class="inline-flex min-h-11 items-center gap-2 underline" href={tel}><Icon name="phone" class="size-4" />{customer.phone}</a> : customer.phone}</p>}
-            {customer.lineName && <p class="text-sm text-muted">LINE: {customer.lineName}</p>}
+            {customer.lineName && <p class="text-sm text-muted">ชื่อในแชต: {customer.lineName}</p>}
             {customer.address && <p class="mt-1 whitespace-pre-line text-sm">{customer.address}</p>}
           </>
         ) : <p class="text-muted">ไม่ระบุ</p>}
@@ -173,7 +173,7 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
     if (!box || !status) return;
     try {
       await navigator.clipboard.writeText(box.value);
-      status.textContent = 'คัดลอกแล้ว — เปิดแชต LINE ของลูกค้าแล้ววางได้เลย';
+      status.textContent = 'คัดลอกแล้ว — เปิดแชตกับลูกค้า (LINE / Messenger) แล้ววางได้เลย';
     } catch {
       box.focus();
       box.select();

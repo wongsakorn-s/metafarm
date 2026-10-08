@@ -5,7 +5,8 @@ import PublicLayout from '../../layouts/PublicLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getTraining } from '../../lib/content.ts';
 import { formatPrice } from '../../lib/products.ts';
-import { effectiveCourse, lineChatUrl } from '../../lib/settings.ts';
+import { effectiveCourse } from '../../lib/settings.ts';
+import ContactButtons from '../../components/ContactButtons.astro';
 import NotFound from '../../components/NotFound.astro';
 import { breadcrumbLd, courseLd } from '../../lib/seo.ts';
 import { site } from '../../config/site.ts';
@@ -20,7 +21,7 @@ const fm = course?.frontmatter ?? {};
 const settings = Astro.locals.settings!;
 // ราคา/ระยะเวลาที่เจ้าของฟาร์มแก้ในหลังบ้านชนะค่าในไฟล์ Markdown
 const eff = effectiveCourse({ priceThb: Number(fm.priceThb ?? 0), duration: String(fm.duration ?? ''), priceIsSample: fm.priceIsSample !== false }, settings.courses[slug]);
-const line = course ? lineChatUrl(settings.contact, `สนใจหลักสูตร${fm.title}`) : null;
+
 const jsonLd = course
   ? [
       courseLd({ name: String(fm.title), description: String(fm.summary ?? fm.title), url: `/training/${slug}`, priceThb: eff.priceThb, confirmed: !eff.priceIsSample }, site.name, Astro.url.origin),
@@ -44,7 +45,7 @@ const jsonLd = course
       <dt class="text-muted">ค่าอบรม</dt><dd class="font-semibold text-palm-700">{formatPrice(eff.priceThb)} {eff.priceIsSample && <SampleBadge />}</dd>
       <dt class="text-muted">รอบอบรม</dt><dd>แจ้งทางไลน์</dd>
     </dl>
-    {line && <a class="btn-primary mt-4" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> สอบถามและสมัครทางไลน์</a>}
+    <ContactButtons class="mt-4" intent="training" message={`สนใจหลักสูตร${fm.title}`} phoneHint={` บอกชื่อหลักสูตร "${fm.title}"`} />
 
     <Article headings={course.getHeadings()} class="mt-8"><course.Content /></Article>
   </PublicLayout>

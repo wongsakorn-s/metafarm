@@ -1,16 +1,16 @@
 ---
+import ContactButtons from '../components/ContactButtons.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
 import { getFarmStats } from '../server/public.ts';
 import { site } from '../config/site.ts';
-import { lineChatUrl } from '../lib/settings.ts';
 
 export const prerender = false;
 
 const stats = await getFarmStats(getDb());
-const line = lineChatUrl(Astro.locals.settings!.contact, 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง');
+const askMessage = 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง';
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const highlights = [
@@ -32,7 +32,8 @@ const highlights = [
         <a class="btn-primary" href="/products"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูสินค้า</a>
         <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกรัง</a>
         {/* มือถือมีปุ่มไลน์ที่แถบล่างอยู่แล้ว */}
-        {line && <a class="btn-ghost hidden md:inline-flex" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> ทักไลน์สอบถาม</a>}
+        {/* มือถือมีแถบติดต่อด้านล่างอยู่แล้ว */}
+        <ContactButtons class="hidden md:flex" show="primary" message={askMessage} />
       </div>
     </div>
     <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto hidden w-full max-w-sm md:block" />

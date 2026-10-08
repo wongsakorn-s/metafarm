@@ -2,6 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
 import { getDb } from '../../../server/db.ts';
+import { getSettings } from '../../../server/settings.ts';
 import { createOrder, orderFormOptions } from '../../../server/orders.ts';
 import { channelLabel, newOrderSchema, parseOrderItems, payMethodLabel, shipMethodLabel } from '../../../lib/orders.ts';
 import { todayBangkok } from '../../../lib/validation.ts';
@@ -11,6 +12,9 @@ import { ORDER_CHANNELS, PAY_METHODS, SHIP_METHODS } from '../../../db/schema.ts
 export const prerender = false;
 
 const db = getDb();
+// ช่องทางเริ่มต้นของออเดอร์ใหม่ = ช่องทางหลักที่เจ้าของตั้งไว้ (Messenger → Facebook)
+const primary = (await getSettings(db)).contact.primary;
+const defaultChannel = primary === 'messenger' ? 'facebook' : primary;
 const user = Astro.locals.user!;
 const today = todayBangkok();
 let errors: Record<string, string> = {};
@@ -80,7 +84,7 @@ const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -
       <div data-when="new" class="grid gap-3 sm:grid-cols-2">
         <div><label class="label" for="c_name">ชื่อลูกค้า</label><input class="field" id="c_name" name="c_name" maxlength="100" value={v('c_name')} autocomplete="off" />{errors['c_name'] && <p class="error">{errors['c_name']}</p>}</div>
         <div><label class="label" for="c_phone">เบอร์โทร</label><input class="field" id="c_phone" name="c_phone" type="tel" inputmode="tel" value={v('c_phone')} autocomplete="off" />{errors['c_phone'] && <p class="error">{errors['c_phone']}</p>}</div>
-        <div><label class="label" for="c_line">ชื่อ LINE (ไม่บังคับ)</label><input class="field" id="c_line" name="c_line" maxlength="60" value={v('c_line')} autocomplete="off" /></div>
+        <div><label class="label" for="c_line">ชื่อใน LINE / Facebook (ไม่บังคับ)</label><input class="field" id="c_line" name="c_line" maxlength="60" value={v('c_line')} autocomplete="off" /></div>
         <div class="sm:col-span-2"><label class="label" for="c_address">ที่อยู่จัดส่ง (ถ้าส่งของ)</label><textarea class="field" id="c_address" name="c_address" rows="2" maxlength="500">{v('c_address')}</textarea></div>
       </div>
     </section>
@@ -135,7 +139,7 @@ const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -
       <h2 id="s-h" class="text-lg font-semibold">3. การส่งและการชำระเงิน</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         <div><label class="label" for="channel">ลูกค้าสั่งทาง</label>
-          <select class="field" id="channel" name="channel">{ORDER_CHANNELS.map((c) => <option value={c} selected={v('channel', 'line') === c}>{channelLabel[c]}</option>)}</select></div>
+          <select class="field" id="channel" name="channel">{ORDER_CHANNELS.map((c) => <option value={c} selected={v('channel', defaultChannel) === c}>{channelLabel[c]}</option>)}</select></div>
         <div><label class="label" for="orderedOn">วันที่สั่ง</label><input class="field" id="orderedOn" name="orderedOn" type="date" max={today} required value={v('orderedOn', today)} />{errors['orderedOn'] && <p class="error">{errors['orderedOn']}</p>}</div>
         <div><label class="label" for="shipMethod">การรับสินค้า</label>
           <select class="field" id="shipMethod" name="shipMethod">{SHIP_METHODS.map((c) => <option value={c} selected={v('shipMethod', 'pickup') === c}>{shipMethodLabel[c]}</option>)}</select></div>

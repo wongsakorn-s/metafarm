@@ -7,6 +7,10 @@ export interface ContactSettings {
   lineId: string;
   phone: string;
   facebookUrl: string;
+  /** ลิงก์ m.me ที่ใส่เอง (ว่าง = แปลงจากลิงก์ Facebook ให้ — ดู src/lib/contact.ts) */
+  messengerUrl: string;
+  /** ช่องทางหลัก = ปุ่มใหญ่บนเว็บ */
+  primary: 'line' | 'messenger' | 'phone';
   mapUrl: string;
   /** false = ยังเป็นข้อมูลตัวอย่าง (เว็บขึ้นแถบเตือน) */
   confirmed: boolean;
@@ -30,6 +34,9 @@ export const DEFAULT_CONTACT: ContactSettings = {
   lineId: '@metafarm-sample',
   phone: '080-000-0000',
   facebookUrl: 'https://www.facebook.com/metafarm.sample',
+  messengerUrl: '',
+  // เจ้าของคุยกับลูกค้าทาง Facebook/โทรเป็นหลัก (2026-10-08)
+  primary: 'messenger',
   mapUrl: 'https://maps.google.com/?q=ปลวกแดง+ระยอง',
   confirmed: false,
 };
@@ -55,6 +62,8 @@ export function parseSettingRows(rows: { key: string; value: string }[]): SiteSe
       lineId: get('contact.lineId', DEFAULT_CONTACT.lineId),
       phone: get('contact.phone', DEFAULT_CONTACT.phone),
       facebookUrl: get('contact.facebookUrl', DEFAULT_CONTACT.facebookUrl),
+      messengerUrl: get('contact.messengerUrl', DEFAULT_CONTACT.messengerUrl),
+      primary: (['line', 'messenger', 'phone'] as const).find((x) => x === map.get('contact.primary')) ?? DEFAULT_CONTACT.primary,
       mapUrl: get('contact.mapUrl', DEFAULT_CONTACT.mapUrl),
       confirmed: get('contact.confirmed', '0') === '1',
     },
@@ -129,10 +138,13 @@ export const contactSchema = z
     lineId: z.preprocess(blank, z.string().refine((s) => s === '' || /^@?[A-Za-z0-9._-]{2,40}$/.test(s), 'LINE ID ใช้ได้เฉพาะ a-z 0-9 . _ - (LINE OA ขึ้นต้นด้วย @)')),
     phone: z.preprocess(blank, z.string().refine((s) => s === '' || (/^[0-9+\-\s()]{8,20}$/.test(s) && s.replace(/\D/g, '').length >= 8), 'เบอร์โทรไม่ถูกต้อง (เช่น 081-234-5678)')),
     facebookUrl: httpsUrl(/(^|\.)(facebook\.com|fb\.com|fb\.me)$/, 'Facebook'),
+    // ไม่ส่งมา (ฟอร์มเก่า) = ว่าง → แปลงจากลิงก์ Facebook ให้
+    messengerUrl: z.preprocess((v) => v ?? '', httpsUrl(/^(m\.me|(www\.)?messenger\.com)$/, 'Messenger (m.me)')),
+    primary: z.enum(['line', 'messenger', 'phone'], 'เลือกช่องทางหลัก').default('messenger'),
     mapUrl: httpsUrl(/^(maps\.google\.[a-z.]+|(www\.)?google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl|g\.co)$/, 'Google Maps'),
     confirmed: checkbox,
   })
-  .refine((d) => !d.confirmed || d.lineId !== '' || d.phone !== '', { message: 'ยืนยันข้อมูลจริงได้ต่อเมื่อมี LINE หรือเบอร์โทรอย่างน้อยหนึ่งช่อง', path: ['confirmed'] });
+  .refine((d) => !d.confirmed || d.lineId !== '' || d.phone !== '' || d.facebookUrl !== '' || d.messengerUrl !== '', { message: 'ยืนยันข้อมูลจริงได้ต่อเมื่อมี LINE, Messenger หรือเบอร์โทรอย่างน้อยหนึ่งช่อง', path: ['confirmed'] });
 
 export const courseSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,60}$/),
@@ -147,6 +159,8 @@ export function contactToRows(d: z.output<typeof contactSchema>): { key: string;
     { key: 'contact.lineId', value: d.lineId },
     { key: 'contact.phone', value: d.phone },
     { key: 'contact.facebookUrl', value: d.facebookUrl },
+    { key: 'contact.messengerUrl', value: d.messengerUrl },
+    { key: 'contact.primary', value: d.primary },
     { key: 'contact.mapUrl', value: d.mapUrl },
     { key: 'contact.confirmed', value: d.confirmed ? '1' : '0' },
   ];

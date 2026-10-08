@@ -1,0 +1,50 @@
+---
+// ปุ่มติดต่อ (Phase 5.4): ช่องทางหลักเป็นปุ่มใหญ่ · ช่องทางอื่นที่เจ้าของกรอกไว้เป็นปุ่มรอง — ดู src/lib/contact.ts
+// Messenger: กดแล้วคัดลอกข้อความสินค้าไว้ก่อน (Messenger มักไม่ใส่ข้อความจากลิงก์ให้) แล้วจึงเปิดแชต
+// ไม่มี JS ก็ใช้ได้ (เป็นลิงก์ธรรมดา)
+import Icon from './Icon.astro';
+import { actionLabel, contactActions, shortLabel, type Channel, type Intent } from '../lib/contact.ts';
+
+interface Props {
+  message?: string;
+  intent?: Intent;
+  /** full = ปุ่มหลัก + ปุ่มรอง · primary = ปุ่มหลักอย่างเดียว (เช่นปุ่มในแต่ละตัวเลือกสินค้า) */
+  show?: 'full' | 'primary';
+  /** สิ่งที่ควรบอกตอนโทร (เช่น "แจ้งรหัสรัง A25") — แสดงใต้ปุ่มเมื่อมีปุ่มโทร */
+  phoneHint?: string;
+  /** ปุ่มหลักกว้างเต็มแถว */
+  block?: boolean;
+  class?: string;
+}
+const { message, intent = 'ask', show = 'full', phoneHint, block = false, class: className } = Astro.props;
+const actions = contactActions(Astro.locals.settings!.contact, message).filter((a) => show === 'full' || a.primary);
+const icon: Record<Channel, 'line' | 'messenger' | 'phone'> = { line: 'line', messenger: 'messenger', phone: 'phone' };
+// สีแบรนด์ (ตัวอักษรขาวผ่าน WCAG AA) · โทร = ปุ่มหลักของเว็บ
+const tone: Record<Channel, string> = { line: 'bg-[#05803a] text-white hover:brightness-95', messenger: 'bg-[#0866ff] text-white hover:brightness-95', phone: 'bg-palm-600 text-white hover:bg-palm-700' };
+const hasPhone = actions.some((a) => a.channel === 'phone');
+const external = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
+---
+
+{actions.length > 0 && (
+  <div class:list={['flex flex-col gap-2', className]} data-contact-buttons>
+    <div class="flex flex-wrap gap-2">
+      {actions.map((a) => a.primary ? (
+        <a href={a.href} {...external(a.channel)} data-channel={a.channel} data-copy={a.channel === 'messenger' ? a.message : undefined}
+          class:list={['btn font-semibold shadow-card', tone[a.channel], block ? 'w-full' : 'w-full sm:w-auto']}>
+          <Icon name={icon[a.channel]} class="size-5" />{actionLabel(a.channel, intent)}
+        </a>
+      ) : (
+        <a href={a.href} {...external(a.channel)} data-channel={a.channel} data-copy={a.channel === 'messenger' ? a.message : undefined}
+          class="btn-ghost flex-1 sm:flex-none" aria-label={actionLabel(a.channel, intent)}>
+          <Icon name={icon[a.channel]} class="size-5" />{shortLabel[a.channel]}
+        </a>
+      ))}
+    </div>
+    {hasPhone && phoneHint && <p class="hint">โทรแล้ว{phoneHint}</p>}
+    <p class="hint hidden" role="status" aria-live="polite" data-copy-status></p>
+  </div>
+)}
+
+<script>
+  import '../scripts/contact-copy';
+</script>

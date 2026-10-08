@@ -2,12 +2,12 @@
 import Icon from '../../../components/Icon.astro';
 import PublicLayout from '../../../layouts/PublicLayout.astro';
 import HowToOrder from '../../../components/HowToOrder.astro';
+import ContactButtons from '../../../components/ContactButtons.astro';
 import { getDb } from '../../../server/db.ts';
 import { getSaleHive } from '../../../server/public.ts';
 import { formatPrice, orderMessage } from '../../../lib/products.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { site } from '../../../config/site.ts';
-import { lineChatUrl } from '../../../lib/settings.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { photoSrcset, thumbUrl } from '../../../lib/media.ts';
 import NotFound from '../../../components/NotFound.astro';
@@ -22,7 +22,7 @@ const hive = /^A\d{1,5}$/.test(code) ? await getSaleHive(getDb(), code) : null;
 if (!hive) Astro.response.status = 404;
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
-const line = hive ? lineChatUrl(Astro.locals.settings!.contact, orderMessage('', { code: hive.code, price: hive.priceThb })) : null;
+const msg = hive ? orderMessage('', { code: hive.code, price: hive.priceThb }) : '';
 const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
 const photos = hive ? [...hive.salePhotos, ...hive.passportPhotos] : [];
 const cover = photos[0] ? `/img/${photos[0].key}` : placeholder.hive;
@@ -65,7 +65,7 @@ const jsonLd = hive
         <h1 class="text-3xl font-bold">รังสมบูรณ์ {hive.code}</h1>
         <p data-num class="mt-1 text-3xl font-bold text-palm-700">{formatPrice(hive.priceThb)}</p>
         <p class="mt-1 text-sm text-muted">ชันโรงขนเงินในรังไม้สัก 2 ห้องของ {site.name}</p>
-        {line && <a class="btn-primary mt-4 w-full" href={line} rel="noopener"><Icon name="line" class="inline-block size-[1.15em] align-[-0.2em]" /> สนใจรังนี้ ทักไลน์</a>}
+        <ContactButtons class="mt-4" intent="order" block message={msg} phoneHint={` บอกว่าสนใจรัง ${hive.code}`} />
 
         <dl class="card mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
           <dt class="text-muted">สายพันธุ์</dt><dd>{hive.species}</dd>

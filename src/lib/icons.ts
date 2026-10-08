@@ -54,6 +54,7 @@ export const ICONS = {
   checklist: 'list-checks',
   // ติดต่อ
   line: 'message-circle',
+  messenger: 'messages-square',
   phone: 'phone',
   pin: 'map-pin',
   map: 'map',

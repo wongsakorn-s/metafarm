@@ -2,13 +2,14 @@
 import '../styles/global.css';
 import { site } from '../config/site.ts';
 import { lineChatUrl, telHref } from '../lib/settings.ts';
+import { actionLabel, contactActions, messengerBase, shortLabel } from '../lib/contact.ts';
 import { ldJson } from '../lib/seo.ts';
 import Icon from '../components/Icon.astro';
 
 interface Props {
   title: string;
   description?: string;
-  /** ข้อความที่จะใส่ในแชต LINE เมื่อกดปุ่มลอย (เช่น "สนใจรัง A25") */
+  /** ข้อความที่จะใส่ในแชตเมื่อกดปุ่มติดต่อ (LINE ใส่ให้ · Messenger คัดลอกไว้ให้วาง) เช่น "สนใจรัง A25" */
   lineMessage?: string;
   active?: 'home' | 'stingless-bee' | 'honey' | 'products' | 'training' | 'passport' | 'contact';
   noindex?: boolean;
@@ -27,6 +28,11 @@ const pageUrl = new URL(canonical ?? Astro.url.pathname, Astro.url.origin).href;
 const c = Astro.locals.settings!.contact;
 const line = lineChatUrl(c, lineMessage);
 const tel = telHref(c.phone);
+const messenger = messengerBase(c);
+// ปุ่มติดต่อ: ช่องทางหลักก่อน (เจ้าของเลือกในหลังบ้าน) — ดู src/lib/contact.ts
+const actions = contactActions(c, lineMessage);
+const tone = { line: 'bg-[#05803a] text-white', messenger: 'bg-[#0866ff] text-white', phone: 'bg-palm-600 text-white' } as const;
+const copyOf = (ch: string) => (ch === 'messenger' ? lineMessage : undefined);
 
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก', icon: 'home' },
@@ -66,7 +72,7 @@ const current = nav.find((n) => n.key === active);
     {jsonLd && !noindex && <script type="application/ld+json" set:html={ldJson(jsonLd)} />}
     <meta name="twitter:card" content="summary_large_image" />
   </head>
-  <body class:list={['flex min-h-dvh flex-col', (line || tel) && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0']}>
+  <body class:list={['flex min-h-dvh flex-col', actions.length > 0 && 'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0']}>
     <a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
     {!c.confirmed && (
       <p class="bg-honey-400 px-4 py-1.5 text-center text-sm font-medium text-ink" role="note">
@@ -133,6 +139,7 @@ const current = nav.find((n) => n.key === active);
           <h2 class="mb-2 text-sm font-semibold text-muted">ติดต่อเรา</h2>
           <ul>
             {line && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={line} rel="noopener"><Icon name="line" class="size-4" />LINE {c.lineId}</a></li>}
+            {messenger && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={messenger} rel="noopener"><Icon name="messenger" class="size-4" />Messenger</a></li>}
             {tel && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={tel}><Icon name="phone" class="size-4" />โทร {c.phone}</a></li>}
             {c.facebookUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.facebookUrl} rel="noopener noreferrer"><Icon name="thumbs" class="size-4" />Facebook</a></li>}
             {c.mapUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="size-4" />แผนที่ฟาร์ม</a></li>}
@@ -147,18 +154,32 @@ const current = nav.find((n) => n.key === active);
       </div>
     </footer>
 
-    {/* ติดต่อ: มือถือ = แถบล่างเต็มความกว้าง (ไม่ลอยทับเนื้อหา) · คอม = ปุ่มลอยมุมขวา */}
-    {line && (
-      <a href={line} rel="noopener" aria-label="ทักไลน์สอบถาม"
-        class="fixed bottom-4 right-4 z-20 hidden min-h-12 items-center gap-2 rounded-full bg-[#05803a] px-5 font-semibold text-white shadow-lg transition hover:brightness-95 md:inline-flex">
-        <Icon name="line" class="size-5" /> ทักไลน์
-      </a>
+    {/* ติดต่อ: มือถือ = แถบล่างเต็มความกว้าง (ไม่ลอยทับเนื้อหา) · คอม = ปุ่มลอยมุมขวา
+        ช่องทางหลัก = ปุ่มใหญ่มีข้อความ · ช่องทางอื่น = ปุ่มรอง (Messenger คัดลอกข้อความให้ก่อนเปิดแชต) */}
+    {actions.length > 0 && (
+      <div class="fixed bottom-4 right-4 z-20 hidden items-center gap-2 md:flex" data-contact-buttons>
+        {actions.slice(1).map((a) => (
+          <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)} aria-label={actionLabel(a.channel)} title={actionLabel(a.channel)}
+            class:list={['grid size-12 place-items-center rounded-full shadow-lg transition hover:brightness-95', tone[a.channel]]}><Icon name={a.channel} class="size-5" /></a>
+        ))}
+        <a href={actions[0]!.href} rel={actions[0]!.channel === 'phone' ? undefined : 'noopener'} data-channel={actions[0]!.channel} data-copy={copyOf(actions[0]!.channel)}
+          class:list={['inline-flex min-h-12 items-center gap-2 rounded-full px-5 font-semibold shadow-lg transition hover:brightness-95', tone[actions[0]!.channel]]}>
+          <Icon name={actions[0]!.channel} class="size-5" /> {actionLabel(actions[0]!.channel)}
+        </a>
+        <p class="sr-only" role="status" aria-live="polite" data-copy-status></p>
+      </div>
     )}
-    {(line || tel) && (
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-        <div class:list={['mx-auto grid max-w-md gap-2', line && tel ? 'grid-cols-[1fr_auto]' : 'grid-cols-1']}>
-          {line && <a href={line} rel="noopener" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#05803a] font-semibold text-white active:brightness-95"><Icon name="line" class="size-5" /> ทักไลน์สอบถาม</a>}
-          {tel && <a href={tel} class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-line px-5 font-semibold text-ink active:bg-canvas" aria-label={`โทร ${c.phone}`}><Icon name="phone" class="size-5" /> โทร</a>}
+    {actions.length > 0 && (
+      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden" data-contact-buttons>
+        <p class="hint mb-1 hidden text-center" role="status" aria-live="polite" data-copy-status></p>
+        <div class="mx-auto flex max-w-md gap-2">
+          {actions.map((a) => a.primary ? (
+            <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)}
+              class:list={['inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl font-semibold active:brightness-95', tone[a.channel]]}><Icon name={a.channel} class="size-5" /> {actionLabel(a.channel)}</a>
+          ) : (
+            <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)} aria-label={actionLabel(a.channel)}
+              class="inline-flex min-h-12 min-w-12 flex-col items-center justify-center rounded-xl border border-line px-2 text-xs font-semibold text-ink active:bg-canvas"><Icon name={a.channel} class="size-5" />{shortLabel[a.channel]}</a>
+          ))}
         </div>
       </div>
     )}
@@ -166,6 +187,7 @@ const current = nav.find((n) => n.key === active);
 </html>
 
 <script>
+  import '../scripts/contact-copy';
   // ปิดเมนูมือถือเมื่อแตะนอกเมนู หรือกด Esc (เปิด/ปิดด้วยปุ่มได้เองโดยไม่ต้องมีสคริปต์นี้)
   const menu = document.querySelector<HTMLDetailsElement>('[data-site-menu]');
   if (menu) {

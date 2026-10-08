@@ -288,7 +288,8 @@ export const weatherDaily = sqliteTable('weather_daily', {
 
 // ---------- ขาย (Phase 4.2) — ข้อมูลหลังบ้านทั้งหมด ห้ามแสดงบนเว็บสาธารณะ ----------
 export const ORDER_STATUSES = ['awaiting_payment', 'paid', 'fulfilled', 'cancelled'] as const;
-export const ORDER_CHANNELS = ['line', 'facebook', 'farm', 'other'] as const;
+// phone เพิ่มใน Phase 5.4 (text enum ใน SQLite ไม่มี CHECK จึงไม่ต้อง migrate)
+export const ORDER_CHANNELS = ['line', 'facebook', 'phone', 'farm', 'other'] as const;
 export const PAY_METHODS = ['transfer', 'promptpay', 'cash', 'other'] as const;
 export const SHIP_METHODS = ['pickup', 'farm_delivery', 'thaipost', 'courier', 'other'] as const;
 

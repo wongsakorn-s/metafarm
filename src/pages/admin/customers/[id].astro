@@ -61,7 +61,7 @@ const editing = Object.keys(values).length > 0;
       {tel && <a class="btn-ghost w-full" href={tel}><Icon name="phone" class="size-5" />โทร {c.phone}</a>}
       {!editing && (c.address || c.notes || c.lineName) && (
         <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          {c.lineName && <><dt class="text-muted">LINE</dt><dd>{c.lineName}</dd></>}
+          {c.lineName && <><dt class="text-muted">ชื่อในแชต</dt><dd>{c.lineName}</dd></>}
           {c.address && <><dt class="text-muted">ที่อยู่</dt><dd class="whitespace-pre-line">{c.address}</dd></>}
           {c.notes && <><dt class="text-muted">หมายเหตุ</dt><dd class="whitespace-pre-line">{c.notes}</dd></>}
         </dl>
@@ -71,7 +71,7 @@ const editing = Object.keys(values).length > 0;
         <form method="post" class="mt-2 space-y-3">
           <div><label class="label" for="name">ชื่อ</label><input class="field" id="name" name="name" required maxlength="100" value={v('name')} />{errors.name && <p class="error">{errors.name}</p>}</div>
           <div><label class="label" for="phone">เบอร์โทร</label><input class="field" id="phone" name="phone" type="tel" inputmode="tel" value={v('phone')} />{errors.phone && <p class="error">{errors.phone}</p>}</div>
-          <div><label class="label" for="lineName">ชื่อ LINE</label><input class="field" id="lineName" name="lineName" maxlength="60" value={v('lineName')} /></div>
+          <div><label class="label" for="lineName">ชื่อใน LINE / Facebook</label><input class="field" id="lineName" name="lineName" maxlength="60" value={v('lineName')} /></div>
           <div><label class="label" for="address">ที่อยู่จัดส่ง</label><textarea class="field" id="address" name="address" rows="3" maxlength="500">{v('address')}</textarea></div>
           <div><label class="label" for="notes">หมายเหตุ</label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000" placeholder="เช่น ชอบขวดใหญ่">{v('notes')}</textarea></div>
           <button class="btn-primary w-full" type="submit">บันทึก</button>
