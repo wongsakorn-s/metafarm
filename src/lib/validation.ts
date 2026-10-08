@@ -88,6 +88,8 @@ export const variantSchema = z.object({
   stockQty: int(100_000),
   /** ต้นทุนต่อชิ้น — ว่างได้ (ยังไม่รู้) */
   unitCost: opt(int(1_000_000)),
+  /** updated_at ของแถวที่ฟอร์มเห็น — สต็อกเปลี่ยนจากออเดอร์ระหว่างนั้นก็นับว่าชน */
+  version: opt(z.string().max(40)),
 });
 
 export const publishSchema = z.object({
@@ -108,6 +110,8 @@ export const editHiveSchema = z.object({
   collapseReason: opt(z.string().max(300)),
   publicNote: opt(z.string().max(500, 'ยาวเกิน 500 ตัวอักษร')),
   notes: opt(z.string().max(2000, 'ยาวเกิน 2,000 ตัวอักษร')),
+  /** updated_at ที่ฟอร์มเห็นตอนเปิด (กันเขียนทับกัน — ดู src/lib/concurrency.ts) */
+  version: opt(z.string().max(40)),
 });
 
 export type FieldErrors = Record<string, string>;

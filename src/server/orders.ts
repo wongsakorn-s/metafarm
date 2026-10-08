@@ -7,6 +7,7 @@ import type { z } from 'zod';
 import { auditLogs, customers, hives, honeyLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
 import { canMove, nextSeq, orderCode, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
 import type { SessionUser } from './auth.ts';
+import { isOnceConflict, once } from './versioned.ts';
 import type { Db } from './db.ts';
 import { statusStatements } from './hives.ts';
 import { lotForSale } from './lots.ts';
@@ -152,6 +153,9 @@ export async function createOrder(db: Db, user: SessionUser, d: z.output<typeof 
 
 // ---------- เปลี่ยนสถานะ ----------
 
+/** กุญแจครั้งเดียวต่อ (ออเดอร์, สถานะ) — มี created_at ด้วย เผื่อเลข id ถูกใช้ซ้ำหลังล้างข้อมูลในเครื่อง */
+const onceKey = (o: { id: number; createdAt: string }, to: OrderStatus) => `order:${o.id}:${o.createdAt}:${to}`;
+
 /** คำสั่งตัดสต็อกและขายรังของออเดอร์ (ใช้ตอนชำระแล้ว) */
 async function stockStatements(db: Db, user: SessionUser, o: Order, items: Item[], paidOn: string): Promise<BatchItem<'sqlite'>[]> {
   const out: BatchItem<'sqlite'>[] = [];
@@ -179,12 +183,19 @@ async function applyPaid(db: Db, user: SessionUser, code: string, d: z.output<ty
   const { order: o, items } = got;
   if (!fromCreate && !canMove(o.status, 'paid')) return { ok: false, error: o.status === 'paid' ? 'ออเดอร์นี้ชำระแล้ว' : 'เปลี่ยนเป็น "ชำระแล้ว" ไม่ได้ในสถานะนี้' };
   if (o.stockApplied) return { ok: true };
-  await run(db, [
-    // เงื่อนไข stock_applied = 0 ใน where: กดสองครั้งพร้อมกันก็ตัดสต็อกครั้งเดียว (คำสั่งหลังไม่เจอแถว)
-    db.update(orders).set({ status: 'paid', paidOn: d.paidOn, payMethod: d.payMethod, stockApplied: true, ...touch }).where(and(eq(orders.id, o.id), eq(orders.stockApplied, false))),
-    ...(await stockStatements(db, user, o, items, d.paidOn)),
-    audit(db, user, 'order.paid', 'order', o.id, { code, payMethod: d.payMethod }),
-  ]);
+  try {
+    await run(db, [
+      // กุญแจครั้งเดียว: กด "ชำระแล้ว" พร้อมกันสองเครื่อง → คำขอหลังทั้ง batch ย้อนกลับ ไม่ตัดสต็อกซ้ำ
+      // (เดิมมีแค่ stock_applied = 0 ในคำสั่งแรก แต่คำสั่งตัดสต็อกที่ตามมายังรันซ้ำ)
+      once(db, onceKey(o, 'paid')),
+      db.update(orders).set({ status: 'paid', paidOn: d.paidOn, payMethod: d.payMethod, stockApplied: true, ...touch }).where(and(eq(orders.id, o.id), eq(orders.stockApplied, false))),
+      ...(await stockStatements(db, user, o, items, d.paidOn)),
+      audit(db, user, 'order.paid', 'order', o.id, { code, payMethod: d.payMethod }),
+    ]);
+  } catch (e) {
+    if (isOnceConflict(e)) return { ok: true };
+    throw e;
+  }
   return { ok: true };
 }
 export const payOrder = (db: Db, user: SessionUser, code: string, d: z.output<typeof payOrderSchema>) => applyPaid(db, user, code, d);
@@ -194,10 +205,16 @@ export async function fulfillOrder(db: Db, user: SessionUser, code: string, d: z
   if (!got) return { ok: false, error: 'ไม่พบออเดอร์' };
   if (got.order.status === 'fulfilled') return { ok: true };
   if (!canMove(got.order.status, 'fulfilled')) return { ok: false, error: 'ต้องบันทึก "ชำระแล้ว" ก่อนส่งของ' };
-  await run(db, [
-    db.update(orders).set({ status: 'fulfilled', fulfilledOn: d.fulfilledOn, trackingNo: d.trackingNo ?? null, ...touch }).where(eq(orders.id, got.order.id)),
-    audit(db, user, 'order.fulfilled', 'order', got.order.id, { code }),
-  ]);
+  try {
+    await run(db, [
+      once(db, onceKey(got.order, 'fulfilled')),
+      db.update(orders).set({ status: 'fulfilled', fulfilledOn: d.fulfilledOn, trackingNo: d.trackingNo ?? null, ...touch }).where(eq(orders.id, got.order.id)),
+      audit(db, user, 'order.fulfilled', 'order', got.order.id, { code }),
+    ]);
+  } catch (e) {
+    if (isOnceConflict(e)) return { ok: true };
+    throw e;
+  }
   return { ok: true };
 }
 
@@ -208,7 +225,8 @@ export async function cancelOrder(db: Db, user: SessionUser, code: string, today
   const { order: o, items } = got;
   if (o.status === 'cancelled') return { ok: true };
   if (!canMove(o.status, 'cancelled')) return { ok: false, error: 'ออเดอร์ที่ส่งแล้วยกเลิกในระบบไม่ได้ — ถ้ามีการคืนสินค้า บันทึกเป็นหมายเหตุ' };
-  const stmts: BatchItem<'sqlite'>[] = [db.update(orders).set({ status: 'cancelled', stockApplied: false, ...touch }).where(eq(orders.id, o.id))];
+  // กุญแจครั้งเดียว: ยกเลิกพร้อมกันสองเครื่อง → ไม่คืนสต็อก/คืนรังซ้ำ
+  const stmts: BatchItem<'sqlite'>[] = [once(db, onceKey(o, 'cancelled')), db.update(orders).set({ status: 'cancelled', stockApplied: false, ...touch }).where(eq(orders.id, o.id))];
   for (const i of items) {
     if (i.kind === 'variant' && i.variantId && o.stockApplied) {
       if (i.stockTaken > 0) stmts.push(db.update(productVariants).set({ stockQty: sql`${productVariants.stockQty} + ${i.stockTaken}`, ...touch }).where(eq(productVariants.id, i.variantId)));
@@ -224,7 +242,12 @@ export async function cancelOrder(db: Db, user: SessionUser, code: string, today
     }
   }
   stmts.push(audit(db, user, 'order.cancel', 'order', o.id, { code, restocked: o.stockApplied }));
-  await run(db, stmts);
+  try {
+    await run(db, stmts);
+  } catch (e) {
+    if (isOnceConflict(e)) return { ok: true };
+    throw e;
+  }
   return { ok: true };
 }
 

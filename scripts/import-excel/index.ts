@@ -57,6 +57,7 @@ const sql: string[] = [
   // ออเดอร์อ้างถึงรัง/ลูกค้า → ลบก่อน (ไฟล์นี้ใช้ล้างข้อมูลทดสอบในเครื่อง — ห้ามรันกับระบบจริงหลังเริ่มใช้งาน)
   'DELETE FROM order_items;',
   'DELETE FROM orders;',
+  'DELETE FROM once_keys;',
   'DELETE FROM bottlings;',
   'DELETE FROM lot_sources;',
   'DELETE FROM honey_lots;',

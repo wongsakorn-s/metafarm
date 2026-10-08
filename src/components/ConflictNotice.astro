@@ -1,0 +1,60 @@
+---
+// แจ้งว่ามีคนบันทึกไปก่อน (Phase 5.3) — แสดงช่องที่ค่าที่กรอกไว้ต่างจากค่าล่าสุด
+// ปุ่ม "ใช้ค่าล่าสุด" ใส่ค่าล่าสุดลงช่องในฟอร์ม (ช่องที่อีกคนแก้แต่คุณไม่ได้แตะ ควรกดก่อนบันทึก ไม่งั้นค่าเก่าจะทับ)
+// ฟอร์ม (id = prop form) ต้องมีช่อง name ตรงกับ key ของแต่ละรายการ
+import type { FieldDiff } from '../lib/concurrency.ts';
+
+interface Props {
+  diffs: FieldDiff[];
+  by: string | null;
+  at: string;
+  /** แปลงค่าเป็นข้อความที่อ่านเข้าใจ (เช่น รหัสที่มา → ป้ายชื่อ) */
+  format?: (key: string, value: string) => string;
+  /** ใช้แทนชื่อคนเมื่อไม่รู้ว่าใครแก้ (เช่น ออเดอร์ตัดสต็อก) */
+  reason?: string;
+  /** id ของฟอร์มที่ปุ่ม "ใช้ค่าล่าสุด" ใส่ค่าให้ (หน้าเดียวมีได้หลายฟอร์ม เช่นแถวสินค้า) */
+  form: string;
+}
+const { diffs, by, at, format = (_k: string, x: string) => x, form, reason } = Astro.props;
+const who = by ? `${by} บันทึกข้อมูลนี้ไปก่อน` : `ข้อมูลนี้ถูกเปลี่ยนไปก่อน${reason ? ` (${reason})` : ''}`;
+const show = (k: string, x: string) => (x ? format(k, x) : '(ว่าง)');
+---
+
+<section role="alert" aria-labelledby={`conflict-h-${form}`} class="mb-4 max-w-xl rounded-2xl border-2 border-honey-400 bg-honey-50 p-4" data-conflict>
+  <h2 id={`conflict-h-${form}`} class="font-semibold">ยังไม่ได้บันทึก — {who}{at && ` เมื่อ ${at}`}</h2>
+  {diffs.length === 0 ? (
+    <p class="mt-1 text-sm">ค่าที่คุณกรอกตรงกับข้อมูลล่าสุดทุกช่อง — กดบันทึกอีกครั้งได้เลย</p>
+  ) : (
+    <>
+      <p class="mt-1 text-sm">ช่องที่ค่าของคุณต่างจากข้อมูลล่าสุด ({diffs.length} ช่อง) — ถ้ากดบันทึกอีกครั้ง <strong>ค่าในฟอร์มจะแทนค่าล่าสุด</strong> ช่องที่คุณไม่ได้ตั้งใจแก้ให้กด "ใช้ค่าล่าสุด"</p>
+      <ul class="mt-3 space-y-2">
+        {diffs.map((d) => (
+          <li class="rounded-xl bg-surface p-3 text-sm">
+            <p class="font-medium">{d.label}</p>
+            <div class="mt-1 grid gap-1 sm:grid-cols-2">
+              <p><span class="text-muted">ล่าสุด:</span> <span class="whitespace-pre-line break-words">{show(d.key, d.latest)}</span></p>
+              <p><span class="text-muted">ของคุณ:</span> <span class="whitespace-pre-line break-words">{show(d.key, d.mine)}</span></p>
+            </div>
+            <button type="button" class="btn-ghost mt-2 w-full sm:w-auto" data-form={form} data-use-latest={d.key} data-value={d.latest}>ใช้ค่าล่าสุด</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+</section>
+
+<script>
+  // ใส่ค่าล่าสุดลงช่องในฟอร์ม (input / select / textarea) แล้วบอกว่าเปลี่ยนแล้ว
+  document.querySelectorAll<HTMLButtonElement>('[data-use-latest]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      // cast เป็น HTMLInputElement: ชนิดของ Workers ทำให้ union กับ HTMLSelectElement ใช้ไม่ได้ (ทุกแบบมี .value เหมือนกัน)
+      const field = document.querySelector<HTMLInputElement>(`#${CSS.escape(btn.dataset.form!)} [name="${CSS.escape(btn.dataset.useLatest!)}"]`);
+      if (!field) return;
+      field.value = btn.dataset.value ?? '';
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+      btn.textContent = 'ใช้ค่าล่าสุดแล้ว';
+      btn.disabled = true;
+    });
+  });
+</script>

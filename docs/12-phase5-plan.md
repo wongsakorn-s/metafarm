@@ -1,6 +1,6 @@
 # Phase 5 — multiple users and hardening
 
-> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. Next: 5.3.
+> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. Next: 5.4.
 
 ## Work order
 
@@ -59,3 +59,18 @@ Decisions (user, 2026-10-08, "as recommended"): staff have **no** access to sale
 - `/admin/users` shows failed attempts per account in the last 15 minutes. The owner can **unlock** a staff account, which deletes its per-email key.
 - **Trade-off (accepted):** someone deliberately guessing the owner's password can stop the owner logging in *on a new device* for about 15 minutes. Devices already logged in keep working, since sessions last 30 days. The owner row on `/admin/users` explains this when it happens.
 - IP comes from `cf-connecting-ip`, which Cloudflare sets in production. Locally, `check:forms` section 16 uses the same header to simulate rotating IPs.
+
+## 5.3 Concurrent edits (as built)
+
+**Overwrite forms (optimistic concurrency).** The hive edit form and product variant rows send the row's `updated_at` (hidden `version`). The server updates `WHERE id = ? AND updated_at = version` (`src/server/versioned.ts`, `src/lib/concurrency.ts`).
+- If no row matches, someone saved first. Nothing is written, and the audit row is skipped too: `auditIfChanged` uses `insert … select … where changes() > 0` in the same batch.
+- The page keeps what the user typed and shows `ConflictNotice`: who saved first (from `audit_logs`) and when, plus each field where the user's value differs from the latest. A **"ใช้ค่าล่าสุด"** button per field copies the latest value in. The version moves to latest, so saving again is a deliberate overwrite.
+- Product rows: stock changes from orders also bump `updated_at`. So a tab left open on the products page can no longer write an old stock number back after a sale. That was a real bug even with one user.
+- Forms rendered before the deploy (no `version`) save without the check.
+
+**Order transitions (real bug fixed).** `applyPaid` only guarded the order row (`stock_applied = 0`). The stock statements after it in the same batch still ran, so two concurrent "ชำระแล้ว" requests deducted stock twice. Two concurrent cancels restocked twice.
+- Now paid, fulfilled and cancelled each start their batch with `once(db, key)`: an insert into `once_keys` (primary key `order:<id>:<created_at>:<status>`). The second concurrent request hits the PK, its whole batch rolls back, and it returns ok.
+- `created_at` is in the key because local resets reuse ids. `import:excel` clears `once_keys`.
+- `check:forms` section 17 fires 4 simultaneous pay and cancel requests. With the guard removed it reproduced the bug (stock 7 → 3); with it, 7 → 5 → 7.
+
+**Not covered (single-owner pages, last write wins):** customer edit, order note, settings, hive "list for sale". Concurrent bottling of the same lot could slightly exceed the lot's remaining ml; that is rare and visible on the lot page.

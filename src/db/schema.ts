@@ -252,6 +252,15 @@ export const loginAttempts = sqliteTable(
   (t) => [index('login_attempts_key_idx').on(t.keyHash, t.at)],
 );
 
+/**
+ * กุญแจ "ทำได้ครั้งเดียว" (Phase 5.3) — ใส่เป็นคำสั่งแรกของ batch ที่ห้ามทำซ้ำ (เช่น ชำระออเดอร์ = ตัดสต็อก)
+ * คำขอที่สองที่มาพร้อมกันชน PRIMARY KEY → ทั้ง batch ย้อนกลับ ไม่ตัด/คืนสต็อกซ้ำ · ดู src/server/versioned.ts
+ */
+export const onceKeys = sqliteTable('once_keys', {
+  key: text('key').primaryKey(),
+  at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+});
+
 export const auditLogs = sqliteTable('audit_logs', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').references(() => users.id),

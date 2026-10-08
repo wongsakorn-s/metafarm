@@ -693,6 +693,82 @@ console.log('\n16) ล็อกอินผิด: จำกัดต่ออ�
   check(spray.every((x) => x === 'invalid') && blocked === 'locked' && other === 'ok', 'เดา 30 บัญชีจาก IP เดียว → IP นั้นถูกล็อก · คนอื่นล็อกอินได้ตามปกติ', 'ล็อกราย IP ไม่ทำงาน: ' + [...new Set(spray)].join(',') + ' → ' + blocked + ' / ' + other);
 }
 
+console.log('\n17) กันเขียนทับกัน: สองคนแก้รังเดียวกัน · แท็บค้างทับสต็อก · กดชำระ/ยกเลิกพร้อมกัน');
+{
+  // --- สองคนแก้รังเดียวกัน: เจ้าของเปิดฟอร์มค้าง → พนักงานแก้สถานที่ซื้อ → เจ้าของบันทึก = ชน ไม่ทับ ---
+  const sc = readFileSync('private/dev-staff.txt', 'utf8').split('\n');
+  const sctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  const sp = await sctx.newPage();
+  await sp.goto(BASE + '/admin/login');
+  await sp.fill('#email', sc[0].split(/:\s*/)[1].trim());
+  await sp.fill('#password', sc[1].split(/:\s*/)[1].trim());
+  await Promise.all([sp.waitForURL(/\/admin$/), sp.press('#password', 'Enter')]);
+  const tag = Date.now().toString().slice(-5);
+  await page.goto(BASE + '/admin/hives/' + HIVE + '/edit');
+  await sp.goto(BASE + '/admin/hives/' + HIVE + '/edit');
+  await sp.fill('#place', 'สถานที่จากพนักงาน ' + tag);
+  await Promise.all([sp.waitForURL(/saved=edited/), sp.locator('#hive-edit button[type=submit]').last().click()]);
+  await page.fill('#pub', 'หมายเหตุจากเจ้าของ ' + tag);
+  await Promise.all([page.waitForLoadState('load'), page.locator('#hive-edit button[type=submit]').last().click()]);
+  const notice = (await page.locator('[data-conflict]').textContent().catch(() => '')) ?? '';
+  check(notice.includes('ยังไม่ได้บันทึก') && notice.includes('สถานที่ซื้อ') && notice.includes('สถานที่จากพนักงาน ' + tag),
+    'เจ้าของบันทึกฟอร์มที่เปิดค้าง → แจ้ง "ยังไม่ได้บันทึก" พร้อมช่องที่ต่าง (สถานที่ซื้อ ที่พนักงานแก้)', 'ไม่แจ้งชนกัน: ' + notice.slice(0, 120));
+  check(/พนักงานทดสอบ\d+ บันทึกข้อมูลนี้ไปก่อน/.test(notice), 'บอกชื่อคนที่บันทึกไปก่อน', 'ไม่บอกชื่อคนที่บันทึกไปก่อน: ' + notice.slice(0, 80));
+  await page.click('[data-use-latest=originPlace]');
+  check(await page.inputValue('#place') === 'สถานที่จากพนักงาน ' + tag && await page.inputValue('#pub') === 'หมายเหตุจากเจ้าของ ' + tag, 'กด "ใช้ค่าล่าสุด" → ช่องสถานที่ซื้อเป็นค่าของพนักงาน · ที่เจ้าของพิมพ์ยังอยู่', 'ปุ่มใช้ค่าล่าสุดไม่ทำงาน');
+  await Promise.all([page.waitForURL(/saved=edited/), page.locator('#hive-edit button[type=submit]').last().click()]);
+  await page.goto(BASE + '/admin/hives/' + HIVE + '/edit');
+  check(await page.inputValue('#place') === 'สถานที่จากพนักงาน ' + tag && await page.inputValue('#pub') === 'หมายเหตุจากเจ้าของ ' + tag, 'บันทึกอีกครั้ง → ได้ทั้งค่าของพนักงานและของเจ้าของ (ไม่มีใครทับใคร)', 'ผลรวมไม่ถูก');
+  await sctx.close();
+
+  // --- แท็บค้างทับสต็อก: แท็บ 1 เปิดหน้าสินค้า → แท็บ 2 แก้สต็อก → แท็บ 1 บันทึกราคา = ชน สต็อกไม่ถูกทับ ---
+  await page.goto(BASE + '/admin/products');
+  const vid = (await page.getAttribute('input[id^=st-]', 'id')).slice(3);
+  const tab2 = await ctx.newPage();
+  await tab2.goto(BASE + '/admin/products');
+  const stock0 = Number(await tab2.inputValue('#st-' + vid));
+  await tab2.fill('#st-' + vid, String(stock0 + 7));
+  await Promise.all([tab2.waitForURL(/saved=variant/), tab2.locator('#variant-' + vid + ' button[type=submit]').click()]);
+  const price0 = Number(await page.inputValue('#pr-' + vid));
+  await page.fill('#pr-' + vid, String(price0 + 1));
+  await Promise.all([page.waitForLoadState('load'), page.locator('#variant-' + vid + ' button[type=submit]').click()]);
+  const vnotice = (await page.locator('[data-conflict]').textContent().catch(() => '')) ?? '';
+  await tab2.reload();
+  const stockNow = Number(await tab2.inputValue('#st-' + vid));
+  check(vnotice.includes('สต็อก') && stockNow === stock0 + 7, 'แท็บที่เปิดค้างบันทึกราคา → แจ้งชน (สต็อกเปลี่ยนไปแล้ว) · สต็อก ' + stockNow + ' ไม่ถูกเลขเก่าทับ', 'สต็อกถูกทับ/ไม่แจ้ง (' + stockNow + ', ' + vnotice.slice(0, 60) + ')');
+  await page.click('[data-use-latest=stockQty]');
+  await Promise.all([page.waitForURL(/saved=variant/), page.locator('#variant-' + vid + ' button[type=submit]').click()]);
+  await tab2.reload();
+  check(Number(await tab2.inputValue('#st-' + vid)) === stock0 + 7 && Number(await tab2.inputValue('#pr-' + vid)) === price0 + 1, 'ใช้สต็อกล่าสุดแล้วบันทึก → ราคาใหม่ + สต็อกที่ถูกต้อง', 'บันทึกหลังชนไม่ถูก');
+  // คืนราคาเดิม (กันข้อ 5 รอบหน้า)
+  await tab2.fill('#pr-' + vid, String(price0));
+  await Promise.all([tab2.waitForURL(/saved=variant/), tab2.locator('#variant-' + vid + ' button[type=submit]').click()]);
+  await tab2.close();
+
+  // --- กด "ชำระแล้ว" / "ยกเลิก" พร้อมกัน 4 ครั้ง → ตัด/คืนสต็อกครั้งเดียว ---
+  await page.goto(BASE + '/admin/products');
+  const before = Number(await page.inputValue('#st-' + vid));
+  await page.goto(BASE + '/admin/orders/new');
+  await page.check('input[name=customerMode][value=new]');
+  await page.fill('#c_name', 'ลูกค้าพร้อมกัน' + tag);
+  await page.fill('#qty_v' + vid, '2');
+  await Promise.all([page.waitForURL(/saved=created/), page.click('button:has-text("บันทึกออเดอร์")')]);
+  const code = page.url().match(/orders\/(S\d{4}-\d+)/)[1];
+  const burst = (fields) => page.evaluate(async ({ url, fields }) => Promise.all(Array.from({ length: 4 }, async () => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    return (await fetch(url, { method: 'POST', body: fd })).status;
+  })), { url: '/admin/orders/' + code, fields });
+  const paid = await burst({ intent: 'pay', paidOn: today, payMethod: 'transfer' });
+  await page.goto(BASE + '/admin/products');
+  const afterPay = Number(await page.inputValue('#st-' + vid));
+  check(paid.every((x) => x === 200) && afterPay === before - 2, 'กด "ชำระแล้ว" พร้อมกัน 4 ครั้ง → สต็อก ' + before + ' → ' + afterPay + ' (ตัดครั้งเดียว)', 'ตัดสต็อกซ้ำ: ' + before + ' → ' + afterPay + ' (' + paid + ')');
+  const cancelled = await burst({ intent: 'cancel' });
+  await page.goto(BASE + '/admin/products');
+  const afterCancel = Number(await page.inputValue('#st-' + vid));
+  check(cancelled.every((x) => x === 200) && afterCancel === before, 'กด "ยกเลิก" พร้อมกัน 4 ครั้ง → สต็อกคืนเป็น ' + afterCancel + ' (คืนครั้งเดียว)', 'คืนสต็อกซ้ำ: ' + afterCancel + ' (คาด ' + before + ')');
+}
+
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');

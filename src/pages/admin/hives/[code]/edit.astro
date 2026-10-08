@@ -8,6 +8,9 @@ import { unknownTopics } from '../../../../lib/unknown-notes.ts';
 import { editHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../../lib/validation.ts';
 import { formatThaiDate } from '../../../../lib/thai-date.ts';
 import { isOwner } from '../../../../lib/permissions.ts';
+import { differingFields, shortStamp, type FieldDiff } from '../../../../lib/concurrency.ts';
+import { editedBy } from '../../../../server/versioned.ts';
+import ConflictNotice from '../../../../components/ConflictNotice.astro';
 
 export const prerender = false;
 
@@ -15,9 +18,10 @@ const code = (Astro.params.code ?? '').toUpperCase();
 if (!/^A\d{1,5}$/.test(code)) return new Response(null, { status: 404 });
 
 const db = getDb();
-const detail = await getHiveDetail(db, code);
+let detail = await getHiveDetail(db, code);
 if (!detail) return new Response('ไม่พบรังนี้', { status: 404 });
-const { hive } = detail;
+let { hive } = detail;
+let conflict: { diffs: FieldDiff[]; by: string | null; at: string } | null = null;
 const today = todayBangkok();
 
 let errors: FieldErrors = {};
@@ -31,7 +35,13 @@ if (Astro.request.method === 'POST') {
   else {
     const r = await updateHive(db, Astro.locals.user!, hive, p.data);
     if (r.ok) return Astro.redirect(`/admin/hives/${code}?saved=edited`, 303);
-    errors = { _: r.error };
+    if (r.conflict) {
+      // มีคนบันทึกไปก่อน: โหลดค่าล่าสุด เก็บค่าที่กรอกไว้ในฟอร์ม และเลื่อนเวอร์ชันเป็นล่าสุด (กดบันทึกอีกครั้ง = ยืนยันใช้ค่าของคุณ)
+      detail = (await getHiveDetail(db, code))!;
+      hive = detail.hive;
+      conflict = { diffs: [], by: await editedBy(db, 'hive', hive.id, values.version ?? ''), at: shortStamp(hive.updatedAt) };
+      values.version = hive.updatedAt;
+    } else errors = { _: r.error };
   }
 }
 
@@ -50,6 +60,14 @@ const cur: Record<string, string> = {
   notes: hive.notes ?? '',
 };
 const v = (k: string) => (values ? (values[k] ?? '') : cur[k]!);
+// เทียบเป็นข้อความที่คนอ่านเข้าใจ (ที่มา/กล่องรังเป็นป้ายชื่อ ไม่ใช่รหัส)
+if (conflict && values) {
+  conflict.diffs = differingFields(values, cur, {
+    origin: 'ที่มา', originPlace: 'สถานที่ซื้อ', acquiredOn: 'วันที่ได้มา', queenBornOn: 'วันเกิดนางพญา', boxType: 'กล่องรัง',
+    queenSourceCode: 'รังแม่ (ไข่นาง)', broodSourceCode: 'รังแม่ (ไข่อ่อน)', ...(isOwner(Astro.locals.user) ? { purchasePrice: 'ราคาซื้อ' } : {}),
+    collapseReason: 'สาเหตุที่ล่ม', publicNote: 'หมายเหตุสาธารณะ', notes: 'หมายเหตุภายใน',
+  });
+}
 const err = (k: string) => errors[k];
 
 // ช่องที่ยังเป็น ??? ให้ไฮไลต์
@@ -68,6 +86,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
 <AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives">
 
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+  {conflict && <ConflictNotice form="hive-edit" diffs={conflict.diffs} by={conflict.by} at={conflict.at} format={(k, x) => (k === 'origin' ? (originLabel[x as keyof typeof originLabel] ?? x) : k === 'boxType' ? (boxLabel[x as keyof typeof boxLabel] ?? x) : x)} />}
 
   {topics.length > 0 && (
     <section class="mb-4 rounded-2xl border border-honey-400 bg-honey-50 p-4" aria-label="ข้อมูลที่ยังไม่ครบ">
@@ -77,7 +96,8 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     </section>
   )}
 
-  <form method="post" class="card max-w-xl space-y-4">
+  <form method="post" id="hive-edit" class="card max-w-xl space-y-4">
+    <input type="hidden" name="version" value={values?.version ?? hive.updatedAt} />
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="label" for="origin">ที่มา</label>

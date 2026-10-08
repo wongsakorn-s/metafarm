@@ -3,6 +3,8 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers, users } from '../db/schema.ts';
 import { isOwner, statusTargets } from '../lib/permissions.ts';
+import { CONFLICT_ERROR } from '../lib/concurrency.ts';
+import { auditIfChanged, type Saved } from './versioned.ts';
 import type { z } from 'zod';
 import { todayBangkok } from '../lib/validation.ts';
 import type { broodSplitSchema, editHiveSchema, fillSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
@@ -277,7 +279,7 @@ export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.o
 }
 
 /** แก้ไขข้อมูลรัง (ไม่รวมสถานะ/การขาย ซึ่งมีฟอร์มแยก) */
-export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof editHiveSchema>): Promise<Result> {
+export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof editHiveSchema>): Promise<Saved> {
   const source = async (code: string | undefined, label: string): Promise<{ id: number | null; error?: string }> => {
     if (!code) return { id: null };
     if (code === hive.code) return { id: null, error: `${label}ต้องไม่ใช่รังเดียวกัน` };
@@ -321,10 +323,12 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
   if (changed.length === 0) return { ok: true };
   const diff = Object.fromEntries(changed.filter((k) => k !== 'notes').map((k) => [k, { from: hive[k], to: next[k] }]));
 
-  await db.batch([
-    db.update(hives).set({ ...next, ...touch }).where(eq(hives.id, hive.id)),
-    audit(db, user, 'hive.update', hive.id, { fields: changed, ...diff }),
+  // บันทึกเฉพาะเมื่อแถวยังเป็นเวอร์ชันที่ฟอร์มเห็น (ฟอร์มเก่าที่ไม่ส่งเวอร์ชันมา = ไม่ตรวจ)
+  const [updated] = await db.batch([
+    db.update(hives).set({ ...next, ...touch }).where(and(eq(hives.id, hive.id), d.version ? eq(hives.updatedAt, d.version) : undefined)).returning({ id: hives.id }),
+    auditIfChanged(db, user.id, 'hive.update', 'hive', hive.id, { fields: changed, ...diff }),
   ]);
+  if (updated.length === 0) return { ok: false, error: CONFLICT_ERROR, conflict: true };
   return { ok: true };
 }
 

@@ -10,6 +10,8 @@ import { listProductsAdmin, setProductPublished, updateVariant } from '../../ser
 import { categoryLabel, formatPrice, sizeLabel } from '../../lib/products.ts';
 import { parseForm, publishSchema, variantSchema } from '../../lib/validation.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
+import { differingFields, shortStamp, type FieldDiff } from '../../lib/concurrency.ts';
+import ConflictNotice from '../../components/ConflictNotice.astro';
 
 export const prerender = false;
 
@@ -20,6 +22,7 @@ let errorVariant = 0;
 let errorFields: Record<string, string> = {};
 let posted: Record<string, string> = {};
 const saved = Astro.url.searchParams.get('saved');
+let conflictVariant = 0;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
@@ -31,7 +34,9 @@ if (Astro.request.method === 'POST') {
     else {
       const r = await updateVariant(db, user, p.data);
       if (r.ok) return Astro.redirect('/admin/products?saved=variant', 303);
-      error = r.error;
+      // ชนกัน: แถวนั้นแสดงค่าที่กรอกไว้ + กล่องเทียบค่าล่าสุด (ไม่ใช้แถบแดงด้านบน)
+      if (r.conflict) { conflictVariant = p.data.variantId; errorVariant = conflictVariant; }
+      else error = r.error;
     }
   } else if (intent === 'publish') {
     const p = parseForm(publishSchema, form);
@@ -61,6 +66,13 @@ if (Astro.request.method === 'POST') {
 }
 
 const items = await listProductsAdmin(db);
+// ชนกัน: เทียบค่าที่กรอกกับค่าล่าสุดของแถวนั้น แล้วเลื่อนเวอร์ชันเป็นล่าสุด (กดบันทึกอีกครั้ง = ยืนยันค่าของคุณ)
+let conflict: { diffs: FieldDiff[]; at: string } | null = null;
+const latestVariant = items.flatMap((p) => p.variants).find((v) => v.id === conflictVariant);
+if (latestVariant) {
+  conflict = { diffs: differingFields(posted, latestVariant, { priceThb: 'ราคา (บาท)', stockQty: 'สต็อก (ชิ้น)', unitCost: 'ต้นทุน/ชิ้น' }), at: shortStamp(latestVariant.updatedAt) };
+  posted.version = latestVariant.updatedAt;
+}
 const savedText: Record<string, string> = { variant: 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)', publish: 'บันทึกการแสดง/ซ่อนสินค้าแล้ว', image: 'เปลี่ยนรูปสินค้าแล้ว', image_removed: 'ลบรูปสินค้าแล้ว (เว็บกลับไปใช้รูปชั่วคราว)' };
 ---
 
@@ -110,8 +122,10 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
         <ul class="mt-4 space-y-3">
           {p.variants.map((v) => (
             <li class="rounded-xl border border-line p-3">
-              <form method="post" class="grid grid-cols-3 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
+              {conflict && conflictVariant === v.id && <ConflictNotice form={`variant-${v.id}`} diffs={conflict.diffs} by={null} reason="คนอื่นบันทึก หรือออเดอร์ตัด/คืนสต็อก" at={conflict.at} />}
+              <form method="post" id={`variant-${v.id}`} class="grid grid-cols-3 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
                 <input type="hidden" name="intent" value="variant" /><input type="hidden" name="variantId" value={v.id} />
+                <input type="hidden" name="version" value={errorVariant === v.id && posted.version ? posted.version : v.updatedAt} />
                 <div class="col-span-3 sm:col-span-1">
                   <p class="font-medium">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
                   <p class="text-sm text-muted">{v.priceConfirmed ? `ราคาปัจจุบัน ${formatPrice(v.priceThb)} (ยืนยันแล้ว)` : <span class="font-medium text-honey-700">ราคาตัวอย่าง {formatPrice(v.priceThb)} — ยังไม่ได้ยืนยัน</span>}</p>

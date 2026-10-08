@@ -1,9 +1,11 @@
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
 import { auditLogs, productVariants, products } from '../db/schema.ts';
 import type { publishSchema, variantSchema } from '../lib/validation.ts';
 import type { SessionUser } from './auth.ts';
+import { CONFLICT_ERROR } from '../lib/concurrency.ts';
+import { auditIfChanged, type Saved } from './versioned.ts';
 import type { Db } from './db.ts';
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -19,14 +21,16 @@ export async function listProductsAdmin(db: Db) {
 }
 
 /** บันทึกราคา/สต็อก — การบันทึกราคาถือว่าเจ้าของฟาร์มยืนยันราคาแล้ว (เว็บเลิกแสดงป้าย "ราคาตัวอย่าง") */
-export async function updateVariant(db: Db, user: SessionUser, d: z.output<typeof variantSchema>): Promise<Result> {
+// สต็อกเป็นค่า "ตั้งทับ" — ถ้าออเดอร์ตัด/คืนสต็อกหลังเปิดหน้านี้ (updated_at เปลี่ยน) จะไม่ทับ แต่แจ้งให้ตรวจก่อน
+export async function updateVariant(db: Db, user: SessionUser, d: z.output<typeof variantSchema>): Promise<Saved> {
   const v = await db.query.productVariants.findFirst({ where: eq(productVariants.id, d.variantId) });
   if (!v) return { ok: false, error: 'ไม่พบตัวเลือกสินค้านี้' };
-  const stmts: BatchItem<'sqlite'>[] = [
-    db.update(productVariants).set({ priceThb: d.priceThb, stockQty: d.stockQty, unitCost: d.unitCost ?? null, priceConfirmed: true, ...touch }).where(eq(productVariants.id, v.id)),
-    audit(db, user, 'product.variant.update', v.productId, { variantId: v.id, price: { from: v.priceThb, to: d.priceThb }, stock: { from: v.stockQty, to: d.stockQty } }),
-  ];
-  await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  const [updated] = await db.batch([
+    db.update(productVariants).set({ priceThb: d.priceThb, stockQty: d.stockQty, unitCost: d.unitCost ?? null, priceConfirmed: true, ...touch })
+      .where(and(eq(productVariants.id, v.id), d.version ? eq(productVariants.updatedAt, d.version) : undefined)).returning({ id: productVariants.id }),
+    auditIfChanged(db, user.id, 'product.variant.update', 'product', v.productId, { variantId: v.id, price: { from: v.priceThb, to: d.priceThb }, stock: { from: v.stockQty, to: d.stockQty } }),
+  ]);
+  if (updated.length === 0) return { ok: false, error: CONFLICT_ERROR, conflict: true };
   return { ok: true };
 }
 
