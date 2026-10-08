@@ -122,14 +122,15 @@ const current = nav.find((n) => n.key === active);
     <main id="main" tabindex="-1" class="mx-auto w-full max-w-5xl flex-1 px-4 py-6 outline-none md:py-10"><slot /></main>
 
     <footer class="border-t border-line bg-surface">
-      <div class="mx-auto grid max-w-5xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1.2fr]">
+      {/* มือถือ: ตัดโลโก้และเมนูที่ซ้ำกับเมนูด้านบน · ช่องทางติดต่อ 2 คอลัมน์ (เดิมส่วนท้ายยาวเกือบเต็มจอ) */}
+      <div class="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:grid-cols-2 md:gap-8 md:py-10 lg:grid-cols-[1.5fr_1fr_1.2fr]">
         <div class="sm:col-span-2 lg:col-span-1">
-          <img src="/brand/logo-round-sm.webp" alt="" width="72" height="67" class="mb-3 h-[67px] w-[72px] object-contain" loading="lazy" />
+          <img src="/brand/logo-round-sm.webp" alt="" width="72" height="67" class="mb-3 hidden h-[67px] w-[72px] object-contain md:block" loading="lazy" />
           <p class="font-semibold">{site.name} <span class="font-normal text-muted">· {site.tagline}</span></p>
           <p class="text-sm text-muted">{site.address}</p>
-          <p class="mt-2 max-w-sm text-sm text-muted">เลี้ยงชันโรงขนเงินในรังไม้สักที่ออกแบบเองตั้งแต่ปี พ.ศ. {site.foundedYearBE}</p>
+          <p class="mt-2 hidden max-w-sm text-sm text-muted md:block">เลี้ยงชันโรงขนเงินในรังไม้สักที่ออกแบบเองตั้งแต่ปี พ.ศ. {site.foundedYearBE}</p>
         </div>
-        <nav aria-label="เมนูท้ายเว็บ">
+        <nav aria-label="เมนูท้ายเว็บ" class="hidden md:block">
           <h2 class="mb-2 text-sm font-semibold text-muted">เมนู</h2>
           <ul class="grid grid-cols-2 gap-x-6">
             {nav.map((n) => <li><a class="flex min-h-11 min-w-11 items-center hover:text-palm-700 hover:underline md:min-h-9" href={n.href}>{n.label}</a></li>)}
@@ -137,7 +138,7 @@ const current = nav.find((n) => n.key === active);
         </nav>
         <div>
           <h2 class="mb-2 text-sm font-semibold text-muted">ติดต่อเรา</h2>
-          <ul>
+          <ul class="grid grid-cols-2 gap-x-4 md:block">
             {line && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={line} rel="noopener"><Icon name="line" class="size-4" />LINE {c.lineId}</a></li>}
             {messenger && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={messenger} rel="noopener"><Icon name="messenger" class="size-4" />Messenger</a></li>}
             {tel && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={tel}><Icon name="phone" class="size-4" />โทร {c.phone}</a></li>}

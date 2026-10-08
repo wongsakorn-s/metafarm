@@ -18,5 +18,5 @@ export async function getReadiness(db: Db, settings: SiteSettings) {
     one(sql`select count(*) n from hives h where h.for_sale = 1 and h.status = 'active' and ((select count(*) from hive_media m where m.hive_id = h.id and m.kind = 'sale') < 3 or not exists (select 1 from hive_media m where m.hive_id = h.id and m.kind = 'video'))`),
   ]);
   const unconfirmedCourses = listTraining().filter((c) => effectiveCourse(c, settings.courses[c.slug]).priceIsSample).length;
-  return buildChecklist({ contactConfirmed: settings.contact.confirmed, unconfirmedPrices, unconfirmedCourses, productsWithoutImage, activeHivesWithoutPhoto, incompleteHives, saleHivesNotReady });
+  return buildChecklist({ contactConfirmed: settings.contact.confirmed, heroChosen: settings.heroHive !== '', unconfirmedPrices, unconfirmedCourses, productsWithoutImage, activeHivesWithoutPhoto, incompleteHives, saleHivesNotReady });
 }

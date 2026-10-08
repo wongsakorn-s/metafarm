@@ -27,6 +27,8 @@ export interface SiteSettings {
   farm: FarmLocation & { isDefault: boolean };
   /** ช่องทางชำระเงิน (เลขบัญชี/พร้อมเพย์) ใส่ท้ายข้อความสรุปออเดอร์ที่ส่งให้ลูกค้าทาง LINE — หลังบ้านเท่านั้น */
   paymentInfo: string;
+  /** รังที่ใช้รูปสมุดพกเป็นรูปหัวหน้าแรก (ว่าง = ใช้โลโก้) — เจ้าของเลือกเองในหลังบ้าน */
+  heroHive: string;
 }
 
 /** ค่าเริ่มต้น (ตัวอย่าง) ใช้จนกว่าเจ้าของฟาร์มจะบันทึกค่าจริง */
@@ -69,6 +71,7 @@ export function parseSettingRows(rows: { key: string; value: string }[]): SiteSe
     },
     courses,
     paymentInfo: map.get('payment.info') ?? '',
+    heroHive: map.get('site.heroHive') ?? '',
     farm: (() => {
       const lat = Number(map.get('farm.lat'));
       const lng = Number(map.get('farm.lng'));
@@ -190,6 +193,11 @@ export function locationToRows(d: z.output<typeof locationSchema>): { key: strin
     { key: 'farm.lng', value: String(d.coords.lng) },
   ];
 }
+
+/** รูปหัวหน้าแรก: รหัสรัง (ว่าง = ใช้โลโก้) */
+export const heroSchema = z.object({
+  heroHive: z.preprocess((v) => (typeof v === 'string' ? v.trim().toUpperCase().replace(/^(\d)/, 'A$1') : v), z.string().regex(/^(A\d{1,5})?$/, 'ใส่รหัสรัง เช่น A25 (เว้นว่าง = ใช้โลโก้)')),
+});
 
 export const paymentSchema = z.object({ paymentInfo: z.preprocess(blank, z.string().max(500, 'ยาวเกินไป (ไม่เกิน 500 ตัวอักษร)')) });
 export const paymentToRows = (d: z.output<typeof paymentSchema>) => [{ key: 'payment.info', value: d.paymentInfo }];

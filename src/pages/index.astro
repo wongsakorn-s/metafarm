@@ -4,12 +4,19 @@ import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
-import { getFarmStats } from '../server/public.ts';
+import { getFarmStats, getHeroPhoto, getPublicProducts, getSaleHives } from '../server/public.ts';
+import SampleBadge from '../components/SampleBadge.astro';
+import { formatPrice } from '../lib/products.ts';
+import { photoSrcset } from '../lib/media.ts';
+import { placeholder } from '../lib/placeholders.ts';
 import { site } from '../config/site.ts';
 
 export const prerender = false;
 
-const stats = await getFarmStats(getDb());
+const db = getDb();
+const [stats, hero, products, saleHives] = await Promise.all([getFarmStats(db), getHeroPhoto(db, Astro.locals.settings!.heroHive), getPublicProducts(db), getSaleHives(db)]);
+// ราคาเริ่มต้นของแต่ละสินค้า (หน้าแรกโชว์ "เริ่ม …" ไม่ต้องแจกทุกขนาด)
+const from = (prices: number[]) => (prices.length ? `เริ่ม ${formatPrice(Math.min(...prices))}` : '');
 const askMessage = 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง';
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
@@ -31,12 +38,22 @@ const highlights = [
       <div class="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
         <a class="btn-primary" href="/products"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูสินค้า</a>
         <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกรัง</a>
-        {/* มือถือมีปุ่มติดต่อที่แถบล่างอยู่แล้ว */}
         {/* มือถือมีแถบติดต่อด้านล่างอยู่แล้ว */}
         <ContactButtons class="hidden md:flex" show="primary" message={askMessage} />
       </div>
     </div>
-    <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto hidden w-full max-w-sm md:block" />
+    {/* รูปจริงจากสวน (รูปสมุดพกล่าสุดของรังที่ยังเลี้ยงอยู่) แทนโลโก้ — มือถือก็เห็น · ไม่มีรูปเลยใช้โลโก้ (คอม) */}
+    {hero ? (
+      <figure class="relative">
+        <img src={`/img/${hero.key}`} srcset={photoSrcset(`/img/${hero.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="675" fetchpriority="high"
+          alt={`รังชันโรงขนเงิน ${hero.code} ที่ ${site.name}`} class="aspect-[4/3] w-full rounded-3xl bg-palm-50 object-cover shadow-card" />
+        <figcaption class="absolute bottom-3 left-3">
+          <a class="inline-flex min-h-11 items-center gap-1 rounded-full bg-surface/90 px-4 text-sm font-medium text-palm-700 backdrop-blur" href={`/passport/${hero.code}`}><Icon name="passport" class="size-4" />รัง {hero.code} · ดูสมุดพก</a>
+        </figcaption>
+      </figure>
+    ) : (
+      <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="mx-auto hidden w-full max-w-sm md:block" />
+    )}
   </section>
 
   {/* ตัวเลขจริงจากทะเบียนรัง — ความน่าเชื่อถือก่อนเล่าเรื่อง (Trust & Authority) */}
@@ -52,6 +69,42 @@ const highlights = [
       </a>
     ))}
   </section>
+
+  {/* สินค้าพร้อมราคาตั้งแต่หน้าแรก (รีวิว UX: เดิมต้องกดเข้าหน้าสินค้าก่อนถึงเห็นว่าขายอะไร ราคาเท่าไร) */}
+  {(products.length > 0 || saleHives.length > 0) && (
+    <section class="mt-12" aria-labelledby="shop-h">
+      <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="shop-h" class="text-2xl font-bold">สินค้าจากฟาร์ม</h2>
+        <a class="inline-flex min-h-11 items-center font-medium text-palm-700 underline" href="/products">ดูสินค้าทั้งหมด</a>
+      </div>
+      <ul class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {saleHives.length > 0 && (
+          <li>
+            <a href="/products/hives" class="card-link block overflow-hidden !p-0">
+              <img src={saleHives[0]!.coverKey ? `/img/${saleHives[0]!.coverKey}` : placeholder.hive} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+              <div class="p-4">
+                <h3 class="text-lg font-bold">รังสมบูรณ์ชันโรงขนเงิน</h3>
+                <p data-num class="text-xl font-bold text-palm-700">{from(saleHives.map((h) => h.priceThb))}</p>
+                <p class="text-sm text-muted">เปิดขาย {saleHives.length} รัง · ทุกรังมีสมุดพก</p>
+              </div>
+            </a>
+          </li>
+        )}
+        {products.map((p) => (
+          <li>
+            <a href={`/products/${p.slug}`} class="card-link block overflow-hidden !p-0">
+              <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+              <div class="p-4">
+                <h3 class="text-lg font-bold">{p.name}</h3>
+                <p data-num class="text-xl font-bold text-palm-700">{from(p.variants.map((v) => v.priceThb))}</p>
+                {p.variants.some((v) => v.priceIsSample) && <p class="mt-1"><SampleBadge /></p>}
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 
   <section class="mt-12" aria-labelledby="story-h">
     <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>

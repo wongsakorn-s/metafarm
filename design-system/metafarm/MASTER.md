@@ -180,8 +180,14 @@ Components:
 - **Hive page:**
   - a hive that is no longer active shows a notice above the record forms (back-dating is still allowed)
   - on xl screens the honey form opens by default
-- **Pending (round 3):**
-  - desktop sidebar group headings and an always-visible logout
-  - inline hive filters on desktop
-  - featured products and a real photo in the home hero (waiting for owner photos)
-  - a shorter mobile footer
+- **Round 3 (applied 2026-10-09):**
+  - **Desktop sidebar:**
+    - grouped into งานรัง / ขาย (น้ำผึ้ง for staff) / เว็บไซต์และบัญชี
+    - the item list scrolls on its own, and account + logout stay pinned at the bottom
+    - desktop items are `min-h-9` (mouse); mobile tap targets stay ≥ 44px
+  - **Hive list:** a quick filter chip row (all / active / for sale / sold / collapsed / incomplete) is always visible. Origin stays in the collapsible "ตัวกรองเพิ่มเติม".
+  - **Home page:**
+    - a "สินค้าจากฟาร์ม" section with "เริ่ม …" prices
+    - the hero photo is chosen by the owner (`site.heroHive` in settings → first passport photo of that hive; blank = logo; never chosen automatically)
+    - readiness lists it as a "should" item
+  - **Mobile footer:** no logo or menu (they duplicate the header); contacts in 2 columns.

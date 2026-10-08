@@ -58,7 +58,7 @@ const forbiddenWords = ['บาท', 'ราคา', 'คู่ค้า', '???'
 const PRICE_WORDS = new Set(['บาท', 'ราคา']);
 const saleHives = hives.filter((h) => h.for_sale && h.status === 'active' && h.sale_price > 0);
 const pages = [
-  ['/', 'หน้าแรก'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'],
+  ['/', 'หน้าแรก', 'product'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'],
   ...hives.map((h) => [`/passport/${h.code}`, h.code]),
   // หน้าล็อตน้ำผึ้งจาก QR บนขวด (ต้องไม่มีหมายเหตุล็อต ต้นทุน หรือข้อมูลการขาย)
   ...lots.map((l) => [`/lot/${l.code}`, `ล็อต ${l.code}`]),

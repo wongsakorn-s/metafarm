@@ -86,3 +86,15 @@ describe('courseSchema', () => {
       expect(parse(courseSchema, { slug: 'hive-splitting', priceThb: '100', duration: '1 วัน', ...bad }).success).toBe(false);
   });
 });
+
+describe('heroSchema (รูปหัวหน้าแรก)', () => {
+  it('รับรหัสรัง (เติม A ให้ถ้าพิมพ์แค่เลข) หรือว่าง = ใช้โลโก้', async () => {
+    const { heroSchema, parseSettingRows } = await import('./settings.ts');
+    expect(heroSchema.parse({ heroHive: ' a25 ' }).heroHive).toBe('A25');
+    expect(heroSchema.parse({ heroHive: '25' }).heroHive).toBe('A25');
+    expect(heroSchema.parse({ heroHive: '' }).heroHive).toBe('');
+    expect(heroSchema.safeParse({ heroHive: 'B12' }).success).toBe(false);
+    expect(parseSettingRows([]).heroHive).toBe('');
+    expect(parseSettingRows([{ key: 'site.heroHive', value: 'A7' }]).heroHive).toBe('A7');
+  });
+});

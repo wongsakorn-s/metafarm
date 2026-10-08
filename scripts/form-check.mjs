@@ -288,7 +288,8 @@ console.log('\n9) เมนูมือถือ: บันทึกด่วน
   await page.click('[data-menu-toggle]');
   const links = await page.$$eval('nav[aria-label="เมนูหลัก (มือถือ)"] a', (as) => as.map((a) => a.textContent.trim()));
   check(!before && links.length === 7, `เมนูเว็บ: ซ่อนไว้ก่อน แตะแล้วเห็นครบ ${links.length} รายการ`, `เมนูเว็บไม่ถูกต้อง (ก่อนแตะเห็น=${before}, ${links.length} รายการ)`);
-  await page.mouse.click(200, 700);
+  // แตะพื้นหลังของหน้า (ไม่ใช่พิกัดตายตัว — หน้าแรกมีการ์ดสินค้าที่เป็นลิงก์แล้ว)
+  await page.evaluate(() => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })));
   check(!(await page.evaluate(() => document.querySelector('[data-site-menu]').open)), 'แตะนอกเมนู → เมนูปิด', 'แตะนอกเมนูแล้วเมนูไม่ปิด');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   check(overflow <= 0, 'หน้าเว็บไม่ล้นจอแนวนอน', `ล้นจอ ${overflow}px`);
@@ -835,6 +836,30 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
   await post('/admin/settings', { intent: 'contact', ...orig });
   await page.goto(BASE + '/admin/settings');
   check(await page.inputValue('#lineId') === (orig.lineId ?? ''), 'คืนค่าช่องทางติดต่อเดิมแล้ว', 'คืนค่าช่องทางติดต่อไม่สำเร็จ');
+}
+
+console.log('\n19) รูปหัวหน้าแรก: เจ้าของเลือกรัง → หน้าแรกใช้รูปสมุดพกรังนั้น · รังไม่มีรูป = ปฏิเสธ · ว่าง = โลโก้');
+{
+  await page.goto(BASE + '/admin/settings');
+  const before = await page.inputValue('#heroHive');
+  // รังที่มีรูปสมุดพก: เอาจากหน้าสมุดพกสาธารณะของรังแรกที่มีรูป
+  await page.goto(BASE + '/admin/hives?status=active');
+  const withPhoto = await page.$$eval('tr a[href^="/admin/hives/A"]', (as) => as.map((a) => a.getAttribute('href').split('/')[3]));
+  let code = '';
+  for (const c of withPhoto.slice(8, 40)) {
+    const r = await page.evaluate(async (c) => (await fetch('/passport/' + c)).text(), c);
+    if (r.includes('/img/hives/')) { code = c; break; }
+  }
+  const home = async () => page.evaluate(async () => (await fetch('/?t=' + Date.now(), { credentials: 'omit' })).text());
+  const r1 = await post('/admin/settings', { intent: 'hero', heroHive: code.slice(1) });
+  const h1 = await home();
+  const r2 = await page.evaluate(async () => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', 'A99999'); return (await fetch('/admin/settings', { method: 'POST', body: fd })).text(); });
+  check(code && h1.includes('alt="รังชันโรงขนเงิน ' + code) && h1.includes('/passport/' + code) && r2.includes('ยังไม่มีรูปสมุดพก'),
+    'เลือกรัง ' + code + ' (พิมพ์แค่เลข) → หน้าแรกใช้รูปสมุดพกรังนั้น · รังที่ไม่มีรูป → ปฏิเสธ', 'รูปหน้าแรกไม่ถูก (' + code + ', ' + r1.status + ')');
+  await post('/admin/settings', { intent: 'hero', heroHive: '' });
+  const h2 = await home();
+  check(h2.includes('/brand/logo-round.webp') && !h2.includes('alt="รังชันโรงขนเงิน'), 'เว้นว่าง → หน้าแรกกลับไปใช้โลโก้', 'เว้นว่างแล้วยังใช้รูปรัง');
+  if (before) await post('/admin/settings', { intent: 'hero', heroHive: before });
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

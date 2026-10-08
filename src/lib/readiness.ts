@@ -10,6 +10,8 @@ export interface ReadinessInput {
   incompleteHives: number;
   /** รังที่ตั้งขายแต่รูปขายไม่ครบ 3 รูป หรือไม่มีวิดีโอ */
   saleHivesNotReady: number;
+  /** เลือกรูปหัวหน้าแรกแล้ว (ไม่เลือก = แสดงโลโก้) */
+  heroChosen?: boolean;
 }
 
 export interface ReadinessItem {
@@ -33,6 +35,7 @@ export function buildChecklist(i: ReadinessInput): { items: ReadinessItem[]; don
     { id: 'productImages', level: 'should', done: i.productsWithoutImage === 0, count: i.productsWithoutImage, title: 'รูปสินค้า (รังเปล่า / น้ำผึ้ง)', detail: i.productsWithoutImage === 0 ? 'มีรูปจริงครบแล้ว' : `${i.productsWithoutImage} สินค้ายังใช้รูปชั่วคราว`, href: '/admin/products', cta: 'อัปโหลดรูปสินค้า' },
     { id: 'hivePhotos', level: 'should', done: i.activeHivesWithoutPhoto === 0, count: i.activeHivesWithoutPhoto, title: 'รูปสมุดพกของรังที่ยังอยู่', detail: i.activeHivesWithoutPhoto === 0 ? 'ทุกรังมีรูปแล้ว' : `${i.activeHivesWithoutPhoto} รังยังไม่มีรูป (เว็บแสดงรูปชั่วคราว) — เดินถ่ายรูปทีละรังได้เลย`, href: '/admin/photos', cta: 'ไปถ่ายรูป' },
     { id: 'incomplete', level: 'should', done: i.incompleteHives === 0, count: i.incompleteHives, title: 'ข้อมูลรังที่ยังไม่ครบ (???)', detail: i.incompleteHives === 0 ? 'ไม่มีข้อมูลค้าง' : `${i.incompleteHives} รังมีข้อมูลที่ยังไม่ทราบ — เติมได้ หรือกด "ไม่ทราบจริง ๆ" เพื่อเลิกเตือน`, href: '/admin/todo', cta: 'ไปเติมข้อมูล' },
+    { id: 'hero', level: 'should', done: !!i.heroChosen, title: 'รูปหัวหน้าแรก', detail: i.heroChosen ? 'เลือกแล้ว' : 'ตอนนี้แสดงโลโก้ — เลือกรังที่รูปสมุดพกสวยที่สุดมาเป็นรูปแรกที่ลูกค้าเห็น', href: '/admin/settings#hero', cta: 'เลือกรูปหน้าแรก' },
     { id: 'saleReady', level: 'should', done: i.saleHivesNotReady === 0, count: i.saleHivesNotReady, title: 'รังที่ตั้งขายมีรูปขาย 3 รูป + วิดีโอ', detail: i.saleHivesNotReady === 0 ? 'พร้อมแล้ว (หรือยังไม่มีรังตั้งขาย)' : `${i.saleHivesNotReady} รังที่ตั้งขายอยู่ยังไม่ครบ`, href: '/admin/hives?forSale=1', cta: 'ดูรังที่ตั้งขาย' },
   ];
   const done = items.filter((x) => x.done).length;

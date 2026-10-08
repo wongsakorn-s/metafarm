@@ -29,5 +29,8 @@ export const saveCourse = (db: Db, user: SessionUser, d: z.output<typeof courseS
 export const saveLocation = (db: Db, user: SessionUser, d: z.output<typeof locationSchema>) =>
   save(db, user, 'settings.location', locationToRows(d), { changed: true });
 
+export const saveHero = (db: Db, user: SessionUser, heroHive: string) =>
+  save(db, user, 'settings.hero', [{ key: 'site.heroHive', value: heroHive }], { heroHive });
+
 export const savePayment = (db: Db, user: SessionUser, d: z.output<typeof paymentSchema>) =>
   save(db, user, 'settings.payment', paymentToRows(d), { set: d.paymentInfo !== '' });

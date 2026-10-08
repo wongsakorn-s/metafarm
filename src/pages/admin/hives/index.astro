@@ -40,6 +40,24 @@ const sortLink = (sort: HiveSort) => {
   return `?${u}`;
 };
 const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.sort === sort });
+// ชิปตัวกรองด่วน (เห็นตลอด ไม่ต้องเปิดกล่องตัวกรอง) — คงคำค้น/การเรียง/ที่มาไว้ เปลี่ยนเฉพาะสถานะ/ตั้งขาย/ไม่ครบ
+const quick = [
+  { label: 'ทั้งหมด', set: {} },
+  { label: 'ยังอยู่', set: { status: 'active' } },
+  { label: 'ตั้งขาย', set: { forSale: '1' } },
+  { label: 'ขายแล้ว', set: { status: 'sold' } },
+  { label: 'ล่ม', set: { status: 'collapsed' } },
+  { label: 'ข้อมูลไม่ครบ', set: { incomplete: '1' } },
+] as { label: string; set: Record<string, string> }[];
+const quickLink = (set: Record<string, string>) => {
+  const u = new URLSearchParams(sp);
+  for (const k of ['status', 'forSale', 'incomplete', 'page']) u.delete(k);
+  for (const [k, v] of Object.entries(set)) u.set(k, v);
+  const q = u.toString();
+  return q ? `?${q}` : '/admin/hives';
+};
+const quickOn = (set: Record<string, string>) =>
+  (set.status ?? '') === filter.status && (set.forSale === '1') === filter.forSale && (set.incomplete === '1') === filter.incomplete;
 ---
 
 <AdminLayout title="รังทั้งหมด" active="hives">
@@ -50,8 +68,14 @@ const sortHead = (label: string, sort: HiveSort) => ({ label, sort, on: filter.s
       <input class="field flex-1" id="q" name="q" type="search" value={filter.q} placeholder="ค้นหา เช่น A25 หรือ ภูเก็ต" enterkeyhint="search" />
       <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
     </div>
-    <details class="group rounded-2xl border border-line bg-surface" open={activeFilters > 0}>
-      <summary class="disclosure min-h-11 px-4 font-medium">ตัวกรอง{activeFilters > 0 && <span class="badge bg-palm-100 text-palm-900">{activeFilters}</span>}</summary>
+    <nav aria-label="ตัวกรองด่วน" class="scroll-fade -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 pr-8">
+      {quick.map((c) => (
+        <a href={quickLink(c.set)} aria-current={quickOn(c.set) ? 'page' : undefined}
+          class:list={['inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium', quickOn(c.set) ? 'border-palm-600 bg-palm-600 text-white' : 'border-line bg-surface hover:bg-canvas']}>{c.label}</a>
+      ))}
+    </nav>
+    <details class="group rounded-2xl border border-line bg-surface" open={!!filter.origin}>
+      <summary class="disclosure min-h-11 px-4 font-medium">ตัวกรองเพิ่มเติม (ที่มา){activeFilters > 0 && <span class="badge bg-palm-100 text-palm-900">{activeFilters}</span>}</summary>
       <div class="grid gap-3 px-4 pb-4 sm:grid-cols-[1fr_1fr_auto]">
         <div>
           <label class="label" for="status">สถานะ</label>

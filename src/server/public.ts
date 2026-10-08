@@ -301,6 +301,22 @@ export async function getFarmStats(db: Db) {
   return { total: r?.total ?? 0, active: r?.active ?? 0, queenBred: r?.queenBred ?? 0 };
 }
 
+/**
+ * รูปหัวหน้าแรก: รูปสมุดพกรูปแรก (เปิดสาธารณะอยู่แล้ว) ของรังที่เจ้าของเลือกในหลังบ้าน (site.heroHive)
+ * ไม่เลือก / รังนั้นไม่มีรูป = null → หน้าแรกใช้โลโก้ (ไม่สุ่มรูปเอง — รูปล่าสุดอาจไม่สวยหรือเป็นรูปทดสอบ)
+ */
+export async function getHeroPhoto(db: Db, code: string): Promise<{ key: string; code: string } | null> {
+  if (!code) return null;
+  const [r] = await db
+    .select({ key: hiveMedia.r2Key, code: hives.code })
+    .from(hiveMedia)
+    .innerJoin(hives, eq(hives.id, hiveMedia.hiveId))
+    .where(and(eq(hiveMedia.kind, 'passport'), eq(hives.code, code), sql`${hiveMedia.r2Key} is not null`))
+    .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id))
+    .limit(1);
+  return r?.key ? { key: r.key, code: r.code } : null;
+}
+
 /** ค้นหารหัสรัง (ค้นแบบตรงกับรหัส/ขึ้นต้นด้วย) — คืนเฉพาะรหัส */
 export async function searchHiveCodes(db: Db, q: string, limit = 12): Promise<string[]> {
   const term = q.replace(/[%_\\]/g, '').trim().toUpperCase();
