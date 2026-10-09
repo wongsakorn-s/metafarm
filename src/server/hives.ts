@@ -1,7 +1,8 @@
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
-import { auditLogs, hiveEvents, hiveMedia, hives, species, suppliers, users } from '../db/schema.ts';
+import { auditLogs, hiveEvents, hiveHolds, hiveMedia, hives, orders, species, suppliers, users } from '../db/schema.ts';
+import { holdBlocks } from '../lib/orders.ts';
 import { isOwner, statusTargets } from '../lib/permissions.ts';
 import { suggestNextCode } from '../lib/hive-code.ts';
 import { CONFLICT_ERROR } from '../lib/concurrency.ts';
@@ -275,11 +276,19 @@ export function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.out
 
 const STATUS_DENIED = 'พนักงานเปลี่ยนสถานะได้แค่ "ยังอยู่" กับ "ล่ม" — การขายรังให้เจ้าของบันทึกผ่านออเดอร์';
 
+/** ออเดอร์ที่รังนี้ผูกอยู่ (จองไว้ หรือขายตามออเดอร์แล้ว) — null = ไม่ได้ผูก */
+export async function hiveHold(db: Db, hiveId: number) {
+  const [r] = await db.select({ code: orders.code, status: orders.status }).from(hiveHolds).innerJoin(orders, eq(orders.id, hiveHolds.orderId)).where(eq(hiveHolds.hiveId, hiveId)).limit(1);
+  return r ?? null;
+}
+
 export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>): Promise<Result> {
   const key = idemKey(user, 'status_change', d.idem);
   if (await alreadySaved(db, key)) return { ok: true };
   if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
   if (!statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
+  const held = holdBlocks(await hiveHold(db, hive.id), d, isOwner(user));
+  if (held) return { ok: false, error: held };
   await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   return { ok: true };
 }
@@ -341,6 +350,8 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
 export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof saleSchema>): Promise<Result> {
   if (!isOwner(user)) return { ok: false, error: 'การตั้งขายเป็นสิทธิ์ของเจ้าของฟาร์ม' };
   if (d.forSale && hive.status !== 'active') return { ok: false, error: 'ตั้งขายได้เฉพาะรังที่ยังอยู่ (active)' };
+  const held = d.forSale ? holdBlocks(await hiveHold(db, hive.id), 'sale', true) : null;
+  if (held) return { ok: false, error: held };
   await db.batch([
     db.update(hives).set({ forSale: d.forSale, salePrice: d.forSale ? d.salePrice : hive.salePrice, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.sale', hive.id, { forSale: d.forSale, salePrice: d.salePrice }),
@@ -394,6 +405,8 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
   // ทั้งหมดอยู่ใน batch เดียว — สำเร็จพร้อมกันหรือไม่บันทึกเลย (เดิมแยก 2 ครั้ง ถ้าครั้งหลังล้ม สถานะเปลี่ยนแต่ข้อมูลอื่นหาย)
   const statusChange = d.status && d.status !== hive.status;
   if (statusChange && !statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
+  const held = statusChange ? holdBlocks(await hiveHold(db, hive.id), { status: d.status! }, isOwner(user)) : null;
+  if (held) return { ok: false, error: held };
   const stmts: BatchItem<'sqlite'>[] = statusChange ? statusStatements(db, user, hive, { status: d.status!, occurredOn: todayBangkok() } as z.output<typeof statusSchema>, null) : [];
   const status = statusChange ? d.status! : hive.status;
 

@@ -353,6 +353,21 @@ export const orderItems = sqliteTable(
   ],
 );
 
+/**
+ * รังที่ผูกกับออเดอร์ (จองไว้ หรือขายตามออเดอร์แล้ว) — หนึ่งรังผูกได้ออเดอร์เดียว (primary key)
+ * สร้างพร้อมออเดอร์ใน batch เดียว: สร้างออเดอร์พร้อมกันสองเครื่องด้วยรังเดียวกัน → อีกเครื่องติด UNIQUE ทั้ง batch ย้อนกลับ
+ * ลบเมื่อยกเลิกออเดอร์ · ใช้กันการเปลี่ยนสถานะรัง/ตั้งขายด้วยมือระหว่างที่รังผูกกับออเดอร์
+ */
+export const hiveHolds = sqliteTable(
+  'hive_holds',
+  {
+    hiveId: integer('hive_id').primaryKey().references(() => hives.id),
+    orderId: integer('order_id').notNull().references(() => orders.id),
+    at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  },
+  (t) => [index('hive_holds_order_idx').on(t.orderId)],
+);
+
 // ---------- ล็อตน้ำผึ้ง (Phase 4.3) ----------
 
 /** ล็อต = น้ำผึ้งจากการเก็บหลายครั้งที่รวมกันกรอง/บรรจุ · รหัส H2569-10-1 (พ.ศ.-เดือนที่เก็บ-ลำดับ) ติดบนฉลาก */

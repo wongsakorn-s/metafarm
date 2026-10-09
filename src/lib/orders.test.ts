@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canMove, customerSchema, newOrderSchema, nextSeq, orderCode, orderSummaryText, orderTotal, parseOrderItems } from './orders.ts';
+import { canMove, customerSchema, holdBlocks, newOrderSchema, nextSeq, orderCode, orderSummaryText, orderTotal, parseOrderItems } from './orders.ts';
 
 describe('รหัสออเดอร์', () => {
   it('S + ปี พ.ศ. + ลำดับ 3 หลัก', () => {
@@ -58,5 +58,26 @@ describe('ฟอร์มออเดอร์', () => {
   it('เบอร์ลูกค้าตรวจรูปแบบ', () => {
     expect(customerSchema.safeParse({ name: 'ก', phone: '081-234-5678' }).success).toBe(true);
     expect(customerSchema.safeParse({ name: 'ก', phone: '12' }).success).toBe(false);
+  });
+});
+
+describe('holdBlocks (รังที่ผูกกับออเดอร์)', () => {
+  const awaiting = { code: 'S2569-004', status: 'awaiting_payment' as const };
+  const paid = { code: 'S2569-004', status: 'paid' as const };
+  it('ไม่ได้ผูก/ออเดอร์ยกเลิกแล้ว → ทำได้ทุกอย่าง', () => {
+    expect(holdBlocks(null, { status: 'sold' }, true)).toBeNull();
+    expect(holdBlocks({ code: 'S1', status: 'cancelled' }, 'sale', true)).toBeNull();
+  });
+  it('รอชำระ: บันทึกขายเอง/ตั้งขายซ้ำไม่ได้ · ล่มได้', () => {
+    expect(holdBlocks(awaiting, { status: 'sold' }, true)).toContain('S2569-004');
+    expect(holdBlocks(awaiting, 'sale', true)).toContain('ตั้งขายซ้ำไม่ได้');
+    expect(holdBlocks(awaiting, { status: 'collapsed' }, false)).toBeNull();
+  });
+  it('ชำระแล้ว/ส่งแล้ว: เปลี่ยนสถานะเองไม่ได้', () => {
+    expect(holdBlocks(paid, { status: 'active' }, true)).toContain('ยกเลิกออเดอร์');
+    expect(holdBlocks({ ...paid, status: 'fulfilled' }, { status: 'collapsed' }, true)).toContain('ส่งของแล้ว');
+  });
+  it('พนักงานไม่เห็นรหัสออเดอร์', () => {
+    for (const h of [awaiting, paid]) expect(holdBlocks(h, { status: 'sold' }, false)).not.toMatch(/S\d{4}-/);
   });
 });

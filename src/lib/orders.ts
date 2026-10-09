@@ -37,6 +37,24 @@ export const NEXT: Record<OrderStatus, OrderStatus[]> = {
 };
 export const canMove = (from: OrderStatus, to: OrderStatus) => NEXT[from].includes(to);
 
+/**
+ * รังที่ผูกกับออเดอร์ (hive_holds) เปลี่ยนสถานะ/ตั้งขายด้วยมือได้แค่ไหน — คืนข้อความเมื่อทำไม่ได้, null = ทำได้
+ * - รอชำระ: ห้ามบันทึก "ขายแล้ว" เอง (ต้องชำระที่ออเดอร์) และห้ามตั้งขายซ้ำ · ล่มระหว่างรอ = เรื่องจริง บันทึกได้ (ออเดอร์จะชำระไม่ได้)
+ * - ชำระแล้ว/ส่งแล้ว: รังขายตามออเดอร์ — ห้ามเปลี่ยนสถานะเอง (เดิมเปลี่ยนกลับเป็น "ยังอยู่" แล้วขายซ้ำได้)
+ * พนักงานไม่เห็นรหัสออเดอร์ (ข้อมูลขาย) จึงได้ข้อความกลาง ๆ
+ */
+export function holdBlocks(hold: { code: string; status: OrderStatus } | null, change: 'sale' | { status: string }, owner: boolean): string | null {
+  if (!hold || hold.status === 'cancelled') return null;
+  const ref = owner ? `ออเดอร์ ${hold.code}` : 'รายการขาย';
+  const tail = owner ? '' : ' — แจ้งเจ้าของฟาร์ม';
+  if (hold.status === 'awaiting_payment') {
+    if (change === 'sale') return `รังนี้ถูกจองใน${ref}ที่รอชำระ — ตั้งขายซ้ำไม่ได้ (ยกเลิกออเดอร์แล้วรังกลับมาตั้งขายเอง)`;
+    if (change.status === 'sold') return `รังนี้ถูกจองใน${ref}ที่รอชำระ — บันทึก "ชำระแล้ว" ที่ออเดอร์แทน${tail}`;
+    return null;
+  }
+  return hold.status === 'paid' ? `รังนี้ขายตาม${ref}แล้ว — ถ้าต้องการคืนรัง ให้ยกเลิกออเดอร์${tail}` : `รังนี้ขายตาม${ref}และส่งของแล้ว — เปลี่ยนสถานะไม่ได้${tail}`;
+}
+
 /** รหัสออเดอร์: S + ปี พ.ศ. + ลำดับ 3 หลัก (S2569-001) */
 export function orderCode(isoDate: string, seq: number): string {
   return `S${Number(isoDate.slice(0, 4)) + 543}-${String(seq).padStart(3, '0')}`;

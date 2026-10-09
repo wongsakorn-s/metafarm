@@ -65,6 +65,7 @@ const sql: string[] = [
   // ไฟล์นี้ใช้ล้างข้อมูลทดสอบในเครื่องเท่านั้น — ตัวกันหยุด SQL ถ้าปลายทางเป็นระบบจริง (มีบัญชีอีเมลจริง)
   ...localOnlyGuard(),
   // ออเดอร์อ้างถึงรัง/ลูกค้า → ลบก่อน
+  'DELETE FROM hive_holds;',
   'DELETE FROM order_items;',
   'DELETE FROM orders;',
   'DELETE FROM once_keys;',
