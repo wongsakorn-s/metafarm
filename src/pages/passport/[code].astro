@@ -126,6 +126,16 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
         )}
       </section>
 
+      {/* ทางไปต่อสำหรับคนที่สแกน QR ที่รัง — ไม่บอกว่ารังนี้ขายอยู่หรือไม่ (for_sale เป็นข้อมูลภายใน ไม่แสดงในสมุดพก) */}
+      <section class="card mt-5" aria-labelledby="next-h">
+        <h2 id="next-h" class="font-semibold">อยากเลี้ยงชันโรงขนเงินแบบนี้?</h2>
+        <p class="hint">รังที่ฟาร์มขายมีสมุดพกแบบนี้ทุกรัง · มีหลักสูตรอบรมการเลี้ยงและแยกขยายรัง</p>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          <a class="btn-primary" href="/products">ดูสินค้าของฟาร์ม</a>
+          <a class="btn-ghost" href="/training">หลักสูตรอบรม</a>
+        </div>
+      </section>
+
       <p class="mt-4 text-xs text-muted">ข้อมูลปรับปรุงล่าสุด {formatThaiDate(hive.updatedAt.slice(0, 10))} · บันทึกโดย {site.name}</p>
     </article>
   </PublicLayout>

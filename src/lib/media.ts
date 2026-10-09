@@ -176,6 +176,35 @@ export function stripMetadata(b: Uint8Array): Uint8Array {
   return out ?? b;
 }
 
+/** รูปที่เล็กกว่านี้ เมื่อขยายเต็มความกว้างจอมือถือ (ความละเอียด 2–3 เท่า) จะเบลอ — ไม่ใช้เป็นรูปหน้าแรก */
+export const MIN_HERO_WIDTH = 800;
+
+/** ความกว้างรูป (พิกเซล) จากหัวไฟล์ JPEG/PNG/WebP — อ่านไม่ได้ = null (ใช้ไบต์ต้นไฟล์ ~64 KB ก็พอ) */
+export function imageWidth(b: Uint8Array): number | null {
+  const t = detectImageType(b);
+  if (t?.ext === 'png') return b.length >= 24 ? u32be(b, 16) : null;
+  if (t?.ext === 'webp') {
+    const chunk = ascii(b, 12, 4);
+    if (chunk === 'VP8X' && b.length >= 27) return (b[24]! | (b[25]! << 8) | (b[26]! << 16)) + 1;
+    if (chunk === 'VP8L' && b.length >= 25) return ((b[21]! | (b[22]! << 8)) & 0x3fff) + 1;
+    if (chunk === 'VP8 ' && b.length >= 30) return (b[26]! | (b[27]! << 8)) & 0x3fff;
+    return null;
+  }
+  if (t?.ext !== 'jpg') return null;
+  let i = 2;
+  while (i + 9 < b.length) {
+    if (b[i] !== 0xff) return null;
+    const m = b[i + 1]!;
+    if (m === 0xff) { i++; continue; }
+    // SOF0–SOF15 ยกเว้น DHT (C4) JPG (C8) DAC (CC): ความสูง @+5 ความกว้าง @+7
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return u16be(b, i + 7);
+    if (m === 0xda || m === 0xd9) return null;
+    if ((m >= 0xd0 && m <= 0xd7) || m === 0x01) { i += 2; continue; }
+    i += 2 + u16be(b, i + 2);
+  }
+  return null;
+}
+
 // ---------- รูปย่อ (thumbnail) ----------
 // เบราว์เซอร์ย่อรูปให้ตอนอัปโหลด (ด้านยาว 480px) เก็บที่ "thumb/<คีย์รูปเต็ม>"
 // หน้าเว็บขอด้วย ?w=thumb — ถ้ายังไม่มีรูปย่อ (รูปเก่า) เซิร์ฟเวอร์ส่งรูปเต็มแทน จึงไม่มีรูปเสีย

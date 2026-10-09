@@ -4,7 +4,7 @@ import PublicLayout from '../../layouts/PublicLayout.astro';
 import NotFound from '../../components/NotFound.astro';
 import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
-import { getPublicLot } from '../../server/public.ts';
+import { getPublicLot, getPublicProducts } from '../../server/public.ts';
 import { isLotCode } from '../../lib/lots.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 import { site } from '../../config/site.ts';
@@ -13,6 +13,8 @@ export const prerender = false;
 const code = (Astro.params.code ?? '').toUpperCase();
 const lot = isLotCode(code) ? await getPublicLot(getDb(), code) : null;
 if (!lot) Astro.response.status = 404;
+// ลูกค้าที่สแกนขวดแล้วชอบ → สั่งอีกครั้งได้จากหน้านี้ (เดิมไม่มีทางไปต่อ ต้องหาเมนูเอง 4 แตะ)
+const honey = lot ? (await getPublicProducts(getDb())).find((p) => p.category === 'honey') : undefined;
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 const period = lot ? (lot.harvestedFrom === lot.harvestedTo ? formatThaiDate(lot.harvestedFrom) : `${formatThaiDate(lot.harvestedFrom)} – ${formatThaiDate(lot.harvestedTo)}`) : '';
 ---
@@ -23,7 +25,7 @@ const period = lot ? (lot.harvestedFrom === lot.harvestedTo ? formatThaiDate(lot
   </PublicLayout>
 ) : (
   // หน้าเฉพาะของขวดแต่ละล็อต: ไม่ต้องติดผลค้นหา (noindex) แต่เปิดได้ทุกคนจาก QR
-  <PublicLayout title={`น้ำผึ้งล็อต ${lot.code}`} description={`น้ำผึ้งชันโรงขนเงินจาก ${site.name} เก็บ ${period}`} noindex lineMessage={`สอบถามน้ำผึ้งล็อต ${lot.code}`} active="honey">
+  <PublicLayout title={`น้ำผึ้งล็อต ${lot.code}`} description={`น้ำผึ้งชันโรงขนเงินจาก ${site.name} เก็บ ${period}`} noindex lineMessage={`สนใจสั่งน้ำผึ้งชันโรงเพิ่ม (ล็อต ${lot.code})`} active="honey">
     <article class="mx-auto max-w-xl">
       <div class="mb-5 flex items-center gap-4">
         <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-7" /></span>
@@ -43,6 +45,11 @@ const period = lot ? (lot.harvestedFrom === lot.harvestedTo ? formatThaiDate(lot
         <ul class="flex flex-wrap gap-2">
           {lot.hives.map((h) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${h}`}>{h}</a></li>)}
         </ul>
+      </section>
+      <section class="card mt-4 bg-honey-50" aria-labelledby="again-h">
+        <h2 id="again-h" class="font-semibold">ชอบน้ำผึ้งล็อตนี้?</h2>
+        <p class="hint">สั่งเพิ่มได้ทางแชตหรือโทร — บอกรหัสล็อต <span data-num>{lot.code}</span> ได้เลย</p>
+        <a class="btn-primary mt-3 w-full" href={honey ? `/products/${honey.slug}` : '/products'}>สั่งน้ำผึ้งอีกครั้ง</a>
       </section>
       <p class="mt-4 text-sm text-muted">น้ำผึ้งชันโรงเป็นอาหาร ไม่ใช่ยา · <a class="underline" href="/honey">อ่านเพิ่มเติมเกี่ยวกับน้ำผึ้งชันโรง</a></p>
     </article>

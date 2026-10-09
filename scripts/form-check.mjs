@@ -805,11 +805,13 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
     const btn = pg.locator('div.fixed.inset-x-0[data-contact-buttons] a[data-channel=messenger]');
     const want = await btn.getAttribute('data-copy');
     await btn.dispatchEvent('click'); // แถบเครื่องมือของ astro dev บังแถบล่างในโหมด dev เท่านั้น
-    await pg.waitForTimeout(150);
-    const status = await pg.locator('div.fixed.inset-x-0 [data-copy-status]').textContent();
+    // กล่องบอกขั้นตอน: ข้อความที่คัดลอก + ปุ่ม "เปิด Messenger" (ลูกค้าแตะเปิดแชตเอง ไม่เด้งไปก่อนอ่านทัน)
+    const box = pg.locator('dialog[data-copy-dialog]');
+    await box.waitFor({ state: 'visible', timeout: 5000 });
+    const shown = (await box.locator('[data-copy-msg]').textContent()) ?? '';
     const clip = await pg.evaluate(() => navigator.clipboard.readText());
-    await pg.waitForURL(/m\.me\/metafarm\.test/, { timeout: 5000 });
-    check(clip === want && (status ?? '').includes('คัดลอกข้อความแล้ว'), 'กดปุ่ม Messenger → คัดลอก "' + want + '" แล้วเปิด m.me', 'ไม่คัดลอกข้อความ (' + clip + ')');
+    await Promise.all([pg.waitForURL(/m\.me\/metafarm\.test/, { timeout: 5000 }), box.locator('a[data-copy-open]').click()]);
+    check(clip === want && shown === want, 'กดปุ่ม Messenger → คัดลอก "' + want + '" · กล่องบอกวิธีวาง → แตะ "เปิด Messenger" ไป m.me', 'ไม่คัดลอก/ไม่มีกล่อง (' + clip + ' / ' + shown + ')');
     await c.close();
   }
   // โทรเป็นหลัก + ไม่มี LINE → ปุ่มใหญ่เป็น tel: และไม่มีลิงก์ LINE เลย

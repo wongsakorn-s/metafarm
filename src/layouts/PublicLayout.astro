@@ -34,16 +34,16 @@ const actions = contactActions(c, lineMessage);
 const iconTone = { line: 'text-brand-line', messenger: 'text-brand-messenger', phone: 'text-palm-700' } as const;
 const copyOf = (ch: string) => (ch === 'messenger' ? lineMessage : undefined);
 
+// "สินค้า" ต่อจากหน้าแรก — ลูกค้าที่มาจาก Facebook/LINE มาเพื่อดูของและราคา (เดิมอยู่ลำดับ 4 หลังหน้าบทความ)
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก', icon: 'home' },
+  { key: 'products', href: '/products', label: 'สินค้า', icon: 'cart' },
   { key: 'stingless-bee', href: '/stingless-bee', label: 'ชันโรงขนเงิน', icon: 'hive' },
   { key: 'honey', href: '/honey', label: 'น้ำผึ้ง', icon: 'honey' },
-  { key: 'products', href: '/products', label: 'สินค้า', icon: 'cart' },
   { key: 'training', href: '/training', label: 'อบรม', icon: 'training' },
   { key: 'passport', href: '/passport', label: 'สมุดพกรัง', icon: 'passport' },
   { key: 'contact', href: '/contact', label: 'ติดต่อเรา', icon: 'pin' },
 ] as const;
-const current = nav.find((n) => n.key === active);
 ---
 
 <!doctype html>
@@ -98,7 +98,7 @@ const current = nav.find((n) => n.key === active);
           <summary class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-medium transition-colors duration-(--duration-fast) hover:bg-palm-50 active:bg-palm-100 group-open:border-palm-500 group-open:bg-palm-50" data-menu-toggle>
             <span class="group-open:hidden"><Icon name="menu" class="size-5" /></span>
             <span class="hidden group-open:inline"><Icon name="close" class="size-5" /></span>
-            <span>{current && current.key !== 'home' ? current.label : 'เมนู'}</span>
+            <span>เมนู</span>
           </summary>
           <div class="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-line bg-surface shadow-lg">
             <nav aria-label="เมนูหลัก (มือถือ)" class="px-4 py-2">
@@ -174,13 +174,11 @@ const current = nav.find((n) => n.key === active);
               {a.primary && <span class="badge bg-palm-100 text-palm-900">หลัก</span>}
             </a>
           ))}
-          <p class="hint hidden px-3 pb-2" role="status" aria-live="polite" data-copy-status></p>
         </div>
       </details>
     )}
     {actions.length > 0 && (
-      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden" data-contact-buttons>
-        <p class="hint mb-1 hidden text-center" role="status" aria-live="polite" data-copy-status></p>
+      <div class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur transition-transform duration-(--duration-fast) md:hidden" data-contact-buttons data-contact-bar>
         <div class="mx-auto flex max-w-md gap-2">
           {actions.map((a) => a.primary ? (
             <a href={a.href} rel={a.channel === 'phone' ? undefined : 'noopener'} data-channel={a.channel} data-copy={copyOf(a.channel)}
@@ -204,6 +202,21 @@ const current = nav.find((n) => n.key === active);
     document.addEventListener('click', (e) => { if (pop.open && !pop.contains(e.target as Node)) pop.open = false; });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && pop.open) { pop.open = false; pop.querySelector('summary')?.focus(); } });
   }
+  // หน้าที่มีปุ่มสั่งซื้อในเนื้อหา (สินค้า/อบรม): ระหว่างที่ปุ่มนั้นอยู่บนจอ ซ่อนแถบติดต่อล่างจอ
+  // เดิมเห็นปุ่ม Messenger สีเขียวสองปุ่มพร้อมกัน ข้อความต่างกัน ("สั่งทาง…" กับ "สอบถามทาง…") — ไม่รู้จะกดอันไหน
+  const bar = document.querySelector<HTMLElement>('[data-contact-bar]');
+  const inline = [...document.querySelectorAll<HTMLElement>('#main [data-contact-buttons]')];
+  if (bar && inline.length && 'IntersectionObserver' in window) {
+    const seen = new Set<Element>();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) e.isIntersecting ? seen.add(e.target) : seen.delete(e.target);
+      const hide = seen.size > 0;
+      bar.classList.toggle('translate-y-full', hide);
+      bar.inert = hide;
+    }, { threshold: 0.6 });
+    inline.forEach((el) => io.observe(el));
+  }
+
   const menu = document.querySelector<HTMLDetailsElement>('[data-site-menu]');
   if (menu) {
     document.addEventListener('click', (e) => { if (menu.open && !menu.contains(e.target as Node)) menu.open = false; });

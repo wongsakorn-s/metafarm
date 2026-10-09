@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectImageType, exifOrientation, LIMITS, mediaKey, parseYoutubeId, remainingSlots, stripMetadata, uploadSummary, youtubeWatchUrl } from './media.ts';
+import { detectImageType, exifOrientation, imageWidth, LIMITS, mediaKey, parseYoutubeId, remainingSlots, stripMetadata, uploadSummary, youtubeWatchUrl } from './media.ts';
 
 const bytes = (...n: number[]) => new Uint8Array(n);
 const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
@@ -119,5 +119,23 @@ describe('stripMetadata (ลบพิกัด GPS และข้อมูล�
     expect(stripMetadata(broken)).toBe(broken);
     const other = new Uint8Array(txt('GIF89a'));
     expect(stripMetadata(other)).toBe(other);
+  });
+});
+
+describe('imageWidth', () => {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  it('JPEG (อ่านจาก SOF ข้าม APP/DQT) · PNG · WebP ทั้ง 3 แบบ', () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xdb, 0, 3, 0, 0xff, 0xc2, 0, 11, 8, 0x01, 0x2c, 0x03, 0x20, 3, 0, 0, 0]);
+    expect(imageWidth(jpeg)).toBe(800);
+    const png = new Uint8Array([...sig, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0x06, 0x40, 0, 0, 4, 0xb0]);
+    expect(imageWidth(png)).toBe(1600);
+    const riff = (chunk: string, body: number[]) => new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, ...[...chunk].map((c) => c.charCodeAt(0)), 0, 0, 0, 0, ...body]);
+    expect(imageWidth(riff('VP8X', [0, 0, 0, 0, 0x3f, 0x06, 0, 0x2b, 0x04, 0]))).toBe(1600);
+    expect(imageWidth(riff('VP8L', [0x2f, 0x1f, 0x03, 0, 0]))).toBe(800);
+    expect(imageWidth(riff('VP8 ', [0, 0, 0, 0x9d, 0x01, 0x2a, 0x20, 0x03, 0x58, 0x02]))).toBe(800);
+  });
+  it('อ่านไม่ได้ → null', () => {
+    expect(imageWidth(new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0, 2]))).toBeNull();
+    expect(imageWidth(new Uint8Array([1, 2, 3]))).toBeNull();
   });
 });

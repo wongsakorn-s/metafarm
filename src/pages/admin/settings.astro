@@ -2,10 +2,10 @@
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
-import { getDb } from '../../server/db.ts';
+import { getDb, getMedia } from '../../server/db.ts';
 import { getSettings, saveContact, saveCourse, saveHero, saveLocation, savePayment } from '../../server/settings.ts';
 import { getHeroPhoto } from '../../server/public.ts';
-import { thumbUrl } from '../../lib/media.ts';
+import { imageWidth, MIN_HERO_WIDTH, thumbUrl } from '../../lib/media.ts';
 import { listTraining } from '../../lib/content.ts';
 import { contactSchema, courseSchema, effectiveCourse, heroSchema, lineChatUrl, locationSchema, paymentSchema, telHref } from '../../lib/settings.ts';
 import { messengerBase } from '../../lib/contact.ts';
@@ -16,6 +16,17 @@ export const prerender = false;
 
 const db = getDb();
 const user = Astro.locals.user!;
+// รูปหน้าแรกต้องกว้างพอ (รูปจาก Excel กว้าง ~200 px ขยายเต็มจอมือถือแล้วเบลอ ดูไม่น่าเชื่อถือ)
+// อ่านแค่ต้นไฟล์จาก R2 เพื่อหาความกว้าง · อ่านไม่ได้ = ไม่ห้าม
+let heroSmallMsg = '';
+async function heroTooSmall(code: string): Promise<boolean> {
+  const hero = await getHeroPhoto(db, code);
+  const obj = hero ? await getMedia().get(hero.key, { range: { offset: 0, length: 65_536 } }) : null;
+  const w = obj ? imageWidth(new Uint8Array(await obj.arrayBuffer())) : null;
+  if (w == null || w >= MIN_HERO_WIDTH) return false;
+  heroSmallMsg = `รูปของรัง ${code} เล็กเกินไป (กว้าง ${w} พิกเซล) ขยายเต็มจอมือถือแล้วจะเบลอ — ถ่ายรูปใหม่ที่หน้ารัง (ระบบย่อให้เหลือกว้างพอดี) หรือเลือกรังอื่น`;
+  return true;
+}
 let errors: FieldErrors = {};
 let errorWhere = '';
 let values: Record<string, string> = {};
@@ -41,6 +52,7 @@ if (Astro.request.method === 'POST') {
     const p = heroSchema.safeParse(values);
     if (!p.success) { errors = fieldErrors(p.error); errorWhere = 'hero'; }
     else if (p.data.heroHive && !(await getHeroPhoto(db, p.data.heroHive))) { errors = { heroHive: `รัง ${p.data.heroHive} ยังไม่มีรูปสมุดพก (หรือไม่มีรังนี้) — เลือกรังที่มีรูป` }; errorWhere = 'hero'; }
+    else if (p.data.heroHive && (await heroTooSmall(p.data.heroHive))) { errors = { heroHive: heroSmallMsg }; errorWhere = 'hero'; }
     else { await saveHero(db, user, p.data.heroHive); return Astro.redirect('/admin/settings?saved=hero#hero', 303); }
   } else if (intent === 'location') {
     const p = locationSchema.safeParse(values);
@@ -110,7 +122,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
   <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="hero">
     <input type="hidden" name="intent" value="hero" />
     <h2 class="text-lg font-semibold">รูปหัวหน้าแรกของเว็บ</h2>
-    <p class="hint">ใช้รูปสมุดพกรูปแรกของรังที่เลือก (เลือกรังที่รูปสวยที่สุด) · เว้นว่าง = แสดงโลโก้ · เปลี่ยนได้ทุกเมื่อ</p>
+    <p class="hint">ใช้รูปสมุดพกรูปแรกของรังที่เลือก (เลือกรังที่รูปสวยที่สุด ถ่ายใหม่ด้วยมือถือ — รูปเก่าจาก Excel เล็กเกินไป ใช้ไม่ได้) · เว้นว่าง = แสดงโลโก้ · เปลี่ยนได้ทุกเมื่อ</p>
     <div class="flex flex-wrap items-end gap-3">
       {hero && <img src={thumbUrl(`/img/${hero.key}`)} alt={`รูปรัง ${hero.code} ที่ใช้อยู่`} width="96" height="72" class="h-[72px] w-24 rounded-xl bg-palm-50 object-cover" />}
       <div class="min-w-40 flex-1">

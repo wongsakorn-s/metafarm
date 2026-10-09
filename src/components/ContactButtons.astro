@@ -42,7 +42,6 @@ const external = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
       ))}
     </div>
     {hasPhone && phoneHint && <p class="hint">โทรแล้ว{phoneHint}</p>}
-    <p class="hint hidden" role="status" aria-live="polite" data-copy-status></p>
   </div>
 )}
 

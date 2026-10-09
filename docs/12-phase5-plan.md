@@ -95,7 +95,7 @@ Decision (user, 2026-10-08): plain links that open a chat or a call. No LINE Off
 - **Buttons:** `components/ContactButtons.astro` and the layout's floating button / mobile bottom bar use `contactActions()`.
   - The primary channel is the big button; the other filled channels are smaller.
   - Labels follow the context (ask / order / training / queue).
-  - LINE pre-fills the message. Messenger sends `?text=` as well, but because m.me often ignores it, the click copies the message first (`scripts/contact-copy.ts`), shows "วางในแชตได้เลย", then opens the chat.
+  - LINE pre-fills the message. Messenger sends `?text=` as well, but because m.me often ignores it, the click copies the message first (`scripts/contact-copy.ts`) and opens a dialog with the copied text, three steps (open → long-press → paste) and a "เปิด Messenger" button (2026-10-10; it used to show a hint for 0.6 s and leave). On product/training pages the bottom contact bar slides away while the in-page buttons are on screen.
   - Phone buttons show what to mention ("บอกว่าสนใจรัง A25").
 - **Public pages:** "How to order" text, the contact page (primary first, labelled), and the footer (Messenger link added) are no longer LINE-specific.
 - **Back office:**
