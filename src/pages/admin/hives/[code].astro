@@ -1,7 +1,8 @@
 ---
-import { isHiveCode, normalizeHiveCode } from '../../../lib/hive-code.ts';
+import { expandCodeFields, isHiveCode, normalizeHiveCode, splitHiveCode } from '../../../lib/hive-code.ts';
 import Icon from '../../../components/Icon.astro';
 import Val from '../../../components/Val.astro';
+import CreateTarget from '../../../components/CreateTarget.astro';
 import type { z } from 'zod';
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { getDb } from '../../../server/db.ts';
@@ -30,22 +31,34 @@ let detail = await getHiveDetail(db, code);
 if (!detail) return new Response('ไม่พบรังนี้', { status: 404 });
 
 const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
+/** หลังบันทึก: ปุ่ม "รังต่อไป" พาไปหน้าบันทึกด่วนพร้อมงานเดิม (เดินทำทีละรัง ไม่ต้องเลือกงานใหม่ทุกรัง) */
+const nextJob: Record<string, string> = { honey: 'เก็บน้ำหวาน', queen: 'เก็บไข่นางพญา', brood: 'แยกรัง', note: 'หมายเหตุ' };
 let errors: FieldErrors = {};
 let values: Record<string, string> = {};
 let openIntent = Astro.url.searchParams.get('do') ?? '';
+/** มาจากบันทึกด่วน (?do=…) → เคอร์เซอร์รอที่ช่องแรกของงานนั้นเลย ไม่ต้องแตะอีกครั้ง */
+const arrivedFor = Astro.request.method === 'GET' ? openIntent : '';
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const intent = String(form.get('intent') ?? '');
   openIntent = intent;
+  // รังปลายทางพิมพ์แค่เลขได้ (30 → A30 ชุดเดียวกับรังนี้) เหมือนหน้าบันทึกด่วน
+  if (intent === 'queen' || intent === 'brood') expandCodeFields(form, ['targetCode'], splitHiveCode(code).prefix);
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   const hive = detail.hive;
 
   const run = async <T,>(p: ReturnType<typeof parseForm<z.ZodType<T>>>, act: (d: T) => Promise<{ ok: boolean; error?: string }>) => {
     if (!p.ok) return void (errors = p.errors);
     const r = await act(p.data);
-    if (!r.ok) return void (errors = { _: r.error ?? 'บันทึกไม่สำเร็จ' });
-    return Astro.redirect(`/admin/hives/${code}?saved=${intent}#timeline`, 303);
+    if (!r.ok) {
+      const msg = r.error ?? 'บันทึกไม่สำเร็จ';
+      // รังปลายทางผิด/ยังไม่มี → ข้อความใต้ช่องนั้นในฟอร์มที่เปิดอยู่
+      // (เดิมขึ้นบนสุดของหน้า นอกจอ — ดูเหมือนบันทึกแล้ว เจ้าของเดินไปรังต่อไปและบันทึกหายไป)
+      return void (errors = (intent === 'queen' || intent === 'brood') && /^(ไม่พบรัง|รังเป้าหมาย)/.test(msg) ? { targetCode: msg } : { _: msg });
+    }
+    // ไม่ต่อท้าย #timeline: ข้อความ "บันทึกแล้ว" + ปุ่มรังต่อไปอยู่บนสุดและเห็นทันที (เดิมเด้งลงไปที่ประวัติ ข้อความอยู่นอกจอ)
+    return Astro.redirect(`/admin/hives/${code}?saved=${intent}`, 303);
   };
 
   let res: Response | void | undefined;
@@ -71,7 +84,20 @@ const saved = Astro.url.searchParams.get('saved');
 const photos = media.filter((m) => m.kind === 'passport' && m.r2Key);
 const salePhotos = media.filter((m) => m.kind === 'sale' && m.r2Key);
 const video = media.find((m) => m.kind === 'video');
-const isOpen = (k: string) => openIntent === k;
+// "รังล่ม" จากบันทึกด่วน (?do=collapse) = ฟอร์มเปลี่ยนสถานะที่เลือก "ล่ม" ไว้ให้
+const isOpen = (k: string) => openIntent === k || (k === 'status' && openIntent === 'collapse');
+const focusOn = (k: string) => arrivedFor === k;
+/** ข้อผิดพลาดทั้งฟอร์ม แสดงในฟอร์มที่เปิดอยู่ (เห็นตรงที่กด) — ฟอร์มที่ไม่มีบนหน้า ใช้แถบบนสุดตามเดิม */
+// ฟอร์มที่แสดงบนหน้านี้จริง (พนักงานไม่มีฟอร์มตั้งขาย · รังที่เปลี่ยนสถานะไม่ได้ไม่มีฟอร์มสถานะ)
+const shownForms = new Set(['honey', 'queen', 'brood', 'note', ...(owner && hive.status === 'active' ? ['sale'] : []), ...(targets.length ? ['status'] : [])]);
+const formError = (k: string) => (isOpen(k) ? errors._ : undefined);
+/** รังปลายทางยังไม่มีในทะเบียน → ลิงก์สร้างรังนั้นจากรังนี้ (กรอกรหัส ที่มา รังแม่ และวันที่ไว้ให้) */
+const createTarget = (k: 'queen' | 'brood') => {
+  const t = normalizeHiveCode(values.targetCode);
+  if (!isOpen(k) || !t || !errors.targetCode?.startsWith('ไม่พบรัง')) return null;
+  const q = new URLSearchParams({ code: t, origin: k === 'brood' ? 'split' : 'queen_bred', [k === 'brood' ? 'broodSourceCode' : 'queenSourceCode']: code, acquiredOn: values.occurredOn ?? today });
+  return { code: t, href: `/admin/hives/new?${q}` };
+};
 // ค่าที่กรอกไว้/ข้อความผิดพลาด คืนให้เฉพาะฟอร์มที่ส่งมา — ฟอร์มอื่นได้ค่าว่างและคีย์กันซ้ำ (idem) ใหม่ของตัวเอง
 // (เดิมทุกฟอร์มได้ idem เดียวกัน → บันทึกฟอร์มหนึ่งแล้วอีกฟอร์มถูกมองว่า "ซ้ำ" และหายเงียบ)
 const form = (intent: string) => ({
@@ -87,8 +113,18 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
 
 <AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title={`รัง ${hive.code}`} active="hives">
 
-  {saved && savedLabel[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedLabel[saved]}</p>}
-  {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
+  {saved && savedLabel[saved] && (
+    <div role="status" class="mb-4 rounded-2xl bg-palm-100 p-4 text-palm-900">
+      <p class="font-semibold"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedLabel[saved]} <a class="font-normal underline" href="#timeline">ดูในประวัติ</a></p>
+      {nextJob[saved] && (
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          <a class="btn-primary" href={`/admin/quick?do=${saved}`}>รังต่อไป — {nextJob[saved]}</a>
+          <a class="btn-ghost" href="#act-h">บันทึกงานอื่นของรัง {hive.code}</a>
+        </div>
+      )}
+    </div>
+  )}
+  {errors._ && !shownForms.has(openIntent === 'collapse' ? 'status' : openIntent) && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   {!errors._ && fieldErrors && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">ยังไม่ได้บันทึก — มีช่องที่กรอกไม่ถูกต้อง (ดูข้อความสีแดงในฟอร์มด้านล่าง)</p>}
 
   {/* มือถือ: เรียงลงตามลำดับงาน (รูป → บันทึก → ข้อมูล → จัดการ → ประวัติ)
@@ -184,10 +220,11 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
         <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บน้ำหวาน`}>
+          {formError('honey') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('honey')}</p>}
           <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
           <div><label class="label" for="h-date">วันที่</label><input class="field" id="h-date" name="occurredOn" type="date" max={today} value={f.honey.v('occurredOn', today)} required />{f.honey.err('occurredOn') && <p class="error">{f.honey.err('occurredOn')}</p>}</div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="h-ml">น้ำผึ้ง (มล.)</label><input class="field" id="h-ml" name="honeyMl" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('honeyMl')} />{f.honey.err('honeyMl') && <p class="error">{f.honey.err('honeyMl')}</p>}</div>
+            <div><label class="label" for="h-ml">น้ำผึ้ง (มล.)</label><input class="field" id="h-ml" name="honeyMl" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('honeyMl')} autofocus={focusOn('honey')} />{f.honey.err('honeyMl') && <p class="error">{f.honey.err('honeyMl')}</p>}</div>
             <div><label class="label" for="h-g">ชัน (กรัม)</label><input class="field" id="h-g" name="propolisG" type="number" inputmode="numeric" min="0" step="1" value={f.honey.v('propolisG')} />{f.honey.err('propolisG') && <p class="error">{f.honey.err('propolisG')}</p>}</div>
           </div>
           <div><label class="label" for="h-note">หมายเหตุ (ไม่บังคับ)</label><input class="field" id="h-note" name="note" maxlength="1000" value={f.honey.v('note')} /></div>
@@ -198,12 +235,14 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
         <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บไข่นางพญา`}>
+          {formError('queen') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('queen')}</p>}
           <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
           <div><label class="label" for="q-date">วันที่</label><input class="field" id="q-date" name="occurredOn" type="date" max={today} value={f.queen.v('occurredOn', today)} required />{f.queen.err('occurredOn') && <p class="error">{f.queen.err('occurredOn')}</p>}</div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="q-n">จำนวน (ใบ)</label><input class="field" id="q-n" name="queenCells" type="number" inputmode="numeric" min="1" value={f.queen.v('queenCells', '1')} required />{f.queen.err('queenCells') && <p class="error">{f.queen.err('queenCells')}</p>}</div>
-            <div><label class="label" for="q-t">นำไปทำรัง (ถ้ามี)</label><input class="field" id="q-t" name="targetCode" placeholder="เช่น A148" value={f.queen.v('targetCode')} />{f.queen.err('targetCode') && <p class="error">{f.queen.err('targetCode')}</p>}</div>
+            <div><label class="label" for="q-n">จำนวน (ใบ)</label><input class="field" id="q-n" name="queenCells" type="number" inputmode="numeric" min="1" value={f.queen.v('queenCells', '1')} required autofocus={focusOn('queen')} />{f.queen.err('queenCells') && <p class="error">{f.queen.err('queenCells')}</p>}</div>
+            <div><label class="label" for="q-t">นำไปทำรัง (ถ้ามี)</label><input class="field" id="q-t" name="targetCode" placeholder="เช่น 148" value={f.queen.v('targetCode')} autofocus={!!f.queen.err('targetCode')} />{f.queen.err('targetCode') && <p class="error">{f.queen.err('targetCode')}</p>}</div>
           </div>
+          <CreateTarget t={createTarget('queen')} from={hive.code} />
           <div><label class="label" for="q-note">หมายเหตุ</label><input class="field" id="q-note" name="note" maxlength="1000" value={f.queen.v('note')} /></div>
           <button class="btn-primary w-full" type="submit">บันทึกการเก็บไข่นางพญา</button>
         </form>
@@ -212,20 +251,24 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
         <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · แยกรัง`}>
+          {formError('brood') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('brood')}</p>}
           <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
           <div><label class="label" for="b-date">วันที่</label><input class="field" id="b-date" name="occurredOn" type="date" max={today} value={f.brood.v('occurredOn', today)} required />{f.brood.err('occurredOn') && <p class="error">{f.brood.err('occurredOn')}</p>}</div>
-          <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น A148" value={f.brood.v('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}</div>
+          <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น 148" value={f.brood.v('targetCode')} autofocus={focusOn('brood') || !!f.brood.err('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}<p class="hint">พิมพ์แค่เลขได้ (ชุด {splitHiveCode(hive.code).prefix}) · แยกไปกล่องใหม่ที่ยังไม่มีในทะเบียน ใช้ปุ่ม "แยกไปรังใหม่" ด้านล่าง</p></div>
+          <CreateTarget t={createTarget('brood')} from={hive.code} />
           <div><label class="label" for="b-note">หมายเหตุ</label><input class="field" id="b-note" name="note" maxlength="1000" value={f.brood.v('note')} /></div>
           <button class="btn-primary w-full" type="submit">บันทึกการแยกรัง</button>
         </form>
+        <a class="btn-ghost mt-3 w-full" href={`/admin/hives/new?${new URLSearchParams({ origin: 'split', broodSourceCode: hive.code })}`}><Icon name="plus" class="size-5" />แยกไปรังใหม่ (ลงทะเบียนกล่องใหม่)</a>
       </details>
 
       <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
         <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · หมายเหตุ`}>
+          {formError('note') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('note')}</p>}
           <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
           <div><label class="label" for="n-date">วันที่</label><input class="field" id="n-date" name="occurredOn" type="date" max={today} value={f.note.v('occurredOn', today)} required />{f.note.err('occurredOn') && <p class="error">{f.note.err('occurredOn')}</p>}</div>
-          <div><label class="label" for="n-note">ข้อความ</label><textarea class="field" id="n-note" name="note" rows="3" maxlength="1000" required>{f.note.v('note')}</textarea>{f.note.err('note') && <p class="error">{f.note.err('note')}</p>}</div>
+          <div><label class="label" for="n-note">ข้อความ</label><textarea class="field" id="n-note" name="note" rows="3" maxlength="1000" required autofocus={focusOn('note')}>{f.note.v('note')}</textarea>{f.note.err('note') && <p class="error">{f.note.err('note')}</p>}</div>
           <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="isPublic" checked={f.note.v('isPublic') === 'on'} /> แสดงในสมุดพก (สาธารณะ)</label>
           <button class="btn-primary w-full" type="submit">บันทึกหมายเหตุ</button>
         </form>
@@ -238,6 +281,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
         <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
           <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
           <form method="post" class="mt-3 space-y-3">
+            {formError('sale') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('sale')}</p>}
             <input type="hidden" name="intent" value="sale" />
             <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="forSale" checked={isOpen('sale') && 'intent' in values ? values.forSale === 'on' : hive.forSale} /> ตั้งขายรังนี้ (แสดงในหน้าสินค้า/รังสมบูรณ์)</label>
             <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
@@ -250,16 +294,21 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       <details id="form-status" class="card scroll-mt-20" open={isOpen('status')}>
         <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="status" class="size-6 text-palm-700" />เปลี่ยนสถานะรัง</summary>
         <form method="post" class="mt-3 space-y-3" data-confirm={`เปลี่ยนสถานะรัง ${hive.code} เป็น "{status}" ใช่ไหม?`} data-outbox={`${hive.code} · เปลี่ยนสถานะ`}>
+          {formError('status') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('status')}</p>}
           <input type="hidden" name="intent" value="status" /><input type="hidden" name="idem" value={f.status.v('idem') || idem()} />
           <div><label class="label" for="st-s">สถานะใหม่</label>
             <select class="field" id="st-s" name="status" required>
               {/* ไม่เลือกอะไรไว้ก่อน — กันกดยืนยันแล้วรังกลายเป็น "ขายแล้ว" โดยไม่ตั้งใจ */}
-              <option value="" disabled selected={!f.status.v('status')}>เลือกสถานะ…</option>
-              {targets.map((s) => <option value={s} selected={f.status.v('status') === s}>{statusLabel[s]}</option>)}
-            </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}</div>
+              <option value="" disabled selected={!f.status.v('status') && !(openIntent === 'collapse' && targets.includes('collapsed'))}>เลือกสถานะ…</option>
+              {targets.map((s) => <option value={s} selected={f.status.v('status') === s || (openIntent === 'collapse' && !f.status.v('status') && s === 'collapsed')}>{statusLabel[s]}</option>)}
+            </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}
+            {owner && targets.includes('sold') && <p class="hint" data-when="sold">ขายให้ลูกค้าที่ทักมา: <a class="underline" href={`/admin/orders/new?hive=${hive.code}`}>จดออเดอร์</a> แทน ยอดขายจะเข้ารายงาน · ใช้ "ขายแล้ว" ตรงนี้เฉพาะรังที่ขายนอกระบบ</p>}</div>
           <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
-          {targets.includes('sold') && <div><label class="label" for="st-p">ราคาขายจริง (บาท) — ถ้าเลือก "ขายแล้ว"</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>}
-          <div><label class="label" for="st-r">สาเหตุ (ถ้าล่ม)</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}</div>
+          {targets.includes('sold') && <div data-when="sold"><label class="label" for="st-p">ราคาขายจริง (บาท)</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>}
+          <div data-when="collapsed"><label class="label" for="st-r">สาเหตุที่ล่ม</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} autofocus={focusOn('collapse')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}
+            <div class="mt-2 flex flex-wrap gap-2">
+              {['มด', 'ศัตรู/สัตว์รบกวน', 'อากาศร้อน/แล้ง', 'นางพญาหาย', 'ไม่ทราบสาเหตุ'].map((r) => <button type="button" class="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm active:bg-palm-50" data-reason={r}>{r}</button>)}
+            </div></div>
           <button class="btn-danger w-full" type="submit">ยืนยันเปลี่ยนสถานะ</button>
         </form>
       </details>
@@ -271,6 +320,29 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
 </AdminLayout>
 
 <script>
+  // ฟอร์มสถานะ: ช่อง "ราคาขายจริง" แสดงเมื่อเลือกขายแล้ว · "สาเหตุ" แสดงเมื่อเลือกล่ม (ไม่มี JS = แสดงทุกช่องตามเดิม)
+  const statusSel = document.getElementById('st-s') as HTMLSelectElement | null;
+  const syncStatus = () => document.querySelectorAll<HTMLElement>('#form-status [data-when]').forEach((el) => (el.hidden = statusSel?.value !== el.dataset.when));
+  statusSel?.addEventListener('change', syncStatus);
+  syncStatus();
+  // โฟกัสช่องแรกของงานที่มาจากบันทึกด่วน / ช่องที่ผิด (เลื่อนมากลางจอ ให้เห็นข้อความสีแดง)
+  // ต้องทำเอง หลังหน้าโหลดเสร็จ: เบราว์เซอร์ข้าม autofocus เมื่อ URL มี #form-… (ลิงก์จากบันทึกด่วนมีเสมอ)
+  // และการเลื่อนไปที่ #form-… ตอนโหลดเสร็จจะล้างโฟกัสที่ตั้งไว้ก่อนหน้านั้น
+  // ส่งฟอร์มแล้วผิด: เบราว์เซอร์คืนตำแหน่งเลื่อนเดิมตอนโหลดเสร็จ → เลื่อนข้อความสีแดงกลับมากลางจออีกครั้ง
+  const focusAuto = () => {
+    const auto = document.querySelector<HTMLElement>('#main [autofocus]');
+    const error = document.querySelector<HTMLElement>('#main form .error');
+    if (auto && (!document.activeElement || document.activeElement === document.body)) auto.focus({ preventScroll: true });
+    (error ?? auto)?.scrollIntoView({ block: 'center' });
+  };
+  if (document.readyState === 'complete') setTimeout(focusAuto, 0);
+  else addEventListener('load', () => setTimeout(focusAuto, 0), { once: true });
+  // ปุ่มสาเหตุที่พบบ่อย → ใส่ลงช่องสาเหตุ (แก้ต่อได้)
+  document.querySelectorAll<HTMLButtonElement>('[data-reason]').forEach((b) => b.addEventListener('click', () => {
+    const input = document.getElementById('st-r') as HTMLInputElement | null;
+    if (input) { input.value = b.dataset.reason ?? ''; input.focus(); }
+  }));
+
   // จอกว้าง (xl): แผงบันทึกอยู่ด้านขวาเห็นตลอด → เปิดฟอร์มเก็บน้ำหวาน (งานที่ทำบ่อยที่สุด) ไว้ให้เลย ลดการกด
   // เฉพาะเมื่อยังไม่มีฟอร์มไหนเปิด (เช่นมาจากบันทึกด่วน ?do=note หรือมีข้อผิดพลาด) และรังยังอยู่
   const panel = document.querySelector('[aria-labelledby="act-h"]');

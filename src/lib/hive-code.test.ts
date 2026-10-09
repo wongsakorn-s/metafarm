@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bareNumber, compareHiveCodes, isHiveCode, normalizeHiveCode, splitHiveCode, suggestNextCode } from './hive-code.ts';
+import { bareNumber, compareHiveCodes, expandCodeFields, isHiveCode, normalizeHiveCode, splitHiveCode, suggestNextCode, withPrefix } from './hive-code.ts';
 
 describe('normalizeHiveCode', () => {
   it('ตัวอักษรอื่นนอกจาก A ได้ · ตัวเล็ก/ช่องว่าง/ขีด/0 นำหน้า', () => {
@@ -42,5 +42,23 @@ describe('suggestNextCode', () => {
     expect(suggestNextCode('B12', ['A1', 'A147', 'B12', 'B3'])).toBe('B13');
     expect(suggestNextCode('A5', ['A5', 'A200'])).toBe('A201');
     expect(suggestNextCode(null, [])).toBe('A1');
+  });
+});
+
+describe('withPrefix / expandCodeFields', () => {
+  it('พิมพ์แค่เลข → เติมตัวอักษรชุดเดียวกับรังที่ทำงานอยู่ · อย่างอื่นคงเดิม', () => {
+    expect(withPrefix('30', 'A')).toBe('A30');
+    expect(withPrefix(' 012 ', 'B')).toBe('B12');
+    expect(withPrefix('c5', 'A')).toBe('c5');
+    expect(withPrefix('', 'A')).toBe('');
+    expect(withPrefix('0', 'A')).toBe('0');
+  });
+  it('แก้เฉพาะช่องที่ระบุและมีค่า', () => {
+    const fd = new FormData();
+    fd.set('targetCode', '30');
+    fd.set('note', '30');
+    fd.set('queenSourceCode', '');
+    expandCodeFields(fd, ['targetCode', 'queenSourceCode'], 'G');
+    expect([fd.get('targetCode'), fd.get('note'), fd.get('queenSourceCode')]).toEqual(['G30', '30', '']);
   });
 });

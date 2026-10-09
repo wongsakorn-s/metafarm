@@ -15,6 +15,8 @@ const ACTIONS = {
   queen: { label: 'เก็บไข่นางพญา', icon: 'queen', to: (c: string) => `/admin/hives/${c}?do=queen#form-queen` },
   brood: { label: 'แยกรัง', icon: 'brood', to: (c: string) => `/admin/hives/${c}?do=brood#form-brood` },
   note: { label: 'หมายเหตุ', icon: 'note', to: (c: string) => `/admin/hives/${c}?do=note#form-note` },
+  // รังล่ม: เปิดฟอร์มเปลี่ยนสถานะที่เลือก "ล่ม" ไว้ให้ (เดิมต้องเปิดหน้ารังแล้วเลื่อนลงไปเกือบ 2 จอ)
+  collapse: { label: 'รังล่ม', icon: 'status', to: (c: string) => `/admin/hives/${c}?do=collapse#form-status` },
   photo: { label: 'ถ่ายรูป', icon: 'camera', to: (c: string) => `/admin/hives/${c}/media` },
   view: { label: 'เปิดหน้ารัง', icon: 'search', to: (c: string) => `/admin/hives/${c}` },
 } as const;
@@ -25,7 +27,10 @@ const raw = (sp.get('code') ?? '').trim();
 // ชุดตัวอักษรของรหัสรัง (A, B, G …) — เลือกชุดแล้วพิมพ์แค่เลขด้วยแป้นตัวเลข · พิมพ์รหัสเต็ม (B12) ก็ได้
 const prefixes = await hivePrefixes(db);
 const prefix = (sp.get('prefix') ?? '').toUpperCase() || prefixes[0] || 'A';
-const act = (sp.get('do') ?? 'view') as Action;
+// do = ปุ่มงานที่กด · next = งานที่ทำต่อจาก "รังต่อไป" (ปุ่ม Enter/ไป บนแป้นพิมพ์ใช้งานนี้)
+const act = (sp.get('do') ?? sp.get('next') ?? 'view') as Action;
+const doing = (sp.get('do') ?? sp.get('next') ?? '') as Action | '';
+const doingLabel = doing && doing in ACTIONS ? ACTIONS[doing as Action].label : '';
 let error = '';
 let choices: string[] = [];
 if (raw) {
@@ -46,6 +51,9 @@ const recent = await recentHiveCodes(db, 8);
 
 <AdminLayout title="บันทึก" active="quick">
   <form method="get" class="card space-y-4" role="search">
+    {/* งานที่ทำต่อ (มาจาก "รังต่อไป"): ปุ่มส่งตัวแรกของฟอร์ม = ปุ่ม Enter/ไป บนแป้นพิมพ์ → พิมพ์เลขรังแล้วกดไปได้เลย */}
+    {doingLabel && <button type="submit" name="next" value={doing} class="sr-only" tabindex="-1">{doingLabel}</button>}
+    {doingLabel && <p class="rounded-xl bg-palm-50 p-3 font-medium text-palm-900">งานต่อ: <strong>{doingLabel}</strong> — พิมพ์เลขรังถัดไป แล้วกด "ไป" บนแป้นพิมพ์ หรือปุ่ม{doingLabel}</p>}
     <div>
       <label class="label text-base" for="code">เลขรัง</label>
       <div class="flex items-stretch">
@@ -71,8 +79,8 @@ const recent = await recentHiveCodes(db, 8);
       <p id="code-hint" class="hint">ดูเลขที่ป้ายบนตัวรัง{prefixes.length > 1 ? ' เลือกตัวอักษรหน้าเลขก่อน' : ''} แล้วเลือกงานด้านล่าง</p>
     </div>
     <div class="grid grid-cols-2 gap-3">
-      {(Object.entries(ACTIONS) as [Action, (typeof ACTIONS)[Action]][]).map(([k, a], i) => (
-        <button class:list={['flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl text-base font-semibold', i === 0 ? 'bg-palm-600 text-white active:bg-palm-700' : 'border border-line bg-surface text-ink active:bg-canvas']} type="submit" name="do" value={k}>
+      {(Object.entries(ACTIONS) as [Action, (typeof ACTIONS)[Action]][]).map(([k, a], i, all) => (
+        <button class:list={['flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl text-base font-semibold', (doingLabel ? k === doing : i === 0) ? 'bg-palm-600 text-white active:bg-palm-700' : 'border border-line bg-surface text-ink active:bg-canvas', i === all.length - 1 && all.length % 2 === 1 && 'col-span-2']} type="submit" name="do" value={k}>
           <Icon name={a.icon} class="size-7" />{a.label}
         </button>
       ))}

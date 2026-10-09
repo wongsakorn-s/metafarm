@@ -1,5 +1,5 @@
 ---
-import { isHiveCode, normalizeHiveCode } from '../../lib/hive-code.ts';
+import { expandCodeFields, isHiveCode, normalizeHiveCode, splitHiveCode } from '../../lib/hive-code.ts';
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
@@ -25,6 +25,8 @@ const saved = Astro.url.searchParams.get('saved');
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  // รังแม่พิมพ์แค่เลขได้ (ชุดตัวอักษรเดียวกับรังที่กำลังเติม)
+  expandCodeFields(form, ['queenSourceCode', 'broodSourceCode'], splitHiveCode(normalizeHiveCode(String(form.get('code') ?? '')) ?? 'A').prefix);
   const code = normalizeHiveCode(String(form.get('code') ?? '')) ?? '';
   const intent = String(form.get('intent') ?? '');
   const detail = code ? await getHiveDetail(db, code) : null;

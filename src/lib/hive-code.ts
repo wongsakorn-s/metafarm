@@ -42,3 +42,20 @@ export function suggestNextCode(latest: string | null, codes: string[]): string 
   const max = codes.filter((c) => splitHiveCode(c).prefix === prefix).reduce((m, c) => Math.max(m, splitHiveCode(c).num), 0);
   return `${prefix}${max + 1}`;
 }
+
+/**
+ * ช่องรหัสรังที่พิมพ์แค่เลข (เช่น 30) → เติมตัวอักษรชุดเดียวกับรังที่กำลังทำงานอยู่ (A30)
+ * ให้ทุกช่องรับแบบเดียวกับหน้าบันทึกด่วน (เดิมช่องรังแม่/รังปลายทางต้องพิมพ์ A30 ไม่งั้นขึ้นข้อผิดพลาด) · อย่างอื่นคืนตามเดิม
+ */
+export function withPrefix(raw: string, prefix: string): string {
+  const n = bareNumber(raw);
+  return n ? `${prefix}${n}` : raw;
+}
+
+/** เติมตัวอักษรให้ช่องรหัสรังในฟอร์ม (แก้ FormData ที่รับมา) — ใช้ก่อนตรวจด้วย parseForm */
+export function expandCodeFields(form: FormData, fields: string[], prefix: string): void {
+  for (const f of fields) {
+    const v = form.get(f);
+    if (typeof v === 'string' && v.trim()) form.set(f, withPrefix(v, prefix));
+  }
+}

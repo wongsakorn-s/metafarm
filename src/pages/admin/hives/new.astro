@@ -6,7 +6,7 @@ import { createHive, nextHiveCode } from '../../../server/hives.ts';
 import { boxLabel, originLabel } from '../../../lib/labels.ts';
 import { newHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 import { isOwner } from '../../../lib/permissions.ts';
-import { normalizeHiveCode } from '../../../lib/hive-code.ts';
+import { expandCodeFields, normalizeHiveCode, splitHiveCode } from '../../../lib/hive-code.ts';
 
 export const prerender = false;
 
@@ -17,6 +17,8 @@ let values: Record<string, string> = {};
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  // รังแม่พิมพ์แค่เลขได้ — ใช้ตัวอักษรชุดเดียวกับรหัสรังใหม่ (A150 + "25" → A25)
+  expandCodeFields(form, ['queenSourceCode', 'broodSourceCode'], splitHiveCode(normalizeHiveCode(String(form.get('code') ?? '')) ?? 'A').prefix);
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   const p = parseForm(newHiveSchema, form);
   if (!p.ok) errors = p.errors;
@@ -24,6 +26,12 @@ if (Astro.request.method === 'POST') {
     const r = await createHive(db, Astro.locals.user!, p.data);
     if (r.ok) return Astro.redirect(`/admin/hives/${r.code}?saved=created`, 303);
     errors = { _: r.error };
+  }
+} else {
+  // ลิงก์จากหน้ารัง ("แยกไปรังใหม่" / "สร้างรัง A778 แยกจาก A25"): กรอกรหัส ที่มา รังแม่ และวันที่ไว้ให้
+  for (const k of ['code', 'origin', 'acquiredOn', 'queenSourceCode', 'broodSourceCode']) {
+    const x = Astro.url.searchParams.get(k);
+    if (x) values[k] = x;
   }
 }
 const nextCode = await nextHiveCode(db);

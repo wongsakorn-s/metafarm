@@ -142,7 +142,8 @@ console.log('\n4) ข้อมูลผิด: ออนไลน์ = แจ้
   await hivePage();
   await record('แยกไข่อ่อน', () => type('#b-t', 'A99999'), 'บันทึกการแยกรัง');
   await page.waitForLoadState('load');
-  const alert = (await page.locator('[role=alert]').first().textContent().catch(() => '')) ?? '';
+  // ข้อความผิดอยู่ใต้ช่องรังปลายทางในฟอร์มที่เปิดอยู่ (เห็นตรงที่กด)
+  const alert = (await page.locator('#form-brood .error').first().textContent().catch(() => '')) ?? '';
   check(/A99999/.test(alert) && !(await badge.isVisible()), 'ออนไลน์ + รหัสรังผิด → แจ้งข้อผิดพลาดในหน้าเลย (ไม่เข้าคิว)', 'ไม่แจ้งข้อผิดพลาด: ' + alert);
   await hivePage();
   await goOffline();

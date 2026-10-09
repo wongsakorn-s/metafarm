@@ -56,13 +56,13 @@ for (let i = 0; i < cells.length; i += perPage) pages.push(cells.slice(i, i + pe
     <div class="no-print mx-auto max-w-3xl space-y-3 p-4">
       <p><a class="inline-flex min-h-11 items-center underline" href={`/admin/lots/${code}`}>← กลับไปล็อต {code}</a></p>
       <h1 class="text-xl font-bold">ฉลากล็อต {code}</h1>
-      <form method="get" class="card grid gap-3 sm:grid-cols-2">
+      <form method="get" class="card grid gap-3 sm:grid-cols-2" id="label-form">
         <div><label class="label" for="variant">ขนาดขวด</label><select class="field" id="variant" name="variant">{variants.map((x) => <option value={x.id} selected={x.id === variant?.id}>{x.label} · {x.sizeMl} มล.</option>)}</select></div>
         <div><label class="label" for="sheet">แผ่นสติกเกอร์</label><select class="field" id="sheet" name="sheet">{(Object.keys(LABEL_SHEETS) as LabelSheet[]).map((k) => <option value={k} selected={k === sheetKey}>{LABEL_SHEETS[k].label}</option>)}</select></div>
         <div><label class="label" for="count">จำนวนดวง</label><input class="field" id="count" name="count" type="number" inputmode="numeric" min="1" max="500" value={count} /></div>
         <div><label class="label" for="start">เริ่มที่ดวงที่ (แผ่นที่ใช้ไปบ้างแล้ว)</label><input class="field" id="start" name="start" type="number" inputmode="numeric" min="1" max={perPage} value={start} /></div>
         <div class="flex flex-wrap gap-2 sm:col-span-2">
-          <button class="btn-ghost" type="submit">ปรับตัวอย่าง</button>
+          <button class="btn-ghost" type="submit" data-no-js>ปรับตัวอย่าง</button>
           <button class="btn-primary" type="button" id="print">พิมพ์ ({pages.length} แผ่น)</button>
         </div>
         <p class="hint sm:col-span-2">ตั้งค่าเครื่องพิมพ์: ขนาด A4 · ขอบกระดาษ "ไม่มี" · ย่อ/ขยาย 100% (ไม่ใช่ "พอดีหน้า") · ลองพิมพ์บนกระดาษธรรมดาทาบกับแผ่นสติกเกอร์ก่อน</p>
@@ -87,7 +87,28 @@ for (let i = 0; i < cells.length; i += perPage) pages.push(cells.slice(i, i + pe
     ))}
 
     <script>
-      document.getElementById('print')?.addEventListener('click', () => window.print());
+      // เดิมต้องกด "ปรับตัวอย่าง" เองก่อนพิมพ์ — ลืมกด = พิมพ์จำนวนเดิม เปลืองแผ่นสติกเกอร์
+      // ตอนนี้: เปลี่ยนค่า → ตัวอย่างอัปเดตเอง · กด "พิมพ์" ตอนค่ายังไม่อัปเดต → อัปเดตก่อนแล้วสั่งพิมพ์ให้เอง
+      const form = document.getElementById('label-form') as HTMLFormElement | null;
+      const state = () => (form ? new URLSearchParams(new FormData(form) as unknown as Record<string, string>).toString() : '');
+      const shown = state();
+      document.querySelectorAll<HTMLElement>('[data-no-js]').forEach((el) => (el.hidden = true));
+      form?.addEventListener('change', () => form.requestSubmit());
+      document.getElementById('print')?.addEventListener('click', () => {
+        if (!form || state() === shown) return window.print();
+        const flag = document.createElement('input');
+        flag.type = 'hidden';
+        flag.name = 'print';
+        flag.value = '1';
+        form.appendChild(flag);
+        form.requestSubmit();
+      });
+      const url = new URL(location.href);
+      if (url.searchParams.get('print') === '1') {
+        url.searchParams.delete('print');
+        history.replaceState(null, '', url);
+        addEventListener('load', () => window.print());
+      }
     </script>
   </body>
 </html>

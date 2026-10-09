@@ -69,9 +69,9 @@ const honeyTotal = honey.reduce((s, h) => s + h.ml, 0);
       {sellers.length === 0 ? <p class="text-sm text-muted">ยังไม่มีการขายในปีนี้</p> : (
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">สินค้า</th><th scope="col" class="text-right">จำนวน</th><th scope="col" class="text-right">ยอดขาย</th><th scope="col" class="text-right">กำไร</th></tr></thead>
+            <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">สินค้า</th><th scope="col" class="whitespace-nowrap pl-3 text-right">จำนวน</th><th scope="col" class="whitespace-nowrap pl-3 text-right">ยอดขาย</th><th scope="col" class="whitespace-nowrap pl-3 text-right">กำไร</th></tr></thead>
             <tbody class="divide-y divide-line" data-num>
-              {sellers.map((s) => <tr><td class="py-2 pr-2">{s.label}</td><td class="text-right">{fmt(s.qty)}</td><td class="text-right">{fmt(s.revenue)}</td><td class="text-right">{s.profit == null ? <span class="text-muted" title="บางรายการยังไม่มีต้นทุน">–</span> : fmt(s.profit)}</td></tr>)}
+              {sellers.map((s) => <tr><td class="py-2 pr-2">{s.label}</td><td class="whitespace-nowrap pl-3 text-right">{fmt(s.qty)}</td><td class="whitespace-nowrap pl-3 text-right">{fmt(s.revenue)}</td><td class="whitespace-nowrap pl-3 text-right">{s.profit == null ? <span class="text-muted" title="บางรายการยังไม่มีต้นทุน">–</span> : fmt(s.profit)}</td></tr>)}
             </tbody>
           </table>
           <p class="hint mt-2">หน่วยเงิน: บาท · "–" = บางรายการยังไม่มีต้นทุน</p>

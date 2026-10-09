@@ -1,5 +1,5 @@
 ---
-import { isHiveCode, normalizeHiveCode } from '../../../../lib/hive-code.ts';
+import { expandCodeFields, isHiveCode, normalizeHiveCode, splitHiveCode } from '../../../../lib/hive-code.ts';
 import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb } from '../../../../server/db.ts';
@@ -31,6 +31,8 @@ let values: Record<string, string> | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
+  // รังแม่พิมพ์แค่เลขได้ (ชุดตัวอักษรเดียวกับรังนี้)
+  expandCodeFields(form, ['queenSourceCode', 'broodSourceCode'], splitHiveCode(code).prefix);
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   const p = parseForm(editHiveSchema, form);
   if (!p.ok) errors = p.errors;
