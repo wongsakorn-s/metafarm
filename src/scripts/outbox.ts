@@ -2,41 +2,75 @@
 // ใช้กับฟอร์มบันทึกงานรัง (<form data-outbox="A12 · เก็บน้ำหวาน">) และรูป (sendOrQueue จากสคริปต์หน้าเพจ)
 // ส่งซ้ำปลอดภัย: บันทึกงานมีคีย์ idem · รูปมีรหัสชุด batch — เซิร์ฟเวอร์ไม่บันทึกซ้ำ
 // ส่งเมื่อ: เปิดหน้า · กลับมาออนไลน์ · สลับกลับมาที่แอป · ทุก 30 วินาทีระหว่างที่ยังมีรายการ (ไม่ใช้ service worker — ทำงานเหมือนกันทั้ง Android และ iPhone)
-import { failureOf, outcomeOf, pendingSummary, recordLabel, timeoutFor, type Field, type OutboxItem, type Outcome, type ResponseInfo } from './outbox-core';
+// บันทึกงานส่งก่อนรูป · รูปที่หมดเวลา/เซิร์ฟเวอร์ขัดข้อง เว้นระยะก่อนลองเอง (ไม่อัปโหลดซ้ำทุก 30 วินาที) — กด "ส่งตอนนี้" หรือสัญญาณกลับมา ส่งทันที
+import { afterSend, failureOf, isDue, outcomeOf, pendingSummary, recordLabel, resetForRetry, sendOrder, stopsRun, timeoutFor, type Field, type OutboxItem, type Outcome, type ResponseInfo } from './outbox-core';
 
 const DB_NAME = 'metafarm-outbox';
 const STORE = 'items';
 
+/** งานกับฐานข้อมูลในเครื่องที่ค้างนานกว่านี้ = ถือว่าล้ม (WebKit บางครั้งค้างไม่ตอบ — ปุ่มจะได้ไม่ค้าง "กำลังบันทึก…") */
+const IDB_TIMEOUT = 8_000;
+const within = <T,>(p: Promise<T>, what: string): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`IndexedDB ${what}: ไม่ตอบใน ${IDB_TIMEOUT / 1000} วินาที`)), IDB_TIMEOUT);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+
 // เปิดฐานข้อมูลครั้งเดียวแล้วใช้ซ้ำ (WebKit/iPhone ค้างเมื่อเปิด-ปิดการเชื่อมต่อถี่ ๆ)
 let dbPromise: Promise<IDBDatabase> | null = null;
 function openDb(): Promise<IDBDatabase> {
-  dbPromise ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
-    req.onsuccess = () => {
-      const db = req.result;
-      // ปิดเอง (เช่นเบราว์เซอร์ล้างข้อมูล) → เปิดใหม่ครั้งหน้า
-      db.onclose = () => (dbPromise = null);
-      db.onversionchange = () => { db.close(); dbPromise = null; };
-      resolve(db);
-    };
-    req.onerror = () => { dbPromise = null; reject(req.error); };
-  });
+  dbPromise ??= within(
+    new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
+      req.onsuccess = () => {
+        const db = req.result;
+        // ปิดเอง (เช่นเบราว์เซอร์ล้างข้อมูล) → เปิดใหม่ครั้งหน้า
+        db.onclose = () => (dbPromise = null);
+        db.onversionchange = () => { db.close(); dbPromise = null; };
+        resolve(db);
+      };
+      req.onerror = () => reject(req.error);
+    }),
+    'open',
+  ).catch((e: unknown) => { dbPromise = null; throw e; });
   return dbPromise;
 }
-async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await openDb();
+/** ทิ้งการเชื่อมต่อเดิม (เปิดใหม่ครั้งหน้า) */
+function reconnect(): void {
+  const old = dbPromise;
+  dbPromise = null;
+  old?.then((db) => db.close()).catch(() => {});
+}
+function tx<T>(db: IDBDatabase, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const t = db.transaction(STORE, mode);
+    const t = db.transaction(STORE, mode); // การเชื่อมต่อที่หลุดแล้ว: โยน InvalidStateError ตรงนี้
     const req = fn(t.objectStore(STORE));
     t.oncomplete = () => resolve(req.result);
     t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
+    t.onabort = () => reject(t.error ?? new Error('IndexedDB: ยกเลิก'));
   });
+}
+async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  try {
+    return await within(tx(await openDb(), mode, fn), 'transaction');
+  } catch {
+    // iPhone: สลับไปแอปอื่นนาน ๆ แล้วกลับมา การเชื่อมต่อหลุดโดยไม่มีเหตุการณ์ close ("Connection to Indexed Database server lost")
+    // → ทุกการบันทึกล้มจนกว่าจะโหลดหน้าใหม่ · เปิดใหม่แล้วลองอีกครั้งเดียว (ล้มอีก = ล้มจริง เช่นพื้นที่เต็ม)
+    reconnect();
+    return within(tx(await openDb(), mode, fn), 'transaction');
+  }
 }
 
 export const listItems = async () => ((await run('readonly', (s) => s.getAll())) as OutboxItem[]).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 const save = (item: OutboxItem) => run('readwrite', (s) => s.put(item));
+/** เขียนทับเฉพาะถ้ารายการยังอยู่ — ระหว่างที่ส่ง ถ้าถูกลบจากหน้า "รอส่ง" หรืออีกแท็บส่งไปแล้ว ผลที่มาทีหลังจะไม่ทำให้กลับมา */
+const saveIfExists = (item: OutboxItem) =>
+  run('readwrite', (s) => {
+    const r = s.get(item.id);
+    r.onsuccess = () => { if (r.result) s.put(item); };
+    return r;
+  });
 export const removeItem = (id: string) => run('readwrite', (s) => s.delete(id)).then(notify);
 
 /** ผู้ใช้ที่ล็อกอินอยู่ (AdminLayout ใส่ไว้ที่ body) */
@@ -62,12 +96,17 @@ async function send(item: OutboxItem): Promise<Outcome> {
   const ctrl = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, timeoutFor(item.kind, item.bytes));
+  const started = Date.now();
   try {
     const res = await fetch(item.url, { method: 'POST', body: formDataOf(item.fields), credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: ctrl.signal });
-    const json = (res.headers.get('content-type') ?? '').includes('application/json') ? ((await res.json().catch(() => null)) as ResponseInfo['json']) : null;
-    return outcomeOf({ status: res.status, url: res.url, json });
+    let json: ResponseInfo['json'] = null;
+    let broken = false;
+    if ((res.headers.get('content-type') ?? '').includes('application/json')) {
+      try { json = (await res.json()) as ResponseInfo['json']; } catch { broken = true; } // คำตอบขาดกลางทาง
+    }
+    return outcomeOf({ status: res.status, url: res.url, json, broken });
   } catch (e) {
-    return failureOf(e, timedOut);
+    return failureOf(e, timedOut, Date.now() - started);
   } finally {
     clearTimeout(timer);
   }
@@ -79,10 +118,9 @@ const withLock = <T,>(fn: () => Promise<T>): Promise<T> =>
   navigator.locks ? (navigator.locks.request('metafarm-outbox', fn) as Promise<T>) : fn();
 
 async function apply(item: OutboxItem, o: Outcome): Promise<void> {
-  if (o.kind === 'done') await run('readwrite', (s) => s.delete(item.id));
-  else if (o.kind === 'invalid') await save({ ...item, status: 'failed', error: o.message, attempts: item.attempts + 1 });
-  else if (o.kind === 'session') await save({ ...item, status: 'session', error: o.message, attempts: item.attempts + 1 });
-  else await save({ ...item, status: 'pending', error: undefined, attempts: item.attempts + 1 });
+  const next = afterSend(item, o, Date.now());
+  if (next) await saveIfExists(next);
+  else await run('readwrite', (s) => s.delete(item.id));
 }
 
 /**
@@ -104,8 +142,12 @@ export async function sendOrQueue(input: Omit<OutboxItem, 'id' | 'userId' | 'use
   inFlight.add(item.id);
   try {
     const o = await send(item);
-    if (o.kind === 'invalid') await run('readwrite', (s) => s.delete(item.id));
-    else await apply(item, o);
+    try {
+      if (o.kind === 'invalid') await run('readwrite', (s) => s.delete(item.id));
+      else await apply(item, o);
+    } catch {
+      /* เขียนผลลงเครื่องไม่ได้ — รายการยังอยู่ในคิว ส่งซ้ำได้ปลอดภัย (เซิร์ฟเวอร์ไม่บันทึกซ้ำ) */
+    }
     return o;
   } finally {
     inFlight.delete(item.id);
@@ -113,41 +155,86 @@ export async function sendOrQueue(input: Omit<OutboxItem, 'id' | 'userId' | 'use
   }
 }
 
-let flushing = false;
-/** ส่งรายการที่ค้าง (ของผู้ใช้ที่ล็อกอินอยู่) ตามลำดับ — เจอเน็ตหลุด/ล็อกอินหมดอายุก็หยุดรอรอบหน้า */
-export async function flush(): Promise<void> {
-  if (flushing || !('indexedDB' in window)) return;
-  flushing = true;
+/** ส่งรายการที่ค้าง (ของผู้ใช้ที่ล็อกอินอยู่) หนึ่งรอบ — บันทึกงานก่อนรูป · เจอเน็ตหลุด/ช้า/ล็อกอินหมดอายุก็หยุดรอรอบหน้า (คืน true) */
+async function flushOnce(force: boolean): Promise<boolean> {
+  let stopped = false;
   try {
     await withLock(async () => {
       const me = currentUser();
-      for (const item of await listItems()) {
-        if (item.userId !== me.id || item.status === 'failed' || inFlight.has(item.id)) continue;
-        const o = await send(item);
-        await apply(item, o);
-        if (o.kind === 'retry' || o.kind === 'session') break;
+      const now = Date.now();
+      for (const item of sendOrder(await listItems())) {
+        if (item.userId !== me.id || item.status === 'failed' || inFlight.has(item.id) || !isDue(item, now, force)) continue;
+        inFlight.add(item.id);
+        try {
+          const o = await send(item);
+          await apply(item, o);
+          if (stopsRun(o)) { stopped = true; break; }
+        } finally {
+          inFlight.delete(item.id);
+        }
       }
     });
   } catch {
-    /* เปิดฐานข้อมูลในเครื่องไม่ได้ — ไม่มีอะไรค้าง */
-  } finally {
-    flushing = false;
-    notify();
+    /* เปิดฐานข้อมูลในเครื่องไม่ได้ — ลองใหม่รอบหน้า */
+    stopped = true;
   }
+  return stopped;
 }
 
-/** ส่งรายการที่ต้องแก้/รอล็อกอิน อีกครั้ง (กดจากหน้าคิว) */
+let running: Promise<void> | null = null;
+/** มีคนขอส่งระหว่างที่กำลังส่ง → ส่งอีกรอบเมื่อจบ (true = ไม่รอเว้นระยะ) */
+let again: boolean | null = null;
+/** รอบที่กำลังส่ง: ไม่รอเว้นระยะไหม และเริ่มเมื่อไร (รวมคำขอซ้ำจากเหตุการณ์เดียวกัน) */
+let current = { force: false, at: 0 };
+/**
+ * ส่งรายการที่ค้าง · force = ไม่รอเว้นระยะ (กด "ส่งตอนนี้" / สัญญาณเพิ่งกลับมา)
+ * ถ้ากำลังส่งอยู่ จะส่งอีกรอบต่อท้าย (เดิมกด "ส่งตอนนี้" ระหว่างส่งเบื้องหลังแล้วไม่เกิดอะไร):
+ * - คำขอแบบ force ได้รอบใหม่เสมอ แม้รอบเดิมหยุดเพราะเน็ตไม่ดี (สัญญาณอาจเพิ่งกลับมาระหว่างรอบนั้น)
+ *   ยกเว้นมาซ้ำภายใน 1.5 วินาทีหลังรอบ force เพิ่งเริ่ม (เช่นเหตุการณ์ online ยิงสองครั้ง) — นับเป็นรอบเดียว
+ * - คำขอตามรอบเวลา: รอบเดิมหยุดเพราะเน็ตไม่ดี → ไม่ส่งซ้ำทันที (เปลืองเน็ตเปล่า ๆ)
+ */
+export function flush(force = false): Promise<void> {
+  if (!('indexedDB' in window)) return Promise.resolve();
+  if (running) {
+    if (!(force && current.force && Date.now() - current.at < 1_500)) again = (again ?? false) || force;
+    return running;
+  }
+  running = (async () => {
+    try {
+      let f = force;
+      for (;;) {
+        current = { force: f, at: Date.now() };
+        const stopped = await flushOnce(f);
+        const next = again;
+        again = null;
+        if (next === null || (stopped && !next)) break;
+        f = next;
+      }
+    } finally {
+      running = null;
+      notify();
+    }
+  })();
+  return running;
+}
+
+/** ส่งรายการที่ต้องแก้/รอล็อกอิน อีกครั้ง (กดจากหน้าคิว) — เริ่มนับครั้งที่ล้มใหม่ */
 export async function retryItem(id: string): Promise<void> {
   const item = (await listItems()).find((i) => i.id === id);
-  if (item) await save({ ...item, status: 'pending', error: undefined });
-  await flush();
+  if (item) await save(resetForRetry(item));
+  await flush(true);
 }
 
 // ---------- หน้าจอ ----------
 
 async function notify(): Promise<void> {
-  let items: OutboxItem[] = [];
-  try { items = await listItems(); } catch { /* ignore */ }
+  let items: OutboxItem[];
+  try {
+    items = await listItems();
+  } catch {
+    // อ่านไม่ได้ ≠ ไม่มีรายการ — คงแถบ/คำเตือนเดิมไว้ (เดิมแถบหายและออกจากระบบโดยไม่เตือน ทั้งที่ยังมีของค้าง)
+    return;
+  }
   const mine = items.filter((i) => i.userId === currentUser().id);
   const s = pendingSummary(mine);
   document.querySelectorAll<HTMLElement>('[data-outbox-badge]').forEach((el) => {
@@ -167,14 +254,17 @@ async function notify(): Promise<void> {
   window.dispatchEvent(new CustomEvent('outbox:change', { detail: mine }));
 }
 
-/** ข้อความแจ้งชั่วคราว (ล่างจอ) */
+/** ข้อความแจ้งชั่วคราว (ล่างจอ) — กล่องอยู่ในหน้าตลอด (role=status) เปลี่ยนแค่ข้อความ โปรแกรมอ่านหน้าจอจึงอ่านให้ทุกครั้ง */
 export function toast(message: string): void {
   const el = document.getElementById('outbox-toast');
   if (!el) return;
   el.textContent = message;
-  el.hidden = false;
+  el.classList.remove('opacity-0');
   clearTimeout(Number(el.dataset.timer));
-  el.dataset.timer = String(setTimeout(() => (el.hidden = true), 6000));
+  el.dataset.timer = String(setTimeout(() => {
+    el.classList.add('opacity-0');
+    el.textContent = '';
+  }, 6000));
 }
 
 export const UNSAVED_MSG = 'ยังไม่ได้บันทึก — สัญญาณไม่ดี และเครื่องนี้เก็บรายการไว้ไม่ได้ (พื้นที่เต็มหรือโหมดส่วนตัว) ข้อมูลยังอยู่ในฟอร์ม ลองกดบันทึกอีกครั้งเมื่อสัญญาณดีขึ้น';
@@ -190,19 +280,46 @@ function go(redirect?: string): void {
   } else location.assign(u.href);
 }
 
+/** ข้อความในฟอร์ม (อยู่บนสุดของฟอร์ม ไม่หายเอง) */
+function formNote(form: HTMLFormElement, text: string): void {
+  let note = form.querySelector<HTMLElement>('[data-outbox-note]');
+  if (!note) {
+    note = document.createElement('p');
+    note.dataset.outboxNote = '';
+    note.setAttribute('role', 'status');
+    note.className = 'rounded-xl bg-honey-50 p-3 text-sm font-medium';
+    form.insertBefore(note, form.firstChild);
+  }
+  note.textContent = text;
+}
+
 /** ฟอร์มบันทึกงานรัง: เก็บ → ส่ง · ส่งได้ = ไปหน้าผลตามเดิม · ข้อมูลผิด = ส่งฟอร์มปกติให้เซิร์ฟเวอร์แสดงช่องที่ผิด · ส่งไม่ได้ = เก็บไว้ ทำรายการต่อได้ */
 function bindForm(form: HTMLFormElement): void {
   form.addEventListener('submit', async (e) => {
     if (!('indexedDB' in window) || form.dataset.outboxNative) return;
     e.preventDefault();
-    const fd = new FormData(form, e.submitter);
-    const fields = await fieldsOf(fd);
     const buttons = [...form.querySelectorAll<HTMLButtonElement>('button[type=submit], button:not([type])')];
-    buttons.forEach((b) => { b.dataset.label ??= b.textContent ?? ''; b.disabled = true; b.textContent = 'กำลังบันทึก…'; });
-    const o = await sendOrQueue({ kind: 'record', url: form.action || location.href, fields, label: recordLabel(form.dataset.outbox || 'บันทึก', fields), bytes: 0 });
-    if (o.kind === 'done') return go(o.redirect);
+    const restore = () => buttons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.label ?? b.textContent; delete b.dataset.label; });
+    let o: Outcome;
+    let fields: Field[];
+    try {
+      fields = await fieldsOf(new FormData(form, e.submitter));
+      buttons.forEach((b) => { b.dataset.label ??= b.textContent ?? ''; b.disabled = true; b.textContent = 'กำลังบันทึก…'; });
+      o = await sendOrQueue({ kind: 'record', url: form.action || location.href, fields, label: recordLabel(form.dataset.outbox || 'บันทึก', fields), bytes: 0 });
+    } catch {
+      // ผิดพลาดในเครื่อง (อ่านฟอร์ม/ฐานข้อมูลในเครื่อง) — ปุ่มไม่ค้าง ข้อมูลยังอยู่ในฟอร์ม
+      restore();
+      toast(UNSAVED_MSG);
+      return;
+    }
+    if (o.kind === 'done') {
+      // บอกก่อนโหลดหน้า: สัญญาณอ่อน หน้าใหม่อาจโหลดไม่ขึ้น แต่รายการบันทึกแล้ว (กดย้อนกลับจะเห็นข้อความนี้ ไม่ต้องบันทึกซ้ำ)
+      formNote(form, 'บันทึกแล้ว — กำลังโหลดหน้า…');
+      toast('บันทึกแล้ว');
+      return go(o.redirect);
+    }
     if (o.kind === 'unsaved') {
-      buttons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.label ?? b.textContent; delete b.dataset.label; });
+      restore();
       toast(UNSAVED_MSG);
       return;
     }
@@ -213,19 +330,11 @@ function bindForm(form: HTMLFormElement): void {
       return;
     }
     // เก็บไว้ในเครื่อง: ล้างช่องที่กรอก (คงวันที่) + คีย์ใหม่ สำหรับรายการถัดไป
-    buttons.forEach((b) => { b.disabled = false; b.textContent = b.dataset.label ?? b.textContent; delete b.dataset.label; });
+    restore();
     for (const el of form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input:not([type=hidden]):not([type=date]):not([type=checkbox]):not([type=radio]), textarea')) el.value = el.name === 'queenCells' ? '1' : '';
     const idem = form.querySelector<HTMLInputElement>('input[name=idem]');
     if (idem) idem.value = crypto.randomUUID();
-    let note = form.querySelector<HTMLElement>('[data-outbox-note]');
-    if (!note) {
-      note = document.createElement('p');
-      note.dataset.outboxNote = '';
-      note.setAttribute('role', 'status');
-      note.className = 'rounded-xl bg-honey-50 p-3 text-sm font-medium';
-      form.insertBefore(note, form.firstChild);
-    }
-    note.textContent = o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG;
+    formNote(form, o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG);
     toast(o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG);
   });
 }
@@ -234,8 +343,13 @@ export function init(): void {
   if (!('indexedDB' in window) || !document.body.dataset.userId) return;
   document.querySelectorAll<HTMLFormElement>('form[data-outbox]').forEach(bindForm);
   document.body.dataset.outboxReady = '1'; // ใช้ใน check:offline (รอให้สคริปต์พร้อมก่อนตัดเน็ต)
-  window.addEventListener('online', () => void flush());
+  // สัญญาณเพิ่งกลับมา → ส่งทันทีไม่รอเว้นระยะ · สลับกลับมาที่แอป/ทุก 30 วินาที → ตามระยะ
+  window.addEventListener('online', () => void flush(true));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void flush(); });
+  // กลับมาหน้าเดิมด้วยปุ่มย้อนกลับ (หน้าในหน่วยความจำ): ฟอร์มที่เคยส่งแบบปกติ กลับมาใช้คิวรอส่ง
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) document.querySelectorAll<HTMLFormElement>('form[data-outbox-native]').forEach((f) => delete f.dataset.outboxNative);
+  });
   setInterval(() => {
     if (!document.querySelector('[data-outbox-badge]:not([hidden])')) return;
     void flush();

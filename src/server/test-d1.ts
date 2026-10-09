@@ -13,7 +13,7 @@ import type { Db } from './db.ts';
 /** `until`: หยุดก่อน migration ที่ชื่อขึ้นต้นด้วยค่านี้ (เช่น '0013') เพื่อใส่ข้อมูลแบบเก่า แล้วค่อย `migrate()` ส่วนที่เหลือ */
 export async function testDb(opts: { until?: string } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'metafarm-d1-'));
-  const proxy = await getPlatformProxy<{ DB: D1Database }>({ persist: { path: dir } });
+  const proxy = await getPlatformProxy<{ DB: D1Database; MEDIA: R2Bucket }>({ persist: { path: dir } });
   const d1 = proxy.env.DB;
   const files = readdirSync('drizzle').filter((x) => x.endsWith('.sql')).sort();
   const apply = async (list: string[]) => {
@@ -31,6 +31,8 @@ export async function testDb(opts: { until?: string } = {}) {
   const staff: SessionUser = { id: 2, email: 'staff@metafarm.local', name: 'พนักงาน', role: 'staff', mustChangePassword: false };
   return {
     db, d1, owner, staff, migrate,
+    /** R2 ชั่วคราว (โฟลเดอร์เดียวกับฐานข้อมูล) */
+    media: proxy.env.MEDIA,
     close: async () => {
       await proxy.dispose();
       rmSync(dir, { recursive: true, force: true });

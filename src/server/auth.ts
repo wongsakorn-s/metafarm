@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import type { AstroCookies } from 'astro';
 import { auditLogs, loginAttempts, sessions, users } from '../db/schema.ts';
 import { newToken, passwordProblem, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
@@ -29,30 +29,33 @@ export async function login(db: Db, emailRaw: string, password: string, ip: stri
   const email = emailRaw.trim().toLowerCase();
   const raw = throttleKeys(email, ip);
   const keys = { pair: await sha256Hex(raw.pair), email: await sha256Hex(raw.email), ip: await sha256Hex(raw.ip) };
+  // จดครั้งนี้ไว้ก่อน แล้วค่อยนับและตรวจรหัส — เดิมนับ → ตรวจรหัส (หลายสิบมิลลิวินาที) → ค่อยจดว่าผิด
+  // ส่งคำขอพร้อมกันหลายร้อยครั้ง ทุกคำขอเห็นยอดเดิมก่อนใครจด จึงเดารหัสได้เกินขีดเท่าที่ส่งพร้อมกันได้
+  const mine = await claimAttempt(db, Object.values(keys));
   const counts = await failureCounts(db, Object.values(keys));
-  const n = { pair: counts.get(keys.pair) ?? 0, email: counts.get(keys.email) ?? 0, ip: counts.get(keys.ip) ?? 0 };
+  // ยอดรวมครั้งนี้ไปแล้ว → "ก่อนหน้า" (รวมคำขอที่กำลังตรวจอยู่พร้อมกัน) = ยอด − 1
+  const n = { pair: (counts.get(keys.pair) ?? 1) - 1, email: (counts.get(keys.email) ?? 1) - 1, ip: (counts.get(keys.ip) ?? 1) - 1 };
   // ล็อกแล้ว → ตอบทันทีโดยไม่ตรวจรหัสผ่าน (เดาต่อไม่ได้ และไม่บอกว่ารหัสถูกหรือไม่)
-  if (lockedBy(n).length) return { ok: false, reason: 'locked' };
+  // ไม่นับครั้งนี้ (ลบที่จดไว้) — ล็อกหมดเวลา 15 นาทีหลังครั้งที่ผิดจริง ไม่ยืดไปเรื่อย ๆ ระหว่างที่บอทยังลองอยู่
+  if (lockedBy(n).length) {
+    await db.delete(loginAttempts).where(inArray(loginAttempts.id, mine));
+    return { ok: false, reason: 'locked' };
+  }
 
   const user = await db.query.users.findFirst({ where: eq(users.email, email) });
   dummyHash ??= hashPassword('dummy-password-for-timing');
   const ok = await verifyPassword(password, user?.passwordHash ?? (await dummyHash));
   if (!user || !user.active || !ok) {
-    await db.batch([
-      db.insert(loginAttempts).values({ keyHash: keys.pair }),
-      db.insert(loginAttempts).values({ keyHash: keys.email }),
-      db.insert(loginAttempts).values({ keyHash: keys.ip }),
-      // บัญชีนี้เพิ่งถูกล็อกจากการเดารหัสหลาย IP → จดไว้ให้เจ้าของเห็น (เฉพาะบัญชีที่มีจริง ครั้งที่ถึงขีดพอดี)
-      ...(user && n.email + 1 === LIMITS.email ? [db.insert(auditLogs).values({ userId: null, action: 'login.locked', entity: 'user', entityId: user.id })] : []),
-    ]);
+    // ผิด: ครั้งนี้จดไว้แล้ว · บัญชีนี้เพิ่งถูกล็อกจากการเดารหัสหลาย IP → จดไว้ให้เจ้าของเห็น (เฉพาะบัญชีที่มีจริง ครั้งที่ถึงขีดพอดี)
+    if (user && n.email + 1 === LIMITS.email) await db.insert(auditLogs).values({ userId: null, action: 'login.locked', entity: 'user', entityId: user.id });
     // ล้างของเก่าเป็นครั้งคราวด้วย (เดิมล้างเฉพาะตอนล็อกอินสำเร็จ — บอทที่เดารหัสไม่หยุดทำให้ตารางโตไม่จำกัด)
     if (Math.random() < 0.05) await cleanup(db);
     return { ok: false, reason: 'invalid' };
   }
 
   // สำเร็จ: ล้างเฉพาะคู่ อีเมล+IP นี้ — ตัวนับรายอีเมล/รายIP คงไว้ (บอทที่เดาอยู่ไม่ได้โควตาใหม่เพราะเจ้าของล็อกอินสำเร็จ)
-  const key = keys.pair;
-  await db.delete(loginAttempts).where(eq(loginAttempts.keyHash, key));
+  // และลบที่จดไว้ของครั้งนี้ (สำเร็จไม่นับเป็นครั้งที่ผิด)
+  await db.delete(loginAttempts).where(or(eq(loginAttempts.keyHash, keys.pair), inArray(loginAttempts.id, mine)));
   const token = newToken();
   await db.insert(sessions).values({
     userId: user.id,
@@ -73,25 +76,24 @@ export async function changePassword(
   user: SessionUser,
   currentToken: string | undefined,
   input: { current: string; next: string; confirm: string },
-  ip: string,
 ): Promise<ChangePasswordResult> {
   const problem = passwordProblem(input.next);
   if (problem) return { ok: false, error: problem };
   if (input.next !== input.confirm) return { ok: false, error: 'รหัสผ่านใหม่สองช่องไม่ตรงกัน' };
   if (input.next === input.current) return { ok: false, error: 'รหัสผ่านใหม่ต้องต่างจากรหัสผ่านเดิม' };
 
-  const key = await sha256Hex(`pwchange|${user.id}|${ip}`);
-  const [{ n }] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(loginAttempts)
-    .where(and(eq(loginAttempts.keyHash, key), gt(loginAttempts.at, isoIn(-WINDOW_MIN * 60_000))));
-  if (n >= MAX_FAILURES) return { ok: false, error: 'ใส่รหัสผ่านเดิมผิดหลายครั้งเกินไป กรุณารอ 15 นาที' };
+  // นับต่อผู้ใช้ ไม่แยก IP (เดิมแยก IP: คนที่ได้เครื่องที่ล็อกอินค้างไว้ เปลี่ยน IP แล้วเดารหัสเดิมได้ไม่จำกัด)
+  // จดก่อนตรวจ เหมือนล็อกอิน (ส่งพร้อมกันหลายคำขอก็ตรวจได้ไม่เกินขีด)
+  const key = await sha256Hex(`pwchange|${user.id}`);
+  const mine = await claimAttempt(db, [key]);
+  const n = ((await failureCounts(db, [key])).get(key) ?? 1) - 1;
+  if (n >= MAX_FAILURES) {
+    await db.delete(loginAttempts).where(inArray(loginAttempts.id, mine));
+    return { ok: false, error: 'ใส่รหัสผ่านเดิมผิดหลายครั้งเกินไป กรุณารอ 15 นาที' };
+  }
 
   const row = await db.query.users.findFirst({ where: eq(users.id, user.id), columns: { passwordHash: true, active: true } });
-  if (!row?.active || !(await verifyPassword(input.current, row.passwordHash))) {
-    await db.insert(loginAttempts).values({ keyHash: key });
-    return { ok: false, error: 'รหัสผ่านเดิมไม่ถูกต้อง' };
-  }
+  if (!row?.active || !(await verifyPassword(input.current, row.passwordHash))) return { ok: false, error: 'รหัสผ่านเดิมไม่ถูกต้อง' };
 
   const keepHash = currentToken ? await sha256Hex(currentToken) : '';
   await db.batch([
@@ -136,6 +138,13 @@ export function setSessionCookie(cookies: AstroCookies, token: string) {
   });
 }
 export const clearSessionCookie = (cookies: AstroCookies) => cookies.delete(SESSION_COOKIE, { path: '/' });
+
+/** จดการลองหนึ่งครั้งไว้ก่อนตรวจรหัส (ทุกกุญแจ) — คืน id ไว้ลบทีหลังถ้าไม่นับ (ล็อกอยู่ / สำเร็จ) */
+async function claimAttempt(db: Db, keyHashes: string[]): Promise<number[]> {
+  const [first, ...rest] = keyHashes.map((k) => db.insert(loginAttempts).values({ keyHash: k }).returning({ id: loginAttempts.id }));
+  const rows = await db.batch([first!, ...rest]);
+  return rows.flat().map((r) => r.id);
+}
 
 /** จำนวนครั้งที่ผิดในหน้าต่างเวลา ต่อกุญแจ (hash) */
 async function failureCounts(db: Db, keyHashes: string[]): Promise<Map<string, number>> {

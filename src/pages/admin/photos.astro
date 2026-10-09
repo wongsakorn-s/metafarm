@@ -87,6 +87,16 @@ const msg = Astro.url.searchParams.get('msg');
     // คิวรอส่ง (Phase 5.5): รูปเก็บในเครื่องก่อน · สัญญาณไม่ดี = เดินไปรังถัดไปได้เลย ระบบส่งเองทีหลัง
     const send = async () => {
       lock(true);
+      try {
+        await sendBatch();
+      } catch {
+        // ผิดพลาดในเครื่อง (อ่านไฟล์/ฐานข้อมูลในเครื่อง) — ปุ่มไม่ค้าง และรูปที่ย่อแล้วยังอยู่ให้กดส่งอีกครั้ง
+        say(PHOTO_UNSAVED_MSG, 'bad');
+        lock(false);
+        retry.hidden = false;
+      }
+    };
+    const sendBatch = async () => {
       const fd = new FormData();
       for (const [k, v] of new FormData(form)) if (!(v instanceof File)) fd.append(k, v);
       fd.set('batch', batch);

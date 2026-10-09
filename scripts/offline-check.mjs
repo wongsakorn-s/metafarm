@@ -18,7 +18,7 @@ const page = await ctx.newPage();
 const pageErrors = [];
 // WebKit บันทึกคำขอที่เน็ตตัดเป็น "…due to access control checks" แม้โค้ดจับ error เองแล้ว (send() ใน outbox.ts)
 // และแถบเครื่องมือ astro dev (audit-*.js) ดึงรูปตอนเน็ตตัด — สองอย่างนี้ไม่ใช่ error ของหน้าเว็บ
-const noise = (msg) => useWebkit && /due to access control checks/.test(msg);
+const noise = (msg) => (useWebkit && /due to access control checks/.test(msg)) || /Failed to fetch dynamically imported module: \S+\/node_modules\/\.vite\/deps\/audit-/.test(msg);
 page.on('pageerror', (e) => {
   const msg = e.message + (e.stack ? ` @ ${e.stack.split(/\r?\n/).slice(0, 3).join(' < ')}` : '');
   if (!noise(msg)) pageErrors.push(msg);
@@ -37,7 +37,9 @@ const login = async () => {
 };
 await login();
 await page.goto(BASE + '/admin/hives?status=active');
-const HIVE = (await page.getAttribute('a[href^="/admin/hives/A"]', 'href')).split('/')[3];
+const codes = await page.locator('a[href^="/admin/hives/A"]').evaluateAll((as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))]);
+const HIVE = codes[0];
+const HIVE2 = codes.find((c) => c !== HIVE);
 const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const tag = Date.now().toString().slice(-6);
 const badge = page.locator('[data-outbox-badge]');
@@ -45,7 +47,7 @@ const badgeText = async () => ((await badge.isVisible()) ? (await page.textConte
 // รอสคริปต์คิวรอส่งพร้อมก่อน (กดก่อนสคริปต์โหลด = ส่งฟอร์มแบบปกติ)
 const ready = () => page.waitForSelector('body[data-outbox-ready]', { timeout: 15000 });
 const hivePage = async () => { await page.goto(`${BASE}/admin/hives/${HIVE}`); await ready(); };
-const timelineCount = async (text) => { await hivePage(); return page.locator(`#timeline li:has-text("${text}")`).count(); };
+const timelineCount = async (text, code = HIVE) => { await page.goto(`${BASE}/admin/hives/${code}`); await ready(); return page.locator(`#timeline li:has-text("${text}")`).count(); };
 // ตัดเน็ต: Chromium ใช้โหมดออฟไลน์จริง · WebKit ใช้การตัดคำขอที่ไปเซิร์ฟเวอร์แทน
 // (โหมดออฟไลน์ของ Playwright บน WebKit อ่านไฟล์/Blob ในเครื่องไม่ได้ด้วย — iPhone จริงในโหมดเครื่องบินอ่านได้)
 const blockServer = (route) => (route.request().method() === 'POST' || route.request().resourceType() === 'fetch' ? route.abort('internetdisconnected') : route.continue());
@@ -79,7 +81,8 @@ console.log('\n1) สัญญาณหลุด: บันทึก 3 ราย
   await hivePage();
   await goOffline();
   const ml = String(700 + Number(tag.slice(-2)));
-  await record('เก็บน้ำหวาน', () => type('#h-ml', ml), 'บันทึกการเก็บน้ำหวาน');
+  // หมายเหตุมีรหัสรอบนี้ — นับเฉพาะรายการของรอบนี้ (ปริมาณอย่างเดียวซ้ำกับรอบก่อนได้)
+  await record('เก็บน้ำหวาน', async () => { await type('#h-ml', ml); await type('#h-note', `honey ${tag}`); }, 'บันทึกการเก็บน้ำหวาน');
   await page.locator('[data-outbox-note]').first().waitFor({ timeout: 20000 });
   const msg = (await page.locator('#form-honey [data-outbox-note]').textContent()) ?? '';
   const cleared = (await page.inputValue('#h-ml')) === '';
@@ -93,7 +96,7 @@ console.log('\n1) สัญญาณหลุด: บันทึก 3 ราย
   check(logoutConfirm?.includes('ยังมี 3 รายการ'), 'ออกจากระบบระหว่างมีรายการค้าง → เตือนก่อน', 'ไม่เตือนตอนออกจากระบบ: ' + logoutConfirm);
   await goOnline();
   await waitDrained();
-  const n = [await timelineCount(`${ml} มล.`), await timelineCount(`offline-1 ${tag}`), await timelineCount(`offline-2 ${tag}`)];
+  const n = [await timelineCount(`honey ${tag}`), await timelineCount(`offline-1 ${tag}`), await timelineCount(`offline-2 ${tag}`)];
   check(!(await badge.isVisible()) && n.every((x) => x === 1), 'สัญญาณกลับ → ส่งเองครบ 3 รายการ รายการละครั้งเดียว', `ส่งไม่ครบ/ซ้ำ: ${n.join(', ')}`);
 }
 
@@ -264,6 +267,92 @@ console.log('\n8) คิวถ่ายรูป: ส่งไม่ได้แ
   const hidden = !(await retry.isVisible());
   const n = await photoCount();
   check(hidden && n === before + 1, `กด "ส่งอีกครั้ง" → ${code} ได้รูปเพิ่ม 1 รูป (${done})`, `ส่งอีกครั้งไม่สำเร็จ (${done}, รูป ${before} → ${n})`);
+}
+
+console.log('\n9) คำตอบขาดกลางทาง (เซิร์ฟเวอร์บันทึกแล้ว) ตอนส่งเบื้องหลัง → ส่งซ้ำ ไม่ขึ้น "ต้องแก้" · ได้รายการเดียว');
+{
+  await hivePage();
+  await goOffline();
+  await note(`cut-reply ${tag}`);
+  await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 });
+  let hits = 0;
+  const cut = async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    hits++;
+    await route.fetch(); // ถึงเซิร์ฟเวอร์ (บันทึกแล้ว)
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":tr' }); // แต่คำตอบขาด
+  };
+  await page.route(`**/admin/hives/${HIVE}`, cut);
+  await goOnline();
+  await page.waitForFunction(() => document.querySelector('[data-outbox-text]')?.textContent?.trim() !== '', null, { timeout: 5000 }).catch(() => {});
+  for (let i = 0; i < 40 && hits === 0; i++) await page.waitForTimeout(250);
+  await page.waitForTimeout(500);
+  const after = await badgeText();
+  await page.unroute(`**/admin/hives/${HIVE}`, cut);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await waitDrained();
+  const n = await timelineCount(`cut-reply ${tag}`);
+  check(hits >= 1 && after === 'รอส่ง 1' && n === 1, 'คำตอบขาด → ยังเป็น "รอส่ง" (ไม่ใช่ต้องแก้) → ส่งซ้ำ → มีรายการเดียว', `ผิด (ส่ง ${hits} ครั้ง · แถบ "${after}" · พบ ${n})`);
+}
+
+console.log('\n10) รายการที่เซิร์ฟเวอร์ขัดข้องไม่ขวางรายการอื่น · เว้นระยะก่อนลองเอง · "ส่งตอนนี้" ส่งทันที');
+{
+  const busy = (route) => (route.request().method() === 'POST' ? route.fulfill({ status: 503, body: 'busy' }) : route.continue());
+  await page.route(`**/admin/hives/${HIVE}`, busy);
+  await hivePage();
+  await note(`busy ${tag}`);
+  await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 });
+  await page.goto(`${BASE}/admin/hives/${HIVE2}`);
+  await ready();
+  await goOffline();
+  await note(`after-busy ${tag}`);
+  await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 });
+  // รอแถบนับครบ 2 ก่อน (ไม่งั้น "รอส่ง 1" ของรายการแรกทำให้ขั้นถัดไปผ่านทั้งที่ยังไม่ได้ส่ง)
+  await page.waitForFunction(() => document.querySelector('[data-outbox-text]')?.textContent?.trim() === 'รอส่ง 2', null, { timeout: 20000 }).catch(() => {});
+  await goOnline();
+  await page.waitForFunction(() => document.querySelector('[data-outbox-text]')?.textContent?.trim() === 'รอส่ง 1', null, { timeout: 20000 }).catch(() => {});
+  const left = await badgeText();
+  const second = await timelineCount(`after-busy ${tag}`, HIVE2);
+  check(left === 'รอส่ง 1' && second === 1, `รายการแรกเซิร์ฟเวอร์ขัดข้อง → รายการถัดไป (${HIVE2}) ยังส่งได้`, `รายการถัดไปถูกขวาง (แถบ "${left}" · ${HIVE2} พบ ${second})`);
+  await page.goto(BASE + '/admin/outbox');
+  const item = page.locator('[data-outbox-item]').first();
+  await item.waitFor({ timeout: 10000 }).catch(() => {});
+  const text = (await item.textContent().catch(() => '')) ?? '';
+  check(text.includes('จะลองเองอีกครั้ง'), 'เซิร์ฟเวอร์ขัดข้อง → เว้นระยะ บอกเวลาที่จะลองเองครั้งถัดไป', 'ไม่บอกเวลาลองครั้งถัดไป: ' + text.slice(0, 120));
+  await page.unroute(`**/admin/hives/${HIVE}`, busy);
+  await page.click('#send-now');
+  await page.locator('#empty').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+  const sent = await page.locator('#empty').isVisible();
+  check(sent && (await timelineCount(`busy ${tag}`)) === 1, '"ส่งตอนนี้" ส่งทันทีไม่รอเว้นระยะ · ได้รายการเดียว', 'กด "ส่งตอนนี้" แล้วไม่ส่ง/ส่งซ้ำ');
+}
+
+console.log('\n11) การเชื่อมต่อฐานข้อมูลในเครื่องหลุด (iPhone หลังสลับแอป) → เปิดใหม่เอง เก็บรายการได้ตามปกติ');
+{
+  await hivePage();
+  // การเชื่อมต่อที่เปิดไว้แล้ว "หลุด": ใช้ไม่ได้อีก แต่เปิดใหม่ได้ (แบบที่ iPhone เป็น โดยไม่มีเหตุการณ์ close)
+  await page.evaluate(() => {
+    const fresh = new WeakSet();
+    const open = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function (...a) {
+      const r = open.apply(this, a);
+      r.addEventListener('success', () => fresh.add(r.result));
+      return r;
+    };
+    const tx = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...a) {
+      if (!fresh.has(this)) throw new DOMException('Connection to Indexed Database server lost. Refresh the page to try again', 'UnknownError');
+      return tx.apply(this, a);
+    };
+  });
+  await goOffline();
+  await note(`reconnect ${tag}`);
+  await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 }).catch(() => {});
+  const msg = (await page.locator('#form-note [data-outbox-note]').textContent().catch(() => '')) ?? '';
+  // รอแถบ "รอส่ง 1" ขึ้นก่อน (แถบเริ่มแบบซ่อน — ไม่งั้นรอ "แถบหาย" ผ่านทันทีทั้งที่ยังไม่ได้ส่ง)
+  await badge.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+  await goOnline();
+  await waitDrained();
+  check(msg.includes('เก็บไว้ในเครื่องแล้ว') && (await timelineCount(`reconnect ${tag}`)) === 1, 'เชื่อมต่อหลุด → เปิดใหม่เอง → "เก็บไว้ในเครื่องแล้ว" → ส่งได้', `เก็บไม่ได้/ไม่ส่ง (${msg})`);
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

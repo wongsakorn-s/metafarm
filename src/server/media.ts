@@ -11,6 +11,7 @@ import {
   mediaKey,
   parseYoutubeId,
   remainingSlots,
+  stripMetadata,
   type ImageKind,
 } from '../lib/media.ts';
 import type { SessionUser } from './auth.ts';
@@ -64,7 +65,8 @@ export async function uploadImages(
       continue;
     }
     if (slots <= 0) { skipped.push({ name, reason: `เต็มแล้ว (สูงสุด ${LIMITS[kind]} รูป)` }); continue; }
-    await bucket.put(key, bytes, { httpMetadata: { contentType: type.mime } });
+    // ลบพิกัด GPS/ข้อมูลกล้องก่อนเก็บ (รูปรังขึ้นหน้าสาธารณะ)
+    await bucket.put(key, stripMetadata(bytes), { httpMetadata: { contentType: type.mime } });
     const thumb = await validThumb(thumbs[i]);
     if (thumb) await bucket.put(thumbKeyOf(key), thumb.bytes, { httpMetadata: { contentType: thumb.mime } });
     try {
@@ -90,7 +92,7 @@ async function validThumb(f: File | undefined): Promise<{ bytes: Uint8Array; mim
   if (!(f instanceof File) || f.size === 0 || f.size > MAX_THUMB_BYTES) return null;
   const bytes = new Uint8Array(await f.arrayBuffer());
   const type = detectImageType(bytes);
-  return type ? { bytes, mime: type.mime } : null;
+  return type ? { bytes: stripMetadata(bytes), mime: type.mime } : null;
 }
 
 export async function deleteMedia(db: Db, bucket: R2Bucket, user: SessionUser, hive: Hive, mediaId: number): Promise<{ ok: boolean; error?: string }> {
@@ -129,7 +131,7 @@ export async function setProductImage(db: Db, bucket: R2Bucket, user: SessionUse
   if (!type) return { ok: false, error: 'ไม่ใช่รูป JPEG/PNG/WebP' };
 
   const key = `products/${p.slug}/${crypto.randomUUID()}.${type.ext}`;
-  await bucket.put(key, bytes, { httpMetadata: { contentType: type.mime } });
+  await bucket.put(key, stripMetadata(bytes), { httpMetadata: { contentType: type.mime } });
   try {
     await db.batch([
       db.update(products).set({ imageKey: key }).where(eq(products.id, p.id)),

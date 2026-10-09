@@ -13,13 +13,11 @@ const done = Astro.url.searchParams.get('done') === '1';
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  const ip = Astro.request.headers.get('cf-connecting-ip') ?? Astro.clientAddress ?? 'local';
   const r = await changePassword(
     getDb(),
     user,
     Astro.cookies.get(SESSION_COOKIE)?.value,
     { current: String(form.get('current') ?? ''), next: String(form.get('next') ?? ''), confirm: String(form.get('confirm') ?? '') },
-    ip,
   );
   // เปลี่ยนรหัสชั่วคราวสำเร็จ → เข้าใช้งานได้เลย (ไปหน้าภาพรวม)
   if (r.ok) return Astro.redirect(user.mustChangePassword ? '/admin?welcome=1' : '/admin/account?done=1', 303);
