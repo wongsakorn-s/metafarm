@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { Workbook } from './xlsx.ts';
 import { parseHiveSheet, type ParsedHive } from './parse.ts';
+import { localOnlyGuard } from '../local-only-guard.ts';
 
 const SOURCE = process.argv[2] ?? 'private/ข้อมูลเบื้องต้น.xlsx';
 const SHEET = 'ขนเงิน';
@@ -61,7 +62,9 @@ const id = (code: string | null) => {
 const sql: string[] = [
   '-- สร้างโดย scripts/import-excel — ห้ามแก้มือ',
   `-- ที่มา: ${SOURCE} (ชีต ${SHEET})`,
-  // ออเดอร์อ้างถึงรัง/ลูกค้า → ลบก่อน (ไฟล์นี้ใช้ล้างข้อมูลทดสอบในเครื่อง — ห้ามรันกับระบบจริงหลังเริ่มใช้งาน)
+  // ไฟล์นี้ใช้ล้างข้อมูลทดสอบในเครื่องเท่านั้น — ตัวกันหยุด SQL ถ้าปลายทางเป็นระบบจริง (มีบัญชีอีเมลจริง)
+  ...localOnlyGuard(),
+  // ออเดอร์อ้างถึงรัง/ลูกค้า → ลบก่อน
   'DELETE FROM order_items;',
   'DELETE FROM orders;',
   'DELETE FROM once_keys;',

@@ -55,7 +55,7 @@ const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -
         <label class="label" for="note">หมายเหตุ (ไม่บังคับ)</label>
         <textarea class="field" id="note" name="note" rows="2" maxlength="500" placeholder="เช่น กรองแล้ว ตากลมแห้ง 2 วัน"></textarea>
       </section>
-      <div class={`${STICKY} flex items-center gap-3`}>
+      <div data-sticky-save class={`${STICKY} flex items-center gap-3`}>
         <p class="min-w-0 flex-1 text-sm text-muted">รวม <strong data-num id="sum" class="block text-xl text-ink">0 มล.</strong></p>
         <button class="btn-primary flex-1 md:flex-none" type="submit"><Icon name="check" class="size-5" />สร้างล็อต</button>
       </div>

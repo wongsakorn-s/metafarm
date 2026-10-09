@@ -241,3 +241,9 @@
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
+/* ป้าย "รอส่ง" และข้อความแจ้ง (AdminLayout): หน้าที่มีแถบบันทึกติดล่างจอบนมือถือ ([data-sticky-save]) ยกขึ้นเหนือแถบ
+   เดิมป้ายอยู่ระดับเดียวกับแถบ → แตะกลางปุ่ม "สร้างรัง"/"บันทึก" แล้วไปหน้ารอส่งแทน ข้อมูลที่กรอกหาย */
+@media (width < 48rem) {
+  body:has([data-sticky-save]) [data-outbox-badge] { bottom: calc(10rem + env(safe-area-inset-bottom)); }
+  body:has([data-sticky-save]) #outbox-toast { bottom: calc(13.5rem + env(safe-area-inset-bottom)); }
+}

@@ -152,7 +152,9 @@ async function notify(): Promise<void> {
   const s = pendingSummary(mine);
   document.querySelectorAll<HTMLElement>('[data-outbox-badge]').forEach((el) => {
     el.hidden = s.count === 0;
+    // สลับทั้งคู่: ถ้าเพิ่มแค่ bg-danger สีส้มเดิมยังชนะ (อยู่หลังกว่าใน CSS ที่ build แล้ว)
     el.classList.toggle('bg-danger', s.needsAction);
+    el.classList.toggle('bg-honey-700', !s.needsAction);
     const t = el.querySelector('[data-outbox-text]');
     if (t) t.textContent = s.text;
   });

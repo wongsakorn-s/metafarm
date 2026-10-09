@@ -150,6 +150,8 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
     status.classList.remove('hidden');
     status.classList.toggle('bg-red-50', bad);
     status.classList.toggle('text-danger', bad);
+    status.classList.toggle('bg-honey-50', !bad);
+    status.classList.toggle('text-honey-700', !bad);
   };
   // รหัสชุดผูกกับ "ไฟล์ที่เลือก" — กดส่งซ้ำหลังเน็ตหลุด เซิร์ฟเวอร์จะไม่บันทึกรูปเดิมซ้ำ
   let batch = newBatchId();

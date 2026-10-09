@@ -154,7 +154,7 @@ const STICKY = 'sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -
       <div><label class="label" for="note">หมายเหตุ (ไม่บังคับ)</label><textarea class="field" id="note" name="note" rows="2" maxlength="1000" placeholder="เช่น นัดรับวันเสาร์ / ขอใบเสร็จ">{v('note')}</textarea></div>
     </section>
 
-    <div class={`${STICKY} flex items-center gap-3`}>
+    <div data-sticky-save class={`${STICKY} flex items-center gap-3`}>
       <p class="min-w-0 flex-1 text-sm text-muted">รวม <strong data-num id="total" class="block text-xl text-ink">0 บาท</strong></p>
       <button class="btn-primary flex-1 md:flex-none" type="submit"><Icon name="check" class="size-5" />บันทึกออเดอร์</button>
     </div>

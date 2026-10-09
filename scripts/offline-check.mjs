@@ -58,6 +58,8 @@ const goOnline = async () => {
   else await ctx.setOffline(false);
   await page.evaluate(() => window.dispatchEvent(new Event('online')));
 };
+const badgeBg = () => badge.evaluate((el) => getComputedStyle(el).backgroundColor);
+let pendingBg = '';
 const waitDrained = () => badge.waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
 const record = async (summary, fill, button) => {
   // เปิดกล่องด้วยการแตะแบบคนจริง เฉพาะตอนยังปิด (แตะซ้ำ = ปิด · สั่งเปิดด้วยโค้ดแล้วพิมพ์ทันที WebKit ทิ้งค่าที่พิมพ์)
@@ -85,6 +87,7 @@ console.log('\n1) สัญญาณหลุด: บันทึก 3 ราย
   await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 });
   await note(`offline-2 ${tag}`);
   await page.waitForFunction(() => document.querySelector('[data-outbox-text]')?.textContent?.includes('3'), null, { timeout: 20000 }).catch(() => {});
+  pendingBg = await badgeBg();
   check(msg.includes('เก็บไว้ในเครื่องแล้ว') && cleared && (await badgeText()) === 'รอส่ง 3', 'ออฟไลน์: "เก็บไว้ในเครื่องแล้ว" · ช่องว่างพร้อมบันทึกต่อ · แถบ "รอส่ง 3"', `ไม่เข้าคิว (${msg} / ${await badgeText()})`);
   const logoutConfirm = await page.getAttribute('form[action="/admin/logout"]', 'data-confirm');
   check(logoutConfirm?.includes('ยังมี 3 รายการ'), 'ออกจากระบบระหว่างมีรายการค้าง → เตือนก่อน', 'ไม่เตือนตอนออกจากระบบ: ' + logoutConfirm);
@@ -164,6 +167,8 @@ console.log('\n5) ล็อกอินหมดอายุระหว่า�
   await goOnline();
   await page.waitForFunction(() => document.querySelector('[data-outbox-text]')?.textContent?.includes('ต้องแก้'), null, { timeout: 20000 }).catch(() => {});
   const stuck = await badgeText();
+  const stuckBg = await badgeBg();
+  check(stuckBg !== pendingBg, `แถบ "ต้องแก้" เปลี่ยนสี (${pendingBg} → ${stuckBg})`, `แถบ "ต้องแก้" สีเดียวกับ "รอส่ง" (${stuckBg})`);
   await login();
   await page.goto(BASE + '/admin/outbox');
   await page.locator('#empty').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
@@ -190,6 +195,75 @@ console.log('\n6) รูปตอนออฟไลน์ → เก็บใน
   await waitDrained();
   await page.reload();
   check(st.includes('เก็บไว้ในเครื่องแล้ว') && (await count()) === before + 1, 'รูปตอนออฟไลน์ → "เก็บไว้ในเครื่องแล้ว" → สัญญาณกลับ ได้รูปเพิ่ม 1 รูป', `รูปไม่ถูกส่ง/ซ้ำ (${st}, ${before} → ${await count()})`);
+}
+
+console.log('\n7) มีรายการรอส่ง: แถบ "รอส่ง" ไม่ทับปุ่มบันทึกที่ติดล่างจอ');
+{
+  // เซิร์ฟเวอร์ตอบ 503 ให้รายการค้างในคิว (หน้าอื่นยังเปิดได้ตามปกติ)
+  const hold = (route) => (route.request().method() === 'POST' ? route.fulfill({ status: 503, body: 'busy' }) : route.continue());
+  await hivePage();
+  await page.route(`**/admin/hives/${HIVE}`, hold);
+  await note(`hold ${tag}`);
+  await page.locator('#form-note [data-outbox-note]').waitFor({ timeout: 20000 });
+  for (const path of ['/admin/hives/new', `/admin/hives/${HIVE}/edit`]) {
+    await page.goto(BASE + path);
+    await ready();
+    await badge.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    console.log(`   · ${path}: แถบ "${await badgeText()}"`);
+    const r = await page.evaluate(() => {
+      const bar = document.querySelector('[data-sticky-save]').getBoundingClientRect();
+      const b = document.querySelector('[data-outbox-badge]').getBoundingClientRect();
+      // ทุกปุ่มในแถบ: จุดกลางปุ่มต้องเป็นปุ่มนั้นเอง (ไม่ใช่แถบรอส่ง)
+      const hits = [...document.querySelectorAll('[data-sticky-save] :is(button, a)')].map((el) => {
+        const c = el.getBoundingClientRect();
+        const top = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
+        return el.contains(top);
+      });
+      return { gap: Math.round(bar.top - b.bottom), hits, badge: b.height > 0 && b.top >= 0 };
+    });
+    check(r.gap >= 4 && r.hits.length > 0 && r.hits.every(Boolean) && r.badge, `${path}: แถบรอส่งอยู่เหนือแถบบันทึก (ห่าง ${r.gap}px) · แตะปุ่มบันทึกได้ทุกปุ่ม`, `${path}: แถบรอส่งทับแถบบันทึก (${JSON.stringify(r)})`);
+  }
+  await page.unroute(`**/admin/hives/${HIVE}`, hold);
+  await hivePage();
+  // แถบเริ่มแบบซ่อน (ก่อนสคริปต์นับคิว) — รอให้ขึ้นก่อน ไม่งั้น "หายแล้ว" ทันทีทั้งที่ยังส่งไม่เสร็จ
+  await badge.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await waitDrained();
+  const left = await badgeText();
+  const held = await timelineCount(`hold ${tag}`);
+  check(held === 1, 'เซิร์ฟเวอร์กลับมา → ส่งรายการที่ค้างได้ครั้งเดียว', `รายการที่ค้างหาย/ซ้ำ (พบ ${held} · แถบ: ${left})`);
+}
+
+console.log('\n8) คิวถ่ายรูป: ส่งไม่ได้และเก็บในเครื่องไม่ได้ → รูปยังอยู่ กด "ส่งอีกครั้ง" ได้');
+{
+  await page.goto(BASE + '/admin/photos');
+  const code = await page.locator('#queue > li').first().getAttribute('data-code');
+  const photoCount = async () => { await page.goto(`${BASE}/admin/hives/${code}/media`); return page.locator('img[src^="/media/hives/"]').count(); };
+  const before = await photoCount();
+  await page.goto(BASE + '/admin/photos');
+  await ready();
+  const li = page.locator(`#queue > li[data-code="${code}"]`);
+  // จำลองพื้นที่เต็ม: เก็บลงเครื่องไม่ได้
+  await page.evaluate(() => { IDBObjectStore.prototype.put = () => { throw new DOMException('full', 'QuotaExceededError'); }; });
+  await goOffline();
+  await li.locator('input[type=file]:not([capture])').evaluate(async (el) => {
+    const cv = document.createElement('canvas'); cv.width = 900; cv.height = 700;
+    const g = cv.getContext('2d'); g.fillStyle = '#7a9e3b'; g.fillRect(0, 0, 900, 700);
+    const f = new File([await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9))], 'queue.jpg', { type: 'image/jpeg' });
+    const dt = new DataTransfer(); dt.items.add(f); el.files = dt.files;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  const retry = li.locator('[data-retry]');
+  await retry.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+  const st = (await li.locator('[data-state]').textContent())?.trim() ?? '';
+  check((await retry.isVisible()) && st.includes('รูปยังอยู่ในหน้านี้'), 'ส่ง/เก็บไม่ได้ → บอกว่ารูปยังอยู่ · มีปุ่ม "ส่งอีกครั้ง"', `ไม่มีปุ่มส่งอีกครั้ง (${st})`);
+  await goOnline();
+  await retry.click();
+  await li.locator('[data-state]').filter({ hasText: 'บันทึก' }).waitFor({ timeout: 30000 }).catch(() => {});
+  const done = (await li.locator('[data-state]').textContent())?.trim() ?? '';
+  const hidden = !(await retry.isVisible());
+  const n = await photoCount();
+  check(hidden && n === before + 1, `กด "ส่งอีกครั้ง" → ${code} ได้รูปเพิ่ม 1 รูป (${done})`, `ส่งอีกครั้งไม่สำเร็จ (${done}, รูป ${before} → ${n})`);
 }
 
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);

@@ -47,6 +47,7 @@ const msg = Astro.url.searchParams.get('msg');
             <input class="sr-only" id={`cam-${h.code}`} name="file" type="file" accept="image/*" capture="environment" />
             <input class="sr-only" id={`pick-${h.code}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
             <noscript><button class="btn-ghost w-full" type="submit">อัปโหลด</button></noscript>
+            <button type="button" class="btn-primary w-full" data-retry hidden>ส่งอีกครั้ง</button>
             <p class="text-sm" data-state role="status" aria-live="polite"></p>
           </form>
         </li>
@@ -58,7 +59,9 @@ const msg = Astro.url.searchParams.get('msg');
 <script>
   import { appendPrepared, resizeAll, type Prepared } from '../../scripts/resize-image';
   import { newBatchId } from '../../scripts/upload';
-  import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../scripts/outbox';
+  import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue } from '../../scripts/outbox';
+
+  const PHOTO_UNSAVED_MSG = 'ยังไม่ได้บันทึก — สัญญาณไม่ดี และเครื่องนี้เก็บรูปไว้ไม่ได้ (พื้นที่เต็มหรือโหมดส่วนตัว) รูปยังอยู่ในหน้านี้ อย่าเพิ่งปิดหน้า กด "ส่งอีกครั้ง" เมื่อสัญญาณดีขึ้น';
 
   const left = document.getElementById('left');
   const bump = () => { if (left) left.textContent = String(Math.max(0, Number(left.textContent) - 1)); };
@@ -66,6 +69,7 @@ const msg = Astro.url.searchParams.get('msg');
   document.querySelectorAll<HTMLFormElement>('form[data-photo-form]').forEach((form) => {
     const state = form.querySelector<HTMLElement>('[data-state]')!;
     const inputs = [...form.querySelectorAll<HTMLInputElement>('input[type=file]')];
+    const retry = form.querySelector<HTMLButtonElement>('[data-retry]')!;
     const labels = [...form.querySelectorAll('label')];
     const lock = (on: boolean) => labels.forEach((l) => {
       l.classList.toggle('pointer-events-none', on);
@@ -91,10 +95,11 @@ const msg = Astro.url.searchParams.get('msg');
       const code = form.closest('li')?.dataset.code ?? '';
       const o = await sendOrQueue({ kind: 'photo', url: form.action, fields: await fieldsOf(fd), label: `${code} · รูปสมุดพก ${pending.length} รูป`, bytes: pending.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0) });
       if (o.kind === 'unsaved') {
-        // ส่งไม่ได้และเก็บลงเครื่องก็ไม่ได้ — ให้เลือกรูปเดิมอีกครั้งเมื่อสัญญาณดีขึ้น
-        say(UNSAVED_MSG, 'bad');
+        // ส่งไม่ได้และเก็บลงเครื่องก็ไม่ได้ — เก็บรูปที่ย่อแล้ว (และรหัสชุดเดิม) ไว้ในหน้านี้ให้กดส่งอีกครั้ง
+        // เดิมล้างรูปทิ้ง: รูปที่ถ่ายจากกล้องโดยตรง (ไม่ได้เก็บในอัลบั้ม) หายไปเลย
+        say(PHOTO_UNSAVED_MSG, 'bad');
         lock(false);
-        pending = [];
+        retry.hidden = false;
         inputs.forEach((i) => (i.value = ''));
         return;
       }
@@ -112,10 +117,16 @@ const msg = Astro.url.searchParams.get('msg');
       inputs.forEach((i) => (i.value = ''));
     };
 
+    retry.addEventListener('click', () => {
+      retry.hidden = true;
+      void send();
+    });
+
     // เลือกไฟล์แล้วส่งทันที ไม่ต้องกดปุ่มซ้ำ (ลดการแตะบนมือถือ)
     inputs.forEach((input) => input.addEventListener('change', async () => {
       const picked = [...(input.files ?? [])];
       if (picked.length === 0) return;
+      retry.hidden = true;
       lock(true);
       pending = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`, 'busy'));
       batch = newBatchId();

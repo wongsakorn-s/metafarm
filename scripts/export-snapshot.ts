@@ -4,11 +4,13 @@
 //   → private/export/media/…        (รูปทั้งหมดที่ฐานข้อมูลอ้างถึง ชื่อไฟล์ตรงกับ key ใน R2)
 //
 // ไม่ส่งออก: users / sessions / login_attempts / audit_logs (ระบบจริงต้องมีผู้ใช้และรหัสผ่านของตัวเอง — ดู user:create --print-sql)
-// ⚠️ snapshot.sql "ล้างข้อมูลเนื้อหาทั้งหมดในฐานข้อมูลปลายทางก่อน" แล้วนำเข้าใหม่ ใช้ก่อนเริ่มใช้งานจริงครั้งแรก
-//    หรือเมื่อตั้งใจจะแทนที่ทั้งหมดเท่านั้น (ถ้าระบบจริงมีข้อมูลที่บันทึกใหม่ไปแล้ว ข้อมูลนั้นจะหาย)
+// ⚠️ snapshot.sql "ล้างข้อมูลเนื้อหาทั้งหมดในฐานข้อมูลปลายทางก่อน" แล้วนำเข้าใหม่
+//    ระบบจริงเปิดใช้แล้ว (2026-10-05) และเป็นที่เก็บข้อมูลหลัก → ไฟล์นี้ใช้ได้เฉพาะฐานข้อมูลในเครื่อง/ฐานข้อมูลเปล่า
+//    มีตัวกันในไฟล์ (scripts/local-only-guard.ts): ถ้าปลายทางมีบัญชีอีเมลจริง SQL จะหยุดก่อนลบอะไร
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { getPlatformProxy } from 'wrangler';
+import { localOnlyGuard } from './local-only-guard.ts';
 
 const OUT = 'private/export';
 // ลำดับนำเข้า (ตารางที่ถูกอ้างถึงมาก่อน) · ลบย้อนลำดับนี้
@@ -32,7 +34,8 @@ try {
 
   const lines: string[] = [
     `-- MetaFarm snapshot ${new Date().toISOString()} (สร้างโดย scripts/export-snapshot.ts — ห้ามแก้มือ)`,
-    '-- ⚠️ ล้างข้อมูลเนื้อหาในฐานข้อมูลปลายทางก่อนนำเข้า (ไม่แตะ users/sessions/audit_logs)',
+    '-- ⚠️ ล้างข้อมูลเนื้อหาในฐานข้อมูลปลายทางก่อนนำเข้า (ไม่แตะ users/sessions/audit_logs) — ห้ามรันกับระบบจริง',
+    ...localOnlyGuard(),
     'PRAGMA defer_foreign_keys = on;',
     ...[...TABLES].reverse().map((t) => `DELETE FROM ${t};`),
   ];
