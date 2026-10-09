@@ -1,5 +1,6 @@
 ---
 import Icon from '../../components/Icon.astro';
+import FarmStats from '../../components/FarmStats.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getFarmStats, searchHiveCodes } from '../../server/public.ts';
@@ -45,10 +46,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
       )}
     </form>
 
-    <dl class="mt-8 grid grid-cols-3 gap-3 text-center">
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">รังในทะเบียน</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.total.toLocaleString('th-TH')}</dd></div>
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">ยังเลี้ยงอยู่</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.active.toLocaleString('th-TH')}</dd></div>
-      <div class="card flex flex-col-reverse"><dt class="text-sm text-muted">เพาะนางพญาเอง</dt><dd data-num class="text-2xl font-bold text-palm-700">{stats.queenBred.toLocaleString('th-TH')}</dd></div>
-    </dl>
+    <FarmStats stats={stats} class="mt-8" />
   </section>
 </PublicLayout>

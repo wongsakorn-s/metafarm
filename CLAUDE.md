@@ -10,6 +10,7 @@ Website + back office for a stingless bee (ชันโรงขนเงิน)
 - Checks: `npm run check`, `npm test`, `npm run build`. Server tests (`src/server/*.test.ts`) use `testDb()` from `src/server/test-d1.ts`: a temporary miniflare D1 with every migration in `drizzle/` applied (`until` stops before one, to test data backfills).
 - Orders and hives: `hive_holds` ties a hive to one non-cancelled order (insert with the order, delete on cancel); manual hive status/sale changes must pass `holdBlocks()` (`src/lib/orders.ts`). Order transitions use a once-key per source status (`onceKey` in `src/server/orders.ts`).
 - Back office lives under `src/pages/admin/` (SSR, `prerender = false`); auth in `src/server/auth.ts` + `src/middleware.ts`; all DB access for hives in `src/server/hives.ts`; form validation in `src/lib/validation.ts` (Zod).
+- Admin single-column form pages pass `column="xl"` (hive new/edit) or `"2xl"` (settings) to `AdminLayout` so the back link, title and form sit centred on desktop. Farm stats (home + passport) use `components/FarmStats.astro`.
 - Tailwind 4: shared classes (`btn`, `card`, `field`…) are `@utility` in `src/styles/global.css`, not `@layer components`.
 - Local login: `npm run user:create -- --email owner@metafarm.local --generate` (password written to `private/dev-owner.txt`).
 - PowerShell 5.1 gotchas when scripting: save scripts with a UTF-8 BOM, and `-WebSession` keeps `-Headers` from earlier calls (use a fresh session to test missing-Origin/CSRF).

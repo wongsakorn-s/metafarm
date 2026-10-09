@@ -1,0 +1,33 @@
+---
+// ตัวเลขฟาร์มจากทะเบียนรัง (หน้าแรก + หน้าสมุดพก) — แถบเดียวแบ่ง 3 ช่อง ให้หน้าตาเหมือนกันทุกหน้า
+// ตัวเลขชิดบนทุกช่อง จึงตรงแนวกันเสมอ แม้ป้ายช่องไหนจะตกบรรทัด (จอแคบมาก)
+// เดิมหน้าสมุดพกเป็นการ์ดแยก 3 ใบ ป้าย "เพาะนางพญาเอง" ตกบรรทัด ตัวเลข 63 จึงลอยสูงกว่าช่องอื่น
+interface Props {
+  stats: { total: number; active: number; queenBred: number };
+  /** ลิงก์ของทุกช่อง (หน้าแรกพาไปสมุดพก) — ไม่ใส่ = ไม่ใช่ลิงก์ */
+  href?: string;
+  class?: string;
+}
+const { stats, href, class: cls } = Astro.props;
+const items: [number, string][] = [
+  [stats.total, 'รังในทะเบียน'],
+  [stats.active, 'ยังเลี้ยงอยู่'],
+  [stats.queenBred, 'เพาะนางพญาเอง'],
+];
+const Tag = href ? 'a' : 'div';
+---
+
+<section aria-label="ฟาร์มในตัวเลข" class:list={['grid grid-cols-3 divide-x divide-line rounded-3xl border border-line bg-surface shadow-card', cls]}>
+  {items.map(([n, label]) => (
+    <Tag
+      href={href}
+      class:list={[
+        'flex flex-col items-center px-2 py-4 text-center first:rounded-l-3xl last:rounded-r-3xl md:py-6',
+        href && 'transition-colors duration-(--duration-fast) hover:bg-palm-50',
+      ]}
+    >
+      <span data-num class="text-2xl font-bold text-palm-700 md:text-4xl">{n.toLocaleString('th-TH')}</span>
+      <span class="text-xs text-muted md:text-sm">{label}</span>
+    </Tag>
+  ))}
+</section>

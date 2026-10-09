@@ -31,7 +31,7 @@ const v = (k: string, d = '') => values[k] ?? d;
 const err = (k: string) => errors[k];
 ---
 
-<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title="เพิ่มรังใหม่" active="new">
+<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title="เพิ่มรังใหม่" active="new" column="xl">
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   <form method="post" class="card max-w-xl space-y-4">
     <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />

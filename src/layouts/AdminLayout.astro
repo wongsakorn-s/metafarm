@@ -10,8 +10,10 @@ interface Props {
   active?: Key;
   /** ลิงก์ย้อนกลับ (แสดงบนแถบบนของมือถือ และเหนือหัวข้อบนคอม) */
   back?: { href: string; label: string };
+  /** หน้าฟอร์มคอลัมน์เดียว: จัดหัวข้อ + เนื้อหาเป็นคอลัมน์กว้างเท่านี้ไว้กลางจอ (คอม) — ไม่ใส่ = เต็มความกว้าง */
+  column?: 'xl' | '2xl';
 }
-const { title, active, back } = Astro.props;
+const { title, active, back, column } = Astro.props;
 const user = Astro.locals.user;
 const owner = isOwner(user);
 // พนักงานไม่มีหมวดขาย/ตั้งค่าเว็บ (middleware กันไว้แล้ว ที่นี่แค่ไม่แสดงลิงก์ที่เข้าไม่ได้)
@@ -115,9 +117,11 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
     </header>
 
     <main id="main" tabindex="-1" class="mx-auto w-full max-w-6xl px-4 py-4 outline-none md:px-8 md:py-8">
+      <div class:list={[column && 'mx-auto', column === 'xl' && 'max-w-xl', column === '2xl' && 'max-w-2xl']}>
       {back && <p class="mb-1 hidden md:block"><a class="inline-flex min-h-11 items-center text-sm text-muted underline" href={back.href}>← {back.label}</a></p>}
       <h1 class="mb-4 text-2xl font-bold md:mb-5">{title}</h1>
       <slot />
+      </div>
     </main>
 
     {/* คิวรอส่ง (Phase 5.5): แสดงเมื่อมีรายการที่ยังไม่ได้ส่งขึ้นระบบ — สคริปต์ scripts/outbox.ts อัปเดตเอง */}

@@ -85,7 +85,7 @@ const hl = (k: string) => (needs.has(k) ? 'ring-2 ring-honey-400' : '');
 const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day';
 ---
 
-<AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives">
+<AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives" column="xl">
 
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   {conflict && <ConflictNotice form="hive-edit" diffs={conflict.diffs} by={conflict.by} at={conflict.at} format={(k, x) => (k === 'origin' ? (originLabel[x as keyof typeof originLabel] ?? x) : k === 'boxType' ? (boxLabel[x as keyof typeof boxLabel] ?? x) : x)} />}

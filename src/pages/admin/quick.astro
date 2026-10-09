@@ -98,3 +98,29 @@ const recent = await recentHiveCodes(db, 8);
     <a class="btn-ghost" href="/admin/photos"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> คิวถ่ายรูป</a>
   </section>
 </AdminLayout>
+
+<script>
+  // จำชุดตัวอักษรที่เลือกล่าสุดไว้ในเครื่องนี้ — เดินบันทึกแถวรัง B ไม่ต้องเลือก B ใหม่ทุกครั้งที่กลับมาหน้านี้
+  // ลิงก์ที่ระบุชุดมาเอง (?prefix=) ใช้ตามลิงก์ · เก็บในเครื่องไม่ได้ (โหมดส่วนตัว) = ใช้ชุดที่มีรังมากที่สุดตามเดิม
+  const KEY = 'metafarm:quick-prefix';
+  const sel = document.getElementById('prefix') as HTMLSelectElement | null;
+  if (sel) {
+    if (!new URLSearchParams(location.search).get('prefix')) {
+      try {
+        const saved = localStorage.getItem(KEY);
+        if (saved && [...sel.querySelectorAll('option')].some((o) => o.value === saved)) sel.value = saved;
+      } catch {
+        /* เก็บในเครื่องไม่ได้ */
+      }
+    }
+    const remember = () => {
+      try {
+        localStorage.setItem(KEY, sel.value);
+      } catch {
+        /* เก็บในเครื่องไม่ได้ */
+      }
+    };
+    sel.addEventListener('change', remember);
+    sel.form?.addEventListener('submit', remember);
+  }
+</script>
