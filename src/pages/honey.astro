@@ -12,7 +12,6 @@ export const prerender = false;
 const page = getPage('honey')!;
 const { Content, frontmatter: fm } = page;
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
-const gallery = [P.honeyBox, P.honeyHarvest];
 ---
 
 <PublicLayout title={fm.title} description={fm.description} active="honey" lineMessage="สนใจน้ำผึ้งชันโรงขนเงิน">
@@ -24,13 +23,7 @@ const gallery = [P.honeyBox, P.honeyHarvest];
     <Content />
   </Article>
 
-  <section class="mt-14" aria-labelledby="pics-h">
-    <h2 id="pics-h" class="text-2xl font-bold text-palm-900">การเก็บน้ำผึ้งชันโรง</h2>
-    <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      {gallery.map((ph) => <CreditPhoto crop photo={ph} sizes="(min-width: 1024px) 500px, (min-width: 640px) 50vw, 100vw" />)}
-    </div>
-  </section>
-
+  {/* ภาพประกอบชุดใต้บทความ (Wikimedia) ตัดออกตามที่เจ้าของขอ (2026-10-10) — เหลือรูปหลักใต้หัวข้อ */}
   {/* แผงราคา "น้ำผึ้งชันโรงขนเงิน ปี 2569" ตัดออกตามที่เจ้าของขอ (2026-10-10) — ราคา/สั่งซื้ออยู่ที่หน้าสินค้า */}
   <a href="/learn/research" class="card-link mt-10 flex items-center gap-4">
     <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="book" class="size-6" /></span>
