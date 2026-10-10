@@ -22,7 +22,7 @@ repo เดียว deploy ที่เดียว ใช้โดเมนเ
 3. **ห้ามลบประวัติ:** รังที่ล่มหรือขายแล้วเปลี่ยนแค่สถานะ และทุกการแก้ไขบันทึก audit log
 4. **API บันทึกซ้ำได้อย่างปลอดภัย (idempotency key)** กันการกดซ้ำตอนเน็ตในสวนไม่ดี
 5. **ย่อรูปบนเครื่องผู้ใช้ก่อนอัปโหลด** (ประมาณ 1600px, WebP) ส่วนวิดีโอใช้ YouTube
-6. **แยก environment:** local / preview / production ใช้ฐานข้อมูลแยกกัน
+6. **แยก environment:** local / production ใช้ฐานข้อมูลแยกกัน (ยังไม่มี preview) · ระบบจริงคือที่เก็บข้อมูลหลัก ข้อมูลไหลจากระบบจริงลงเครื่องได้ทางเดียว (กู้ backup มาทดสอบ)
 7. **ภาษาไทยเป็นหลัก:** แสดงวันที่เป็น พ.ศ. แต่เก็บเป็น ISO, ใช้เขตเวลา Asia/Bangkok
 
 ## โครงโฟลเดอร์
@@ -31,14 +31,16 @@ repo เดียว deploy ที่เดียว ใช้โดเมนเ
 metafarm/
 ├─ src/
 │  ├─ pages/          หน้าสาธารณะ + /admin
-│  ├─ components/     site/ และ admin/
+│  ├─ components/     ส่วนประกอบหน้า (ContactButtons, LearnHero, MonthChart …)
+│  ├─ layouts/        PublicLayout, AdminLayout
+│  ├─ scripts/        JS ฝั่งเบราว์เซอร์ (ย่อรูป, อัปโหลด, คิวรอส่ง, ฟอร์มหลังบ้าน)
 │  ├─ server/         queries (public / admin), services, auth
 │  ├─ db/schema.ts    Drizzle schema
 │  ├─ lib/            โค้ดกลาง เช่น thai-date.ts
-│  └─ config/site.ts  ชื่อฟาร์ม + ช่องทางติดต่อ
+│  └─ config/site.ts  ชื่อฟาร์ม + ที่อยู่ (ช่องทางติดต่ออยู่ในตาราง settings)
 ├─ drizzle/           ไฟล์ migration (SQL) ที่สร้างจาก schema
-├─ content/           Markdown: research, training
-├─ scripts/           import-excel/
+├─ content/           Markdown: pages (ชันโรง น้ำผึ้ง นโยบาย), learn (งานวิจัย), training
+├─ scripts/           import-excel/, check-*.mjs (ตรวจในเบราว์เซอร์), backup, สร้างผู้ใช้
 ├─ docs/  design/  private/ (ไม่ขึ้น git)
 ├─ wrangler.jsonc     binding: DB (D1), MEDIA (R2)
 ```
@@ -47,13 +49,13 @@ metafarm/
 
 1. แก้ `src/db/schema.ts`
 2. `npm run db:generate` สร้างไฟล์ SQL ใหม่ใน `drizzle/` (commit ไฟล์นี้)
-3. `npm run db:migrate:local` (Phase 3 ใช้คำสั่งเดียวกันแต่เปลี่ยนเป็น `--remote` ใน CI)
+3. `npm run db:migrate:local` · ระบบจริงใช้ migration ใน workflow `deploy.yml` ก่อน deploy (migration ต้อง**เพิ่มอย่างเดียว** ดู runbook)
 
-## หมายเหตุสำหรับ Phase 3 (deploy)
+## หมายเหตุสำหรับ Phase 3 (deploy) — จัดการแล้ว
 
-- adapter @astrojs/cloudflare v14 เปิด binding SESSION (KV) และ IMAGES ให้เองตอน build production ตอนนี้ยังไม่ได้ใช้ (session เก็บใน D1 เอง) ต้องตัดสินใจก่อน deploy ว่าจะปิดหรือใช้ เพื่อไม่ให้ต้องสร้าง KV ที่ไม่จำเป็น
-- wrangler.jsonc ใช้ database_id ปลอมสำหรับ local ต้องเปลี่ยนเป็นค่าจริงตอนสร้าง D1 บน Cloudflare
-- รูป /media/* ตอนนี้ต้องล็อกอิน ตอนทำหน้าสมุดพกสาธารณะต้องเพิ่มเส้นทางที่เสิร์ฟเฉพาะรูป passport ของรังที่เปิดสาธารณะ
+- binding SESSION (KV) และ IMAGES ปิดแล้ว (`session: false`, `imageService: 'passthrough'` — D16)
+- `wrangler.jsonc` ใช้ database_id จริงแล้ว (ขึ้นระบบ 2026-10-05)
+- รูปสาธารณะเสิร์ฟผ่าน `/img/*` (ด้านล่าง) ส่วน `/media/*` ยังต้องล็อกอิน
 
 ## รูปและวิดีโอ
 

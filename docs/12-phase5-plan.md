@@ -1,6 +1,6 @@
 # Phase 5 — multiple users and hardening
 
-> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011. **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. **5.4 done** (2026-10-08): contact buttons LINE / Messenger / phone (replaces LINE notifications). **5.5 done** (2026-10-08): outbox for hive records and photos, installable app. Phase 5 complete apart from the palm module.
+> **Status:** **5.1 done** (2026-10-08): owner/staff roles, `/admin/users`, migration 0011; **admin role + role changes added 2026-10-10** (no migration — `role` is a text enum). **5.2 done** (2026-10-08): three-key login throttle, unlock on `/admin/users`. **5.3 done** (2026-10-08): version check on hive edit and product rows, once-keys on order transitions, migration 0012. **5.4 done** (2026-10-08): contact buttons LINE / Messenger / phone (replaces LINE notifications). **5.5 done** (2026-10-08): outbox for hive records and photos, installable app. Phase 5 complete apart from the palm module.
 
 ## Work order
 
@@ -18,31 +18,33 @@
 
 Decisions (user, 2026-10-08, "as recommended"): staff have **no** access to sales; staff **may** edit basic hive info without money fields; temporary passwords **must** be changed at first login.
 
-| Area | Owner | Staff |
-|---|---|---|
-| Dashboard | everything | hive work only; no order rows, sales totals or readiness link |
-| Hive: view history, record work (honey, split, queen cells, note, collapse) | ✅ | ✅ |
-| Hive: purchase price, supplier, sale price, sold price | ✅ | ❌ hidden; server ignores submitted values |
-| Hive: list for sale / mark sold | ✅ | ❌ (status only active ↔ collapsed; a sold hive cannot be changed) |
-| Add hive / edit hive info | ✅ | ✅ without purchase price |
-| Hive internal notes | ✅ | ✅ (needed for work — free text, may mention who a hive was bought from) |
-| Order codes in hive history ("ขายตามออเดอร์ S…") | ✅ | masked (`maskOrderCodes`) |
-| Photos, photo queue, incomplete data | ✅ | ✅ |
-| Production + weather | ✅ | ✅ (no link to settings) |
-| Honey lots: create, bottle, print labels | ✅ | ✅ without bottling cost or bottles sold |
-| Sales: orders, customers, products/prices, reports, CSV | ✅ | ❌ 403 |
-| Settings, readiness | ✅ | ❌ 403 |
-| Users (`/admin/users`) | ✅ | ❌ 403 |
-| Own account / password | ✅ | ✅ |
+Added 2026-10-10 (owner's request, "as recommended"): an **admin** role that can do everything the owner can **except manage users**, and the owner can **change roles** (staff ↔ admin ↔ owner).
+
+| Area | Owner | Admin | Staff |
+|---|---|---|---|
+| Dashboard | everything | everything | hive work only; no order rows, sales totals or readiness link |
+| Hive: view history, record work (honey, split, queen cells, note, collapse) | ✅ | ✅ | ✅ |
+| Hive: purchase price, supplier, sale price, sold price | ✅ | ✅ | ❌ hidden; server ignores submitted values |
+| Hive: list for sale / mark sold | ✅ | ✅ | ❌ (status only active ↔ collapsed; a sold hive cannot be changed) |
+| Add hive / edit hive info | ✅ | ✅ | ✅ without purchase price |
+| Hive internal notes | ✅ | ✅ | ✅ (needed for work — free text, may mention who a hive was bought from) |
+| Order codes in hive history ("ขายตามออเดอร์ S…") | ✅ | ✅ | masked (`maskOrderCodes`) |
+| Photos, photo queue, incomplete data | ✅ | ✅ | ✅ |
+| Production + weather | ✅ | ✅ | ✅ (no link to settings) |
+| Honey lots: create, bottle, print labels | ✅ | ✅ | ✅ without bottling cost or bottles sold |
+| Sales: orders, customers, products/prices, reports, CSV | ✅ | ✅ | ❌ 403 |
+| Settings, readiness | ✅ | ✅ | ❌ 403 |
+| Users (`/admin/users`) | ✅ | ❌ 403 (owner only) | ❌ 403 |
+| Own account / password | ✅ | ✅ | ✅ |
 
 **Enforcement (three layers):**
-1. `src/middleware.ts` + `ownerOnlyPath()` — staff get the "no permission" page (403) on owner paths; POSTs and file downloads get a bare 403.
+1. `src/middleware.ts` + `pathAllowed()` (`src/lib/permissions.ts`) — `MANAGER_ONLY` paths (sales, products, reports, settings, readiness) need owner or admin (`canManageFarm`); `OWNER_ONLY` (`/admin/users`) needs owner (`canManageUsers`). Others get the "no permission" page (403); POSTs and file downloads get a bare 403.
 2. Server functions ignore or refuse money/sales input from staff: `updateHive`/`createHive` (purchase price), `updateSale`, `changeStatus`/`fillMissing` (`statusTargets`), `addBottling` (unit cost).
-3. Pages hide menus, fields and columns (`isOwner`).
+3. Pages hide menus, fields and columns (`canManageFarm`; the users menu item uses `canManageUsers`).
 
-**Users page:** the owner adds staff (name + email); the system generates a temporary password, shown once, with a copy-to-LINE button. Submitting the same form twice issues a fresh password for the same account instead of a duplicate. Disable (ends all sessions at once, reversible) and reset password (new temporary password, ends sessions). Owner accounts are never managed from this page, so the owner cannot lock themselves out. Owners are still created with `scripts/create-owner.ts`.
+**Users page:** the owner adds staff (name + email); the system generates a temporary password, shown once, with a copy-to-LINE button. Submitting the same form twice issues a fresh password for the same account instead of a duplicate. Disable (ends all sessions at once, reversible) and reset password (new temporary password, ends sessions). When adding a user the owner picks **staff** or **admin**. Each row has a role select ("เปลี่ยนบทบาท", with a confirm): staff ↔ admin ↔ owner. A role change ends that user's sessions and is written to the audit log (`user.role` {from, to}). Nobody can change, disable or reset their **own** account here, and another owner must first be demoted before it can be disabled or reset — so the farm always keeps at least one owner. The first owner is still created with `scripts/create-owner.ts`.
 
-**Tests:** `check:forms` section 15 — real staff login, forced password change, menus, 403s, tampered POSTs (sale, sold status, purchase price), "recorded by", disable/enable. `check:staff` — logs in as that staff user and scans every staff-reachable page (all hives, edit pages, lots, labels) for real supplier/customer/order/payment data, money amounts and links to owner pages, and checks owner paths return 403.
+**Tests:** `src/server/users.test.ts` (admin cannot manage users; staff → admin → owner → admin; no self change; owners not disabled directly) and `src/lib/permissions.test.ts` (`pathAllowed` per role). `check:forms` section 15 — real staff login, forced password change, menus, 403s, tampered POSTs (sale, sold status, purchase price), "recorded by", disable/enable. `check:staff` — logs in as that staff user and scans every staff-reachable page (all hives, edit pages, lots, labels) for real supplier/customer/order/payment data, money amounts and links to owner pages, and checks owner paths return 403.
 
 ## 5.2 Login throttle (as built)
 

@@ -78,7 +78,10 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 
 Components:
 - `Icon`, `NotFound`, `HiveCard`, `HowToOrder` (`kind="training"` for courses), `SampleBadge`
-- `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile)
+- `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile). Used by research, training and privacy.
+- `LearnHero` + `LearnSections`: learn pages (`/stingless-bee`, `/honey`) — see 8b.
+- `CreditPhoto`: the only way to show an illustrative (non-farm) photo; always renders author · license · source under the image.
+- `FarmStats`: the farm-numbers strip (home, passport, stingless-bee). One component so it looks the same everywhere.
 - Layouts: `PublicLayout` (`canonical`, `ogImage`, `jsonLd`) and `AdminLayout` (`back`)
 - `ContactButtons`: the only way to show order/ask buttons on public pages. It follows the owner's primary channel.
   - Show **one set per page**: on product pages pass `HowToOrder buttons={false}`.
@@ -142,7 +145,7 @@ Components:
    - The button is locked while saving (`admin-forms.ts`).
    - Ask for confirmation before anything that can't be undone.
 9. **Navigation:**
-   - The admin bottom bar has at most 5 items (ภาพรวม · รัง · ➕ บันทึก · สินค้า · เมนู).
+   - The admin bottom bar has at most 5 items (ภาพรวม · รัง · ➕ บันทึก · ขาย · เมนู; staff see ล็อต instead of ขาย).
    - Back links go in the top bar.
    - Deep links use `?do=…#form-…`.
 
@@ -153,6 +156,10 @@ Components:
 - **Detail pages with photos** (passport, for-sale hive): photos on the left (main photo + thumbnails), details on the right on desktop. Stacked on mobile.
 - **Empty states:** icon in a dashed-border box + a short explanation + next-step buttons (e.g. "จองคิวทางไลน์", "ดูสมุดพกรัง").
 - **Footer:** brand · menu (2 columns) · contact (with icons). Links are 44px tall on mobile and 36px on desktop.
+- **Learn pages** (round 4, 2026-10-10): hero (eyebrow chip, h1, lead, 1–2 buttons | photo) → fact cards (icon box + title + one line; 2 columns on mobile, an odd last card spans the row; 3–4 on desktop) → "ในหน้านี้" chips (scroll sideways on mobile) → one section per `##`: photo beside the text, alternating sides on desktop; `highlight` = `bg-palm-50` panel, `notice` = honey-bordered box with an info icon (safety text) → next-step cards. Photos inside sections are cropped to 4:3.
+- **Illustrative photos:** only CC0 / CC BY / CC BY-SA (never NC/ND), via `CreditPhoto`, and the page says they are not photos from the farm. Replace them with farm photos when available.
+- **Contact page:** the primary channel in a large green panel with one `btn-primary`; other channels as a one-column list under it (app colour on the icon only); "อยากถามเรื่องไหน" topics open the primary channel with a prefilled message (Messenger copies it via `data-contact-buttons` + `data-copy`).
+- **Browse without a code** (passport): a photo grid of hives (newest uploaded photos first, small Excel photos only as filler) under the search box; the search box does not autofocus, so phones don't open the keyboard over the grid.
 
 ## 8c. Admin patterns (round 3)
 
@@ -162,6 +169,8 @@ Components:
 - **One primary button per screen:** the rest use `btn-ghost` (e.g. readiness highlights the most important pending task).
 - **File inputs** use `field-file`.
 - **Admin content width:** `max-w-6xl`.
+- **Forms use the full content width** (owner, 2026-10-10): long forms are `grid lg:grid-cols-2` with notes/save bar `lg:col-span-2`; no narrow centred column. Hints are one short line — the owner found long explanations confusing.
+- **Dashboard:** "เดือนนี้" stat cards each compare with last month (▲/▼ + %, never colour alone), then 12-month `MonthChart`s (one axis each), top hives, recent events. Money cards only for owner/admin.
 
 ## 9. Checklist before shipping a new page
 

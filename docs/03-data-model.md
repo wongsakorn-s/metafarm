@@ -22,11 +22,11 @@ users ─< sessions · audit_logs
 
 | ฟิลด์ | ชนิด | หมายเหตุ / ที่มาจาก Excel |
 |---|---|---|
-| `code` | text unique | `A1`…`A147` |
+| `code` | text unique | ตัวอักษร 1–3 ตัว + เลข เช่น `A1`…`A147`, `B12`, `G108` (รูปแบบกำหนดที่ `src/lib/hive-code.ts` เท่านั้น) · `id` ไม่ผูกกับรหัส — เรียงตามรหัสด้วย `byCode()` |
 | `species_id` | fk | ค่าเริ่มต้น: ชันโรงขนเงิน |
 | `origin` | enum | `purchased` (มีราคาซื้อ) · `queen_bred` ("Metafarm's Stingless Bee") · `split` ("ขยายรัง … ไข่อ่อนจาก") · `natural` ("ขยายรังเองตามธรรมชาติ") |
 | `origin_place` | text | จังหวัด/อำเภอที่ซื้อมา เช่น "อ.สายบุรี จ.ปัตตานี" |
-| `acquired_on` | date | วันที่ซื้อ / วันขยายรัง |
+| `acquired_on` | date | วันที่ซื้อ / วันขยายรัง · `acquired_on_precision` บอกว่ารู้ถึงวัน/เดือน/ปี |
 | `purchase_price` | int (บาท) | 🔒 หลังบ้าน |
 | `supplier_id` | fk | 🔒 คอลัมน์ "คู่ค้า" |
 | `queen_born_on` | date | "Queen's Birthday" |
@@ -41,6 +41,7 @@ users ─< sessions · audit_logs
 | `sold_price`, `sold_on`, `customer_id` | | 🔒 |
 | `public_note` | text | แสดงในสมุดพก |
 | `notes` | text | 🔒 |
+| `create_key` | text | กันสร้างรังซ้ำเมื่อกดส่งฟอร์มซ้ำ |
 
 ### hive_events: เหตุการณ์ของรัง (ไม่จำกัดจำนวน)
 
@@ -58,7 +59,7 @@ users ─< sessions · audit_logs
 
 | ฟิลด์ | หมายเหตุ |
 |---|---|
-| `hive_id`, `kind` | `passport` (สูงสุด 2 รูป แสดงในสมุดพก + หน้าขาย) · `sale` (สูงสุด 3 รูป เฉพาะหน้าขาย) · `video` (1 คลิป) |
+| `hive_id`, `kind` | `passport` (สูงสุด 6 รูป แสดงในสมุดพก + หน้าขาย) · `sale` (สูงสุด 3 รูป เฉพาะหน้าขาย) · `video` (1 คลิป) |
 | `r2_key` หรือ `youtube_id` | รูปเก็บใน R2 ส่วนวิดีโอใช้ YouTube unlisted |
 | `sort_order`, `alt` | |
 
@@ -67,19 +68,27 @@ users ─< sessions · audit_logs
 - **species**: `name_th`, `name_sci` (ตอนนี้มีแถวเดียว: ชันโรงขนเงิน *Tetragonula pagdeni* Schwarz)
 - **suppliers** 🔒: `name`, `phone`, `area`, `notes`
 
-### สินค้าและการขาย
+### สินค้าและการขาย (Phase 4 — รายละเอียดใน [11-phase4-plan.md](11-phase4-plan.md))
 
-- **products**: `slug`, `name`, `category` (`hive_box` | `honey` | `other`), `description`, `published`
-- **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `stock_qty`, `harvest_year` (น้ำผึ้งปี 2569)
+- **products**: `slug`, `name`, `category` (`hive_box` | `honey` | `other`), `description`, `published`, `image_key` (รูปที่เจ้าของอัปโหลด ว่าง = รูปชั่วคราว)
+- **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `price_confirmed` (ยังไม่ยืนยัน = ป้าย "ราคาตัวอย่าง"), `stock_qty` (เว็บแสดงแค่ มี/ไม่มี), `unit_cost` 🔒, `harvest_year_be`
 - **customers** 🔒: `name`, `phone`, `line_name`, `address`
-- **orders**: `customer_id`, `channel`, `status` (`pending` → `paid` → `shipped` → `completed` | `cancelled`), `total_thb`, `shipping_thb`, `tracking_no`
-- **order_items**: `order_id`, `product_variant_id` **หรือ** `hive_id` (ขายรังสมบูรณ์), `qty`, `unit_price_thb`
-  - เมื่อออเดอร์ที่มีรังเปลี่ยนเป็น `paid` ระบบจะตั้ง `hives.status = sold` และบันทึก `sold_price` / `sold_on` อัตโนมัติ
+- **orders** 🔒: `code` (`S<ปี พ.ศ.>-NNN`), `customer_id`, `channel` (`line` | `facebook` | `phone` | `farm` | `other`), `ordered_on`, `status` (`awaiting_payment` → `paid` → `fulfilled` หรือ `cancelled` ก่อนส่ง), `paid_on`, `pay_method`, `ship_method`, `ship_fee`, `tracking_no`, `fulfilled_on`, `note`, `create_key` (กันสร้างซ้ำ)
+- **order_items** 🔒: `order_id`, `kind` (`variant` | `hive`), `variant_id` **หรือ** `hive_id`, `label`, `qty`, `unit_price`, `stock_taken` (คืนสต็อกตามนี้เมื่อยกเลิก), `prev_for_sale`, `lot_id`
+  - ตัดสต็อกและตั้งรังเป็น `sold` เมื่อออเดอร์เป็น **paid** เท่านั้น · รังที่อยู่ในออเดอร์ที่ยังเปิดถูกถอดจากการขาย
+- **hive_holds**: รังหนึ่งอยู่ได้ในออเดอร์ที่ยังไม่ยกเลิกได้ออเดอร์เดียว (`hive_id` เป็น PK)
+- **honey_lots**: `code`, `harvested_from`, `harvested_to`, `total_ml` 🔒 — หน้า `/lot/[code]` (จาก QR บนขวด) แสดงแค่รหัส ช่วงวันที่เก็บ และรหัสรัง
+- **lot_sources**: `lot_id`, `event_id` (การเก็บน้ำหวานหนึ่งครั้งอยู่ในล็อตเดียว)
+- **bottlings**: `lot_id`, `variant_id`, `qty`, `bottled_on`, `unit_cost` 🔒 (เพิ่มสต็อกขวด ไม่เกินปริมาณในล็อต)
 
 ### ระบบ
 
-- **users**: `email`, `name`, `password_hash`, `role` (`owner` | `staff`), `active`
+- **users**: `email`, `name`, `password_hash`, `role` (`owner` | `admin` | `staff` — ดู [12-phase5-plan.md](12-phase5-plan.md) ข้อ 5.1), `active`, `must_change_password`
 - **sessions**: `user_id`, `token_hash`, `expires_at`
+- **login_attempts**: `key_hash`, `at` (จำกัดการเดารหัส 3 กุญแจ: อีเมล+IP, อีเมล, IP)
+- **once_keys**: `key` (การเปลี่ยนสถานะออเดอร์ที่ต้องเกิดครั้งเดียว)
+- **settings**: `key`, `value` (ช่องทางติดต่อ ราคาอบรม รังรูปหน้าแรก พิกัดฟาร์ม — แก้ที่ `/admin/settings`)
+- **weather_daily**: `date`, `t_max`, `t_min`, `rain_mm`, `humidity`, `source` (NASA POWER — หน้าผลผลิต)
 - **audit_logs**: `user_id`, `action`, `entity`, `entity_id`, `diff`, `at`
 
 ### หลักสูตรอบรม
