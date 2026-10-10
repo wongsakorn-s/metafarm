@@ -829,9 +829,11 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
   {
     const { c, pg } = await pub('/contact', false);
     const firstCard = (await pg.locator('main [data-primary-channel]').textContent()) ?? '';
-    const topics = await pg.$$eval('main [aria-labelledby="topic-h"] a', (as) => as.map((a) => a.getAttribute('href')));
-    check(firstCard.includes('โทรศัพท์') && firstCard.includes('ช่องทางหลัก') && topics.length === 4 && topics.every((h) => h.startsWith('tel:')),
-      'หน้าติดต่อเรา: ช่องทางหลัก (โทร) อยู่กรอบใหญ่ · "อยากถามเรื่องไหน" 4 เรื่องไปที่ช่องทางหลัก', 'หน้าติดต่อไม่ตามช่องทางหลัก: ' + firstCard.slice(0, 60) + ' ' + topics);
+    // "อยากถามเรื่องไหน" ตัดออกแล้ว (เจ้าของขอ 2026-10-10) — ปุ่มใหญ่ต้องโทรตามช่องทางหลัก
+    const mainBtn = await pg.getAttribute('main [data-contact-buttons] a.btn-primary', 'href');
+    const topics = await pg.locator('main [aria-labelledby="topic-h"]').count();
+    check(firstCard.includes('โทรศัพท์') && firstCard.includes('ช่องทางหลัก') && mainBtn?.startsWith('tel:') && topics === 0,
+      'หน้าติดต่อเรา: ช่องทางหลัก (โทร) อยู่กรอบใหญ่ ปุ่มโทรได้ · ไม่มี "อยากถามเรื่องไหน"', 'หน้าติดต่อไม่ตามช่องทางหลัก: ' + firstCard.slice(0, 60) + ' ' + mainBtn + ' topics=' + topics);
     await c.close();
   }
   // ลิงก์ Facebook แบบแชร์ (แปลงไม่ได้) → หลังบ้านเตือนให้ใส่ m.me เอง
