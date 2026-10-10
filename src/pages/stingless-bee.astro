@@ -1,55 +1,49 @@
 ---
-import FarmStats from '../components/FarmStats.astro';
+import Article from '../components/Article.astro';
+import CreditPhoto from '../components/CreditPhoto.astro';
 import Icon from '../components/Icon.astro';
-import LearnHero from '../components/LearnHero.astro';
-import LearnSections from '../components/LearnSections.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
-import { getPage, sectionsOf } from '../lib/content.ts';
+import { getPage } from '../lib/content.ts';
 import { learnPhotos as P } from '../lib/learn-photos.ts';
-import { placeholder } from '../lib/placeholders.ts';
 import { site } from '../config/site.ts';
-import { getDb } from '../server/db.ts';
-import { getFarmStats, getPublicProducts } from '../server/public.ts';
 
 export const prerender = false;
 
 const page = getPage('stingless-bee')!;
-const fm = page.frontmatter;
-const db = getDb();
-// หน้านี้ห้ามมีคำว่าราคา/บาท (check:leaks) — การ์ดรังเปล่าแสดงแค่รูปและชื่อ
-const [{ sections }, stats, [hiveBox]] = await Promise.all([sectionsOf(page), getFarmStats(db), getPublicProducts(db, 'hive-box')]);
+const { Content, frontmatter: fm } = page;
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
+// หน้านี้ห้ามมีคำว่าราคา/บาท (check:leaks)
 const next = [
   { href: '/products/hives', icon: 'hive', title: 'รังชันโรงขนเงินพร้อมเลี้ยง', text: 'รังที่มีชันโรงอยู่แล้ว ดูประวัติแต่ละรังได้' },
   { href: '/products/hive-box', icon: 'wood', title: 'รังเปล่าไม้สัก', text: 'รังที่เราออกแบบเองสำหรับขนเงิน' },
   { href: '/training', icon: 'training', title: 'อบรมการขยายรัง', text: 'เรียนแยกรังและเพาะนางพญาที่ฟาร์ม' },
 ] as const;
+const gallery = [P.beeGuards, P.beeNest, P.beeEntrance];
 ---
 
 <PublicLayout title={fm.title} description={fm.description} active="stingless-bee" lineMessage="สนใจรังชันโรงขนเงิน">
-  <LearnHero eyebrow="รู้จักชันโรง" eyebrowIcon="sprout" title={fm.title} subtitle="Tetragonula pagdeni Schwarz" lead={fm.lead} photo={P.beePagdeni} facts={fm.facts} sections={sections}>
-    <a class="btn-primary" href="/products/hives"><Icon name="hive" class="size-5" /> ดูรังที่เปิดขาย</a>
-    <a class="btn-ghost" href="/passport"><Icon name="passport" class="size-5" /> สมุดพกชันโรง</a>
-  </LearnHero>
+  <Article headings={page.getHeadings()}>
+    <Fragment slot="header">
+      <h1 class="text-3xl font-bold text-palm-900 md:text-4xl">{fm.title}</h1>
+      <p class="mt-1 italic text-muted">Tetragonula pagdeni Schwarz</p>
+      {fm.lead && <p class="mt-3 text-lg leading-relaxed">{fm.lead}</p>}
+      <CreditPhoto photo={P.beePagdeni} priority sizes="(min-width: 1024px) 740px, 100vw" class="mt-6" />
+    </Fragment>
+    <Content />
+  </Article>
 
-  <LearnSections sections={sections} config={fm.sections}>
-    <FarmStats slot="stats" stats={stats} href="/passport" class="bg-surface" />
-    <a slot="hive-box" href="/products/hive-box" class="card-link overflow-hidden p-0">
-      <img src={hiveBox?.imageKey ? `/img/${hiveBox.imageKey}` : placeholder.hiveBox} alt={hiveBox?.imageKey ? 'รังเลี้ยงชันโรงไม้สักของ MetaFarm' : ''} width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
-      <span class="flex min-h-11 items-center justify-between gap-3 p-4">
-        <span>
-          <span class="block font-semibold">{hiveBox?.name ?? 'รังเปล่าไม้สัก'}</span>
-          <span class="block text-sm text-muted">ออกแบบเองสำหรับชันโรงขนเงิน</span>
-        </span>
-        <Icon name="chevron" class="size-5 shrink-0 text-palm-700" />
-      </span>
-    </a>
-  </LearnSections>
+  <section class="mt-14" aria-labelledby="pics-h">
+    <h2 id="pics-h" class="text-2xl font-bold text-palm-900">ภาพชันโรงและรัง</h2>
+    <p class="mt-1 text-sm text-muted">ภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (เครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
+    <div class="mt-4 grid gap-4 sm:grid-cols-3">
+      {gallery.map((ph) => <CreditPhoto crop photo={ph} sizes="(min-width: 1024px) 330px, (min-width: 640px) 33vw, 100vw" />)}
+    </div>
+  </section>
 
-  <section class="mt-16 rounded-3xl border border-line bg-surface p-5 shadow-card sm:p-8" aria-labelledby="next-h">
+  <section class="mt-14" aria-labelledby="next-h">
     <h2 id="next-h" class="text-2xl font-bold text-palm-900">อยากเริ่มเลี้ยงชันโรงขนเงิน</h2>
-    <ul class="mt-5 grid gap-3 md:grid-cols-3 md:gap-4">
+    <ul class="mt-4 grid gap-3 md:grid-cols-3 md:gap-4">
       {next.map((n) => (
         <li>
           <a href={n.href} class="card-link flex h-full items-center gap-3 md:flex-col md:items-start">
@@ -64,5 +58,4 @@ const next = [
       ))}
     </ul>
   </section>
-  <p class="mt-6 text-sm text-muted">ภาพชันโรงในหน้านี้เป็นภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (ดูเครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
 </PublicLayout>

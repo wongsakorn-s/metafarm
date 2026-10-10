@@ -31,7 +31,7 @@ repo เดียว deploy ที่เดียว ใช้โดเมนเ
 metafarm/
 ├─ src/
 │  ├─ pages/          หน้าสาธารณะ + /admin
-│  ├─ components/     ส่วนประกอบหน้า (ContactButtons, LearnHero, MonthChart …)
+│  ├─ components/     ส่วนประกอบหน้า (ContactButtons, Article, CreditPhoto, MonthChart …)
 │  ├─ layouts/        PublicLayout, AdminLayout
 │  ├─ scripts/        JS ฝั่งเบราว์เซอร์ (ย่อรูป, อัปโหลด, คิวรอส่ง, ฟอร์มหลังบ้าน)
 │  ├─ server/         queries (public / admin), services, auth

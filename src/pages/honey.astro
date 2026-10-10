@@ -1,10 +1,10 @@
 ---
+import Article from '../components/Article.astro';
+import CreditPhoto from '../components/CreditPhoto.astro';
 import Icon from '../components/Icon.astro';
-import LearnHero from '../components/LearnHero.astro';
-import LearnSections from '../components/LearnSections.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import SampleBadge from '../components/SampleBadge.astro';
-import { getPage, sectionsOf } from '../lib/content.ts';
+import { getPage } from '../lib/content.ts';
 import { learnPhotos as P } from '../lib/learn-photos.ts';
 import { site } from '../config/site.ts';
 import { getDb } from '../server/db.ts';
@@ -14,23 +14,34 @@ import { formatPrice, sizeLabel } from '../lib/products.ts';
 export const prerender = false;
 
 const page = getPage('honey')!;
-const fm = page.frontmatter;
-const [{ sections }, [product]] = await Promise.all([sectionsOf(page), getPublicProducts(getDb(), 'stingless-honey')]);
+const { Content, frontmatter: fm } = page;
+const product = (await getPublicProducts(getDb(), 'stingless-honey'))[0];
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
+const gallery = [P.honeyBox, P.honeyHarvest];
 ---
 
 <PublicLayout title={fm.title} description={fm.description} active="honey" lineMessage="สนใจน้ำผึ้งชันโรงขนเงิน">
-  <LearnHero eyebrow="จากรังในสวนปาล์ม" eyebrowIcon="honey" title={fm.title} lead={fm.lead} photo={P.honeyPots} facts={fm.facts} sections={sections}>
-    {product && <a class="btn-primary" href="#buy-h"><Icon name="cart" class="size-5" /> ดูขนาดและสั่งซื้อ</a>}
-    <a class="btn-ghost" href="/learn/research"><Icon name="book" class="size-5" /> น้ำผึ้งชันโรงในงานวิจัย</a>
-  </LearnHero>
+  <Article headings={page.getHeadings()}>
+    <Fragment slot="header">
+      <h1 class="text-3xl font-bold text-palm-900 md:text-4xl">{fm.title}</h1>
+      {fm.lead && <p class="mt-3 text-lg leading-relaxed">{fm.lead}</p>}
+      <CreditPhoto photo={P.honeyPots} priority sizes="(min-width: 1024px) 740px, 100vw" class="mt-6" />
+    </Fragment>
+    <Content />
+  </Article>
 
-  <LearnSections sections={sections} config={fm.sections} />
+  <section class="mt-14" aria-labelledby="pics-h">
+    <h2 id="pics-h" class="text-2xl font-bold text-palm-900">การเก็บน้ำผึ้งชันโรง</h2>
+    <p class="mt-1 text-sm text-muted">ภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (เครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+      {gallery.map((ph) => <CreditPhoto crop photo={ph} sizes="(min-width: 1024px) 500px, (min-width: 640px) 50vw, 100vw" />)}
+    </div>
+  </section>
 
   {product && (
-    <section class="mt-16 scroll-mt-24 rounded-3xl bg-palm-50 p-5 sm:p-8 md:p-10" aria-labelledby="buy-h">
-      <h2 id="buy-h" class="scroll-mt-24 text-2xl font-bold text-palm-900 md:text-3xl">{product.name}</h2>
-      <ul class:list={['mt-5 grid gap-3 sm:grid-cols-2 md:gap-4', product.variants.length >= 3 && 'lg:grid-cols-3']}>
+    <section class="mt-14 rounded-3xl bg-palm-50 p-5 sm:p-8" aria-labelledby="buy-h">
+      <h2 id="buy-h" class="text-2xl font-bold text-palm-900">{product.name}</h2>
+      <ul class:list={['mt-4 grid gap-3 sm:grid-cols-2 md:gap-4', product.variants.length >= 3 && 'lg:grid-cols-3']}>
         {product.variants.map((v) => (
           <li class="card flex items-center gap-3">
             <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-6" /></span>
@@ -41,11 +52,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
           </li>
         ))}
       </ul>
-      <a class="btn-primary mt-5" href="/products/stingless-honey">ดูรายละเอียดและสั่งซื้อ <Icon name="chevron" class="size-5" /></a>
+      <a class="btn-primary mt-5 w-full sm:w-auto" href="/products/stingless-honey">ดูรายละเอียดและสั่งซื้อ <Icon name="chevron" class="size-5" /></a>
     </section>
   )}
 
-  <a href="/learn/research" class="card-link mt-8 flex items-center gap-4">
+  <a href="/learn/research" class="card-link mt-6 flex items-center gap-4">
     <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="book" class="size-6" /></span>
     <span class="min-w-0 flex-1">
       <span class="block font-semibold text-palm-700">น้ำผึ้งชันโรงในงานวิจัย</span>
@@ -53,5 +64,4 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
     </span>
     <Icon name="chevron" class="size-5 shrink-0 text-palm-700" />
   </a>
-  <p class="mt-6 text-sm text-muted">ภาพในหน้านี้เป็นภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (ดูเครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
 </PublicLayout>

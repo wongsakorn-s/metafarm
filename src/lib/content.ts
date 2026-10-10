@@ -31,5 +31,3 @@ export function listTraining(): TrainingCourse[] {
     .map(({ order, ...c }) => c);
 }
 
-
-export { sectionsOf, type MdSection } from './md-sections.ts';

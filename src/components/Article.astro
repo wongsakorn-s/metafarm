@@ -3,6 +3,7 @@
 // คอม (≥ lg): สารบัญติดข้างขวาขณะเลื่อน — ใช้พื้นที่ว่างข้างบทความ และกระโดดไปหัวข้อได้
 // มือถือ: สารบัญพับไว้ด้านบน แตะเพื่อเปิด (ไม่ดันเนื้อหาลง)
 // แสดงสารบัญเฉพาะบทความที่มีหัวข้อหลัก (h2) ตั้งแต่ 3 หัวข้อ
+// slot "header" (ชื่อหน้า + รูปหลัก) อยู่คอลัมน์เดียวกับเนื้อหา ขอบซ้ายตรงกัน และสารบัญเริ่มข้างหัวหน้า
 import type { MarkdownHeading } from 'astro';
 
 interface Props {
@@ -12,18 +13,22 @@ interface Props {
 const { headings, class: cls } = Astro.props;
 const toc = headings.filter((h) => h.depth === 2);
 const showToc = toc.length >= 3;
+const hasHeader = Astro.slots.has('header');
 ---
 
-<div class:list={['mt-6', showToc && 'lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10', cls]}>
-  {showToc && (
-    <details class="mb-6 rounded-2xl border border-line bg-surface lg:hidden">
-      <summary class="disclosure min-h-11 px-4 font-medium">ในหน้านี้ <span class="text-sm font-normal text-muted">({toc.length} หัวข้อ)</span></summary>
-      <ol class="px-4 pb-3">
-        {toc.map((h) => <li><a class="flex min-h-11 items-center text-palm-700 hover:underline" href={`#${h.slug}`}>{h.text}</a></li>)}
-      </ol>
-    </details>
-  )}
-  <div class="prose-mf min-w-0"><slot /></div>
+<div class:list={[!hasHeader && 'mt-6', showToc && 'lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-10', cls]}>
+  <div class="min-w-0">
+    {hasHeader && <div class="mb-8"><slot name="header" /></div>}
+    {showToc && (
+      <details class="mb-6 rounded-2xl border border-line bg-surface lg:hidden">
+        <summary class="disclosure min-h-11 px-4 font-medium">ในหน้านี้ <span class="text-sm font-normal text-muted">({toc.length} หัวข้อ)</span></summary>
+        <ol class="px-4 pb-3">
+          {toc.map((h) => <li><a class="flex min-h-11 items-center text-palm-700 hover:underline" href={`#${h.slug}`}>{h.text}</a></li>)}
+        </ol>
+      </details>
+    )}
+    <div class="prose-mf min-w-0"><slot /></div>
+  </div>
   {showToc && (
     <nav aria-label="ในหน้านี้" class="hidden lg:block">
       <div class="sticky top-24 border-l-2 border-palm-100 pl-4">

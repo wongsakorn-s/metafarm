@@ -78,8 +78,7 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 
 Components:
 - `Icon`, `NotFound`, `HiveCard`, `HowToOrder` (`kind="training"` for courses), `SampleBadge`
-- `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile). Used by research, training and privacy.
-- `LearnHero` + `LearnSections`: learn pages (`/stingless-bee`, `/honey`) — see 8b.
+- `Article`: Markdown content + a "ในหน้านี้" table of contents when there are ≥ 3 h2 headings (sticky sidebar on desktop, collapsible on mobile). Optional `header` slot (h1, lead, main photo) sits in the content column so its left edge lines up with the text and the TOC starts beside it. Used by the learn pages, research, training and privacy.
 - `CreditPhoto`: the only way to show an illustrative (non-farm) photo; always renders author · license · source under the image.
 - `FarmStats`: the farm-numbers strip (home, passport, stingless-bee). One component so it looks the same everywhere.
 - Layouts: `PublicLayout` (`canonical`, `ogImage`, `jsonLd`) and `AdminLayout` (`back`)
@@ -156,7 +155,7 @@ Components:
 - **Detail pages with photos** (passport, for-sale hive): photos on the left (main photo + thumbnails), details on the right on desktop. Stacked on mobile.
 - **Empty states:** icon in a dashed-border box + a short explanation + next-step buttons (e.g. "จองคิวทางไลน์", "ดูสมุดพกรัง").
 - **Footer:** brand · menu (2 columns) · contact (with icons). Links are 44px tall on mobile and 36px on desktop.
-- **Learn pages** (round 4, 2026-10-10): hero (eyebrow chip, h1, lead, 1–2 buttons | photo) → fact cards (icon box + title + one line; 2 columns on mobile, an odd last card spans the row; 3–4 on desktop) → "ในหน้านี้" chips (scroll sideways on mobile) → one section per `##`: photo beside the text, alternating sides on desktop; `highlight` = `bg-palm-50` panel, `notice` = honey-bordered box with an info icon (safety text) → next-step cards. Photos inside sections are cropped to 4:3.
+- **Learn pages** (round 4, 2026-10-10 — the owner preferred the article layout over a sectioned landing page): `Article` header slot (h1, scientific name if any, one-line lead, main `CreditPhoto` at content width) → Markdown with the TOC on the right → full-width gallery (cropped 4:3, equal-height cards, one credit note above) → next-step cards (stingless bee) or a `bg-palm-50` sizes/prices panel + research link card (honey).
 - **Illustrative photos:** only CC0 / CC BY / CC BY-SA (never NC/ND), via `CreditPhoto`, and the page says they are not photos from the farm. Replace them with farm photos when available.
 - **Contact page:** the primary channel in a large green panel with one `btn-primary`; other channels as a one-column list under it (app colour on the icon only); "อยากถามเรื่องไหน" topics open the primary channel with a prefilled message (Messenger copies it via `data-contact-buttons` + `data-copy`).
 - **Browse without a code** (passport): a photo grid of hives (newest uploaded photos first, small Excel photos only as filler) under the search box; the search box does not autofocus, so phones don't open the keyboard over the grid.
