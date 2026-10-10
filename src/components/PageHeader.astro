@@ -1,0 +1,20 @@
+---
+// หัวหน้าเว็บสาธารณะ (ชื่อหน้า + คำอธิบาย) แบบเดียวกันทุกหน้าในเมนู — เจ้าของขอให้ขนาด/สีเท่ากันทุกหน้า (2026-10-10)
+// lead = ข้อความธรรมดา หรือใส่ใน slot (เช่นมีลิงก์) · sub = บรรทัดรองตัวเอียงใต้ชื่อ (เช่นชื่อวิทยาศาสตร์)
+interface Props {
+  title: string;
+  lead?: string;
+  sub?: string;
+  /** จัดกลางทั้งหัวข้อ (หน้าสมุดพกที่มีช่องค้นหากลางหน้า) */
+  center?: boolean;
+  class?: string;
+}
+const { title, lead, sub, center = false, class: cls } = Astro.props;
+const hasSlot = Astro.slots.has('default');
+---
+
+<header class:list={[center && 'text-center', cls]}>
+  <h1 class="text-3xl font-bold text-palm-900 md:text-4xl">{title}</h1>
+  {sub && <p class="mt-1 italic text-muted">{sub}</p>}
+  {(lead || hasSlot) && <p class:list={['mt-2 max-w-2xl text-lg leading-relaxed text-muted', center && 'mx-auto']}>{lead}<slot /></p>}
+</header>

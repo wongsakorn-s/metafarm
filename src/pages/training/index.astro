@@ -1,4 +1,5 @@
 ---
+import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
@@ -16,8 +17,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 
 <PublicLayout title="อบรม" description={`หลักสูตรอบรมการเลี้ยงและขยายรังชันโรงขนเงิน การกรองน้ำผึ้งและการแปรรูป จาก ${site.name}`} active="training" lineMessage="สนใจหลักสูตรอบรม">
-  <h1 class="text-3xl font-bold md:text-4xl">อบรม</h1>
-  <p class="mt-2 max-w-2xl text-lg text-muted">เรียนรู้จากประสบการณ์ที่ {site.name} เลี้ยงชันโรงขนเงินในสวนปาล์มมาตั้งแต่ปี พ.ศ. {site.foundedYearBE}</p>
+  <PageHeader title="อบรม" lead={`เรียนรู้จากประสบการณ์ที่ ${site.name} เลี้ยงชันโรงขนเงินในสวนปาล์มมาตั้งแต่ปี พ.ศ. ${site.foundedYearBE}`} />
 
   <ul class="mt-6 grid gap-4 md:grid-cols-2">
     {courses.map((c) => (

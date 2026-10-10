@@ -1,4 +1,5 @@
 ---
+import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import FarmStats from '../../components/FarmStats.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
@@ -27,8 +28,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
 <PublicLayout title="สมุดพกชันโรง" description={`ตรวจสอบประวัติรังชันโรงขนเงินของ ${site.name} ด้วยรหัสรัง: ที่มา สายพันธุ์รังแม่ และประวัติการดูแล`} active="passport">
   <section class="mx-auto max-w-xl text-center">
-    <h1 class="text-3xl font-bold text-palm-700"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง</h1>
-    <p class="mt-2 text-muted">ทุกรังของ {site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที</p>
+    <PageHeader center title="สมุดพกชันโรง" lead={`ทุกรังของ ${site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที`} />
 
     <form method="get" class="card mt-6 text-left" role="search">
       <label class="label" for="code">รหัสรัง</label>

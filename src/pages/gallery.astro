@@ -1,4 +1,5 @@
 ---
+import PageHeader from '../components/PageHeader.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { site } from '../config/site.ts';
@@ -18,8 +19,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 
 <PublicLayout title="แกลเลอรี" description={`ภาพจาก ${site.name}: ชันโรงขนเงินในสวนปาล์ม การส่งมอบรังและน้ำผึ้งชันโรง และห้องงานไม้ที่ทำรังไม้สัก`} active="gallery">
-  <h1 class="text-3xl font-bold">แกลเลอรี</h1>
-  <p class="mt-2 max-w-2xl text-muted">ภาพจากฟาร์ม {site.name} ทั้งชันโรงของเรา การส่งมอบรังและน้ำผึ้งถึงลูกค้า และห้องงานไม้</p>
+  <PageHeader title="แกลเลอรี" lead={`ภาพจากฟาร์ม ${site.name} ทั้งชันโรงของเรา การส่งมอบรังและน้ำผึ้งถึงลูกค้า และห้องงานไม้`} />
 
   <nav aria-label="หมวดรูป" class="mt-5 flex flex-wrap gap-2">
     {sections.map((s) => (

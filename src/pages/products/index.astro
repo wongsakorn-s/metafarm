@@ -1,4 +1,5 @@
 ---
+import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import HiveCard from '../../components/HiveCard.astro';
@@ -27,9 +28,8 @@ const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
 ---
 
 <PublicLayout title="สินค้า" description={`รังสมบูรณ์ชันโรงขนเงิน รังเปล่ารังไม้สัก และน้ำผึ้งชันโรง จาก ${site.name} จ.ระยอง`} active="products">
-  <h1 class="text-3xl font-bold">สินค้า</h1>
-  <p class="mt-2 max-w-2xl text-muted">รังชันโรงขนเงินและน้ำผึ้งชันโรงขนเงิน จาก {site.name}
-    {facebookUrl ? <>· ช่องทางสั่งซื้อขณะนี้: <a class="font-medium text-palm-700 underline" href={facebookUrl} target="_blank" rel="noopener">ทักข้อความทาง Facebook</a></> : '· สั่งซื้อทางแชตหรือโทรศัพท์'}</p>
+  <PageHeader title="สินค้า">รังชันโรงขนเงินและน้ำผึ้งชันโรงขนเงิน จาก {site.name}
+    {' '}{facebookUrl ? <>· ช่องทางสั่งซื้อขณะนี้: <a class="font-medium text-palm-700 underline" href={facebookUrl} target="_blank" rel="noopener">ทักข้อความทาง Facebook</a></> : '· สั่งซื้อทางแชตหรือโทรศัพท์'}</PageHeader>
 
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">

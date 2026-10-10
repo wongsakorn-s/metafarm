@@ -1,4 +1,5 @@
 ---
+import PageHeader from '../components/PageHeader.astro';
 import Icon from '../components/Icon.astro';
 import type { IconName } from '../lib/icons.ts';
 import PublicLayout from '../layouts/PublicLayout.astro';
@@ -34,8 +35,7 @@ const ext = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
 ---
 
 <PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact" jsonLd={businessLd(site, c, Astro.url.origin)}>
-  <h1 class="text-[2rem] font-bold text-palm-900 sm:text-4xl">ติดต่อเรา</h1>
-  <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง หลักสูตรอบรม หรือนัดเข้าชมฟาร์ม</p>
+  <PageHeader title="ติดต่อเรา" lead="สอบถามรังชันโรงขนเงิน น้ำผึ้ง หลักสูตรอบรม หรือนัดเข้าชมฟาร์ม" />
 
   {primary ? (
     <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">

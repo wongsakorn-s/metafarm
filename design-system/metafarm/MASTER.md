@@ -150,13 +150,14 @@ Components:
 
 ## 8b. Public-page patterns (round 2)
 
+- **Page heading** (2026-10-10): every menu page except home uses `PageHeader` — h1 `text-3xl md:text-4xl font-bold text-palm-900`, optional italic `sub`, lead `text-lg text-muted leading-relaxed max-w-2xl` (passport: `center`). Same size and colour on every page.
 - **Home page** follows the Trust & Authority pattern: hero → real numbers from the hive register → story → highlights → learn/buy cards → passport CTA.
 - **Card lists on mobile:** icon on the left, text on the right, with a `>` arrow if clickable. On desktop (`md:`), switch to columns with the icon on top.
 - **Detail pages with photos** (passport, for-sale hive): photos on the left (main photo + thumbnails), details on the right on desktop. Stacked on mobile.
 - **Empty states:** icon in a dashed-border box + a short explanation + next-step buttons (e.g. "จองคิวทางไลน์", "ดูสมุดพกรัง").
 - **Footer:** brand · menu (2 columns) · contact (with icons). Links are 44px tall on mobile and 36px on desktop.
-- **Learn pages** (round 4, 2026-10-10 — the owner preferred the article layout over a sectioned landing page): `Article` header slot (h1, scientific name if any, one-line lead, main `CreditPhoto` at content width) → Markdown with the TOC on the right → full-width gallery (cropped 4:3, equal-height cards, one credit note above) → next-step cards (stingless bee) or a `bg-palm-50` sizes/prices panel + research link card (honey).
-- **Illustrative photos:** only CC0 / CC BY / CC BY-SA (never NC/ND), via `CreditPhoto`, and the page says they are not photos from the farm. Replace them with farm photos when available.
+- **Learn pages** (round 4, 2026-10-10 — the owner preferred the article layout over a sectioned landing page): `Article` header slot (h1, scientific name if any, one-line lead, main `CreditPhoto` at content width) → Markdown with the TOC on the right → full-width gallery (cropped 4:3, equal-height cards, credit under each photo) → next-step cards (stingless bee) or a `bg-palm-50` sizes/prices panel + research link card (honey).
+- **Illustrative photos:** only CC0 / CC BY / CC BY-SA (never NC/ND), via `CreditPhoto` (author · licence · source under every photo — required by the licence). The section-level "not farm photos" note was removed at the owner's request (2026-10-10). Replace them with farm photos when available.
 - **Contact page:** the primary channel in a large green panel with one `btn-primary`; other channels as a one-column list under it (app colour on the icon only); "อยากถามเรื่องไหน" topics open the primary channel with a prefilled message (Messenger copies it via `data-contact-buttons` + `data-copy`).
 - **Browse without a code** (passport): a photo grid of hives (newest uploaded photos first, small Excel photos only as filler) under the search box; the search box does not autofocus, so phones don't open the keyboard over the grid.
 
