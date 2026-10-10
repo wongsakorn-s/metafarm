@@ -319,6 +319,32 @@ export async function getHeroPhoto(db: Db, code: string): Promise<{ key: string;
 }
 
 /**
+ * รังตัวอย่างให้กดดูสมุดพกได้โดยไม่ต้องรู้รหัส (หน้า /passport) — รังที่ยังอยู่และมีรูปสมุดพก รังละ 1 รูป
+ * รูปที่ถ่ายจากหลังบ้าน (คีย์ …/passport-<uuid>-n.webp ย่อไว้ใหญ่พอ) มาก่อน ใหม่สุดก่อน
+ * รูปเก่าจาก Excel (…/A1-1.jpeg กว้าง ~200 px) ใช้เติมเมื่อรูปใหม่ยังไม่พอเท่านั้น
+ */
+export async function getPhotoHives(db: Db, limit = 8): Promise<{ code: string; key: string }[]> {
+  const uploaded = sql<number>`${hiveMedia.r2Key} like '%/passport-%'`;
+  // รังหนึ่งมีรูปสมุดพกได้ไม่เกิน 6 รูป → ดึง limit × 6 แถวพอให้ได้ครบ limit รังเสมอ (ถ้ามี)
+  const rows = await db
+    .select({ code: hives.code, key: hiveMedia.r2Key })
+    .from(hiveMedia)
+    .innerJoin(hives, eq(hives.id, hiveMedia.hiveId))
+    .where(and(eq(hiveMedia.kind, 'passport'), eq(hives.status, 'active'), sql`${hiveMedia.r2Key} is not null`))
+    .orderBy(desc(uploaded), desc(hiveMedia.id))
+    .limit(limit * 6);
+  const seen = new Set<string>();
+  const out: { code: string; key: string }[] = [];
+  for (const r of rows) {
+    if (seen.has(r.code) || !r.key) continue;
+    seen.add(r.code);
+    out.push({ code: r.code, key: r.key });
+    if (out.length === limit) break;
+  }
+  return out;
+}
+
+/**
  * ค้นหารหัสรัง — คืนเฉพาะรหัส
  * พิมพ์แค่เลข ("12") = รังเลข 12 ทุกชุดตัวอักษร (A12, B12) · อย่างอื่น = รหัสที่ขึ้นต้นด้วยคำค้น
  */

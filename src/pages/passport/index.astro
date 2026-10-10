@@ -3,7 +3,8 @@ import Icon from '../../components/Icon.astro';
 import FarmStats from '../../components/FarmStats.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { getFarmStats, searchHiveCodes } from '../../server/public.ts';
+import { getFarmStats, getPhotoHives, searchHiveCodes } from '../../server/public.ts';
+import { photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import { normalizeHiveCode } from '../../lib/hive-code.ts';
 
@@ -20,7 +21,7 @@ if (normalized) {
   if (matches.includes(normalized)) return Astro.redirect(`/passport/${normalized}`, 302);
   if (/^\d+$/.test(normalized) && matches.length === 1) return Astro.redirect(`/passport/${matches[0]}`, 302);
 }
-const stats = await getFarmStats(db);
+const [stats, photoHives] = await Promise.all([getFarmStats(db), getPhotoHives(db, 8)]);
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 
@@ -32,7 +33,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
     <form method="get" class="card mt-6 text-left" role="search">
       <label class="label" for="code">รหัสรัง</label>
       <div class="flex gap-2">
-        <input class="field" id="code" name="code" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="เช่น A25 หรือ B12" value={raw} required autofocus />
+        <input class="field" id="code" name="code" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="เช่น A25 หรือ B12" value={raw} required />
         <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
       </div>
       {normalized && matches.length === 0 && <p class="error" role="alert">ไม่พบรหัส "{raw}" ลองตรวจตัวอักษรที่ติดอยู่ที่รังอีกครั้ง</p>}
@@ -46,6 +47,28 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
       )}
     </form>
 
-    <FarmStats stats={stats} class="mt-8" />
   </section>
+
+  {photoHives.length > 0 && (
+    <section class="mx-auto mt-10 max-w-4xl" aria-labelledby="examples">
+      <h2 id="examples" class="text-center text-xl font-bold text-palm-700">ยังไม่มีรหัส? ลองดูรังในฟาร์ม</h2>
+      <p class="mt-1 text-center text-muted">กดที่รูปเพื่อเปิดสมุดพกของรังนั้น</p>
+      <ul class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4">
+        {photoHives.map((h) => (
+          <li>
+            <a href={`/passport/${h.code}`} class="group block overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+              <img src={thumbUrl(`/img/${h.key}`)} srcset={photoSrcset(`/img/${h.key}`)} sizes="(min-width: 768px) 220px, 50vw" width="480" height="360" alt={`รังชันโรงขนเงิน ${h.code}`} loading="lazy" decoding="async"
+                class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
+              <span class="flex min-h-11 items-center justify-between gap-2 px-3 py-2">
+                <span class="whitespace-nowrap font-semibold text-palm-700">รัง {h.code}</span>
+                <span class="inline-flex shrink-0 items-center gap-1 text-sm text-muted"><Icon name="passport" class="size-4" /><span class="hidden md:inline">ดูสมุดพก</span></span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <FarmStats stats={stats} class="mx-auto mt-10 max-w-xl" />
 </PublicLayout>
