@@ -30,3 +30,6 @@ export function listTraining(): TrainingCourse[] {
     .sort((a, b) => a.order - b.order)
     .map(({ order, ...c }) => c);
 }
+
+
+export { sectionsOf, type MdSection } from './md-sections.ts';

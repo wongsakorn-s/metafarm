@@ -1,10 +1,10 @@
 ---
-import Article from '../components/Article.astro';
 import Icon from '../components/Icon.astro';
+import LearnHero from '../components/LearnHero.astro';
+import LearnSections from '../components/LearnSections.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import SampleBadge from '../components/SampleBadge.astro';
-import { getPage } from '../lib/content.ts';
-import CreditPhoto from '../components/CreditPhoto.astro';
+import { getPage, sectionsOf } from '../lib/content.ts';
 import { learnPhotos as P } from '../lib/learn-photos.ts';
 import { site } from '../config/site.ts';
 import { getDb } from '../server/db.ts';
@@ -14,38 +14,44 @@ import { formatPrice, sizeLabel } from '../lib/products.ts';
 export const prerender = false;
 
 const page = getPage('honey')!;
-const { Content, frontmatter: fm } = page;
-const product = (await getPublicProducts(getDb(), 'stingless-honey'))[0];
+const fm = page.frontmatter;
+const [{ sections }, [product]] = await Promise.all([sectionsOf(page), getPublicProducts(getDb(), 'stingless-honey')]);
 Astro.response.headers.set('Cache-Control', 'public, max-age=120');
 ---
 
 <PublicLayout title={fm.title} description={fm.description} active="honey" lineMessage="สนใจน้ำผึ้งชันโรงขนเงิน">
-  <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
-  <CreditPhoto photo={P.honeyPots} priority class="mt-5 max-w-3xl" />
-  <Article headings={page.getHeadings()}><Content /></Article>
+  <LearnHero eyebrow="จากรังในสวนปาล์ม" eyebrowIcon="honey" title={fm.title} lead={fm.lead} photo={P.honeyPots} facts={fm.facts} sections={sections}>
+    {product && <a class="btn-primary" href="#buy-h"><Icon name="cart" class="size-5" /> ดูขนาดและสั่งซื้อ</a>}
+    <a class="btn-ghost" href="/learn/research"><Icon name="book" class="size-5" /> น้ำผึ้งชันโรงในงานวิจัย</a>
+  </LearnHero>
 
-  <section class="mt-10" aria-labelledby="pics-h">
-    <h2 id="pics-h" class="text-2xl font-bold">การเก็บน้ำผึ้งชันโรง</h2>
-    <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      <CreditPhoto crop photo={P.honeyBox} sizes="(min-width: 640px) 50vw, 100vw" />
-      <CreditPhoto crop photo={P.honeyHarvest} sizes="(min-width: 640px) 50vw, 100vw" />
-    </div>
-    <p class="mt-3 text-sm text-muted">ภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย — ไม่ใช่ภาพจากฟาร์ม {site.name} (รูปจากฟาร์มจะทยอยเพิ่ม)</p>
-  </section>
+  <LearnSections sections={sections} config={fm.sections} />
 
   {product && (
-    <section class="mt-10" aria-labelledby="buy-h">
-      <h2 id="buy-h" class="text-2xl font-bold">{product.name}</h2>
-      <ul class="mt-4 grid gap-4 sm:grid-cols-2">
+    <section class="mt-16 scroll-mt-24 rounded-3xl bg-palm-50 p-5 sm:p-8 md:p-10" aria-labelledby="buy-h">
+      <h2 id="buy-h" class="scroll-mt-24 text-2xl font-bold text-palm-900 md:text-3xl">{product.name}</h2>
+      <ul class:list={['mt-5 grid gap-3 sm:grid-cols-2 md:gap-4', product.variants.length >= 3 && 'lg:grid-cols-3']}>
         {product.variants.map((v) => (
-          <li class="card">
-            <p class="font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
-            <p class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)} {v.priceIsSample && <SampleBadge />}</p>
+          <li class="card flex items-center gap-3">
+            <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-6" /></span>
+            <span>
+              <span class="block font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</span>
+              <span data-num class="block text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)} {v.priceIsSample && <SampleBadge />}</span>
+            </span>
           </li>
         ))}
       </ul>
-      <a class="btn-primary mt-4" href="/products/stingless-honey">ดูรายละเอียดและสั่งซื้อ →</a>
+      <a class="btn-primary mt-5" href="/products/stingless-honey">ดูรายละเอียดและสั่งซื้อ <Icon name="chevron" class="size-5" /></a>
     </section>
   )}
-  <p class="mt-8"><a class="text-palm-700 underline" href="/learn/research"><Icon name="book" class="inline-block size-[1.15em] align-[-0.2em]" /> น้ำผึ้งชันโรงในงานวิจัย</a></p>
+
+  <a href="/learn/research" class="card-link mt-8 flex items-center gap-4">
+    <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="book" class="size-6" /></span>
+    <span class="min-w-0 flex-1">
+      <span class="block font-semibold text-palm-700">น้ำผึ้งชันโรงในงานวิจัย</span>
+      <span class="block text-[0.9375rem] text-muted">สรุปงานวิจัยที่ศึกษาน้ำผึ้งชันโรง พร้อมแหล่งอ้างอิง</span>
+    </span>
+    <Icon name="chevron" class="size-5 shrink-0 text-palm-700" />
+  </a>
+  <p class="mt-6 text-sm text-muted">ภาพในหน้านี้เป็นภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (ดูเครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
 </PublicLayout>
