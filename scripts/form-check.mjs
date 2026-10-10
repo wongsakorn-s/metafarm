@@ -446,10 +446,11 @@ console.log('\n12) ขาย: ออเดอร์ → ชำระ → ส่�
     const forSaleAgain = await page.isVisible('.badge:has-text("ตั้งขาย")');
     check(soldNow && back && forSaleAgain, 'รัง ' + hcode + ': ชำระแล้วเป็น "ขายแล้ว" → ยกเลิกแล้วกลับเป็น "ยังอยู่" และตั้งขายตามเดิม', 'รังไม่กลับสถานะเดิม (ขาย=' + soldNow + ' ยังอยู่=' + back + ' ตั้งขาย=' + forSaleAgain + ')');
   }
-  // ลูกค้า: ประวัติ 1 ออเดอร์ที่ไม่ยกเลิก
+  // ลูกค้า: ยอดเหมือนรายงาน = ออเดอร์ที่ชำระแล้ว/ส่งแล้ว ไม่รวมค่าส่ง (50) และไม่นับที่ยกเลิก
   await page.goto(BASE + '/admin/customers?q=' + encodeURIComponent(tag));
   const card = await page.locator('main li').first().textContent();
-  check(card.includes('1 ออเดอร์') && card.includes(expect.toLocaleString('th-TH')), 'หน้าลูกค้า: 1 ออเดอร์ รวม ' + expect.toLocaleString('th-TH') + ' บาท (ไม่นับที่ยกเลิก)', 'สรุปลูกค้าไม่ถูก: ' + card.replace(/\s+/g, ' '));
+  const goods = expect - 50;
+  check(card.includes('ชำระแล้ว 1 ออเดอร์') && card.includes(goods.toLocaleString('th-TH')), 'หน้าลูกค้า: ชำระแล้ว 1 ออเดอร์ ยอด ' + goods.toLocaleString('th-TH') + ' บาท (ไม่รวมค่าส่ง ไม่นับที่ยกเลิก)', 'สรุปลูกค้าไม่ถูก: ' + card.replace(/\s+/g, ' '));
   console.log('   ℹ️ ข้อมูลทดสอบ: ลูกค้า คุณ' + tag + ' · ' + code + ', ' + code2);
 }
 
@@ -777,6 +778,7 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
   // เก็บค่าเดิมไว้คืนตอนจบ
   await page.goto(BASE + '/admin/settings');
   const orig = await page.$$eval('#contact input, #contact select', (els) => Object.fromEntries(els.filter((e) => e.name && (e.type !== 'radio' || e.checked)).map((e) => [e.name, e.type === 'checkbox' ? (e.checked ? 'on' : '') : e.value])));
+  delete orig.version; // คืนค่าเดิมตอนจบ = ตั้งใจทับ (ไม่ส่งเวอร์ชันที่เห็นตอนเริ่ม ซึ่งเก่าแล้วหลังทดสอบบันทึกหลายรอบ)
   const save = (o) => post('/admin/settings', { intent: 'contact', lineId: '@metafarm-test', phone: '081-234-5678', facebookUrl: 'https://www.facebook.com/metafarm.test', messengerUrl: '', mapUrl: '', primary: 'messenger', ...o });
   // หน้าสาธารณะมีแคช 5 นาที → เปิดด้วย context ใหม่ + query กันแคช
   const pub = async (path, mobile = true) => {

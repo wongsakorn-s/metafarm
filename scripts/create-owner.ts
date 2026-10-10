@@ -31,19 +31,20 @@ const problem = passwordProblem(password);
 if (problem) throw new Error(problem);
 
 // โหมด production: เขียนไฟล์ SQL แทนการเขียนฐานข้อมูลในเครื่อง (รหัสผ่านจริงไม่ออกทางหน้าจอหรือไฟล์ SQL)
+// must_change_password = 1: รหัสผ่านนี้เป็นรหัสชั่วคราว (อยู่ในไฟล์บนเครื่องผู้ดูแล) → ระบบบังคับให้เปลี่ยนตอนเข้าใช้ครั้งแรก
 if (values['print-sql']) {
   const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
   const hash = await hashPassword(password);
   mkdirSync('private', { recursive: true });
   writeFileSync(
     'private/owner.sql',
-    `INSERT INTO users (email, name, password_hash, role, active) VALUES (${q(email)}, ${q(values.name!)}, ${q(hash)}, ${q(values.role!)}, 1)` +
-      ` ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, role = excluded.role, active = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');\n` +
+    `INSERT INTO users (email, name, password_hash, role, active, must_change_password) VALUES (${q(email)}, ${q(values.name!)}, ${q(hash)}, ${q(values.role!)}, 1, 1)` +
+      ` ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, role = excluded.role, active = 1, must_change_password = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');\n` +
       `DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ${q(email)});\n`,
   );
   console.log('เขียน SQL ไว้ที่ private/owner.sql — รันต่อ: npx wrangler d1 execute metafarm-db --remote --file private/owner.sql');
   if (values.generate) {
-    writeFileSync('private/prod-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(สำหรับระบบจริง — เก็บให้ปลอดภัย และเปลี่ยนรหัสผ่านหลังเข้าใช้ครั้งแรก)\n`);
+    writeFileSync('private/prod-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(สำหรับระบบจริง — รหัสชั่วคราว ระบบบังคับให้เปลี่ยนตอนเข้าใช้ครั้งแรก · ลบไฟล์นี้เมื่อเปลี่ยนแล้ว)\n`);
     console.error('รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt (ไม่แสดงบนหน้าจอ)');
   }
   process.exit(0);

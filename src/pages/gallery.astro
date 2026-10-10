@@ -8,17 +8,17 @@ import { placeholder } from '../lib/placeholders.ts';
 import { getDb } from '../server/db.ts';
 import { getGallery } from '../server/public.ts';
 
-// Gallery (เจ้าของฟาร์ม 2026-10-10): 4 หมวด · รูปจากหลังบ้าน /admin/gallery · หมวดที่ยังไม่มีรูป = กรอบรูปชั่วคราว
+// แกลเลอรี (เจ้าของฟาร์มขอ "Gallery" 2026-10-10 — ชื่อเมนูภาษาไทยให้เข้ากับเมนูอื่น): 4 หมวด · รูปจากหลังบ้าน /admin/gallery · หมวดที่ยังไม่มีรูป = กรอบรูปชั่วคราว
 export const prerender = false;
 
 const photos = await getGallery(getDb());
 const sections = GALLERY_CATEGORIES.map((c) => ({ key: c, ...galleryCategory[c], photos: photos.filter((p) => p.category === c) }));
-// สั้น: เจ้าของอัปโหลดแล้วกด "ดูหน้า Gallery" ต้องเห็นรูปใหม่ (เดิม 5 นาที เห็นหน้าเก่า)
+// สั้น: เจ้าของอัปโหลดแล้วกด "ดูหน้าแกลเลอรี" ต้องเห็นรูปใหม่ (เดิม 5 นาที เห็นหน้าเก่า)
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 ---
 
-<PublicLayout title="Gallery" description={`ภาพจาก ${site.name}: ชันโรงขนเงินในสวนปาล์ม การส่งมอบรังและน้ำผึ้งชันโรง และห้องงานไม้ที่ทำรังไม้สัก`} active="gallery">
-  <h1 class="text-3xl font-bold">Gallery</h1>
+<PublicLayout title="แกลเลอรี" description={`ภาพจาก ${site.name}: ชันโรงขนเงินในสวนปาล์ม การส่งมอบรังและน้ำผึ้งชันโรง และห้องงานไม้ที่ทำรังไม้สัก`} active="gallery">
+  <h1 class="text-3xl font-bold">แกลเลอรี</h1>
   <p class="mt-2 max-w-2xl text-muted">ภาพจากฟาร์ม {site.name} ทั้งชันโรงของเรา การส่งมอบรังและน้ำผึ้งถึงลูกค้า และห้องงานไม้</p>
 
   <nav aria-label="หมวดรูป" class="mt-5 flex flex-wrap gap-2">

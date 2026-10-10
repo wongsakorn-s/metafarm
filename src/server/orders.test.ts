@@ -1,6 +1,7 @@
 // ออเดอร์บนฐานข้อมูล D1 จริง (ชั่วคราว): สต็อก รัง และการกดพร้อมกันจากสองเครื่อง
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cancelOrder, createOrder, fulfillOrder, getOrder, orderFormOptions, payOrder } from './orders.ts';
+import { cancelOrder, createOrder, fulfillOrder, getCustomer, getOrder, listCustomers, orderFormOptions, payOrder, updateCustomer, updateOrderNote } from './orders.ts';
+import { saleSeen } from '../lib/orders.ts';
 import { changeStatus, updateSale } from './hives.ts';
 import { testDb } from './test-d1.ts';
 
@@ -269,5 +270,63 @@ describe('ลูกค้าใหม่ในฟอร์มออเดอร�
     const rs = await Promise.all([newCustomerOrder(f, 'คุณดี'), newCustomerOrder(f, 'คุณดี')]);
     expect(rs.filter((r) => r.ok)).toHaveLength(1);
     expect(await countNamed('คุณดี')).toBe(1);
+  });
+});
+
+describe('ยอดลูกค้า = เหมือนรายงาน (ชำระแล้ว/ส่งแล้ว ไม่รวมค่าส่ง)', () => {
+  it('ออเดอร์ที่ยังไม่จ่ายและค่าส่งไม่นับ', async () => {
+    await t.d1.prepare(`INSERT INTO customers (id, name) VALUES (50, 'คุณยอดตรง')`).run();
+    const f = await fixture();
+    const mk = (paidNow: boolean, shipFee: number) => createOrder(t.db, t.owner, {
+      customerMode: 'existing', customerId: 50, channel: 'line', orderedOn: TODAY, shipMethod: 'post', shipFee,
+      paidNow, payMethod: paidNow ? 'transfer' : undefined, idem: `sum-${++seq}-xxxx`, items: [{ kind: 'variant', id: f.variantId, qty: 2, unitPrice: 250 }],
+    } as never);
+    await mk(true, 50); // ชำระแล้ว 500 + ค่าส่ง 50
+    await mk(false, 0); // ยังไม่จ่าย 500
+    const row = (await listCustomers(t.db, 'คุณยอดตรง'))[0]!;
+    expect(row).toMatchObject({ orders: 1, spent: 500 });
+    expect((await getCustomer(t.db, 50))!.paid).toEqual({ orders: 1, spent: 500 });
+  });
+});
+
+describe('ฟอร์มที่เขียนทับกันไม่ได้แล้ว', () => {
+  it('แก้ลูกค้าจากสองเครื่อง: เครื่องที่ช้ากว่าไม่ทับ (conflict) · ส่งเวอร์ชันล่าสุดแล้วบันทึกได้', async () => {
+    await t.d1.prepare(`INSERT INTO customers (id, name, address) VALUES (51, 'คุณสอง', 'ที่อยู่เดิม')`).run();
+    const seen = (await getCustomer(t.db, 51))!.customer.updatedAt;
+    expect((await updateCustomer(t.db, t.owner, 51, { name: 'คุณสอง', address: 'ที่อยู่ใหม่ A', version: seen })).ok).toBe(true);
+    const late = await updateCustomer(t.db, t.owner, 51, { name: 'คุณสอง', phone: '0811111111', version: seen });
+    expect(late).toMatchObject({ ok: false, conflict: true });
+    expect((await getCustomer(t.db, 51))!.customer.address).toBe('ที่อยู่ใหม่ A');
+    const now = (await getCustomer(t.db, 51))!.customer.updatedAt;
+    expect((await updateCustomer(t.db, t.owner, 51, { name: 'คุณสอง', phone: '0811111111', address: 'ที่อยู่ใหม่ A', version: now })).ok).toBe(true);
+  });
+
+  it('หมายเหตุออเดอร์: อีกคนแก้หมายเหตุไปก่อน = ไม่ทับ · แค่กดชำระระหว่างนั้นไม่นับว่าชน', async () => {
+    const f = await fixture();
+    const code = ((await order(f, { hive: false })) as { code: string }).code;
+    await payOrder(t.db, t.owner, code, paid); // updated_at เปลี่ยน แต่หมายเหตุไม่เปลี่ยน
+    expect((await updateOrderNote(t.db, t.owner, code, 'ส่งเช้า', '')).ok).toBe(true);
+    const late = await updateOrderNote(t.db, t.staff, code, 'ส่งบ่าย', '');
+    expect(late).toMatchObject({ ok: false, conflict: true, latest: 'ส่งเช้า' });
+    expect((await getOrder(t.db, code))!.order.note).toBe('ส่งเช้า');
+  });
+
+  it('ตั้งขายรัง: อีกคนเปลี่ยนราคาไปก่อน = ไม่ทับ', async () => {
+    const f = await fixture();
+    const h = await hiveOf(f.hiveId);
+    const seen = saleSeen(h);
+    expect((await updateSale(t.db, t.owner, h, { forSale: true, salePrice: 1900, seen })).ok).toBe(true);
+    expect(await updateSale(t.db, t.owner, h, { forSale: true, salePrice: 1500, seen })).toMatchObject({ ok: false });
+    expect((await hiveOf(f.hiveId)).salePrice).toBe(1900);
+  });
+});
+
+describe('วันที่ต้องเรียงกัน', () => {
+  it('วันที่ชำระก่อนวันสั่ง → ไม่รับ (รายงานจะนับผิดปี) · วันส่งก่อนวันชำระ → ไม่รับ', async () => {
+    const f = await fixture();
+    const code = ((await order(f, { hive: false })) as { code: string }).code;
+    expect(await payOrder(t.db, t.owner, code, { paidOn: '2026-10-01', payMethod: 'transfer' })).toMatchObject({ ok: false, error: expect.stringContaining('ก่อนวันที่สั่งซื้อ') });
+    expect((await payOrder(t.db, t.owner, code, paid)).ok).toBe(true);
+    expect(await fulfillOrder(t.db, t.owner, code, { fulfilledOn: '2026-10-08' })).toMatchObject({ ok: false, error: expect.stringContaining('ก่อนวันที่ชำระ') });
   });
 });

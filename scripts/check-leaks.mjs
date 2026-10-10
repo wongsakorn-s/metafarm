@@ -68,7 +68,7 @@ const pages = [
   // หน้าเนื้อหา: น้ำผึ้ง/อบรม แสดงราคาได้ · งานวิจัย/ชันโรง/ติดต่อ/ความเป็นส่วนตัว ห้ามมีคำว่าราคา-บาท (กันดูเหมือนโฆษณาสรรพคุณ)
   ['/honey', 'เนื้อหา:น้ำผึ้ง', 'product'], ['/training', 'เนื้อหา:อบรม', 'product'], ['/training/hive-splitting', 'เนื้อหา:อบรมแยกรัง', 'product'],
   ['/training/honey-processing', 'เนื้อหา:อบรมน้ำผึ้ง', 'product'], ['/training/no-such-course', '404', 'product'],
-  ['/stingless-bee', 'เนื้อหา:ชันโรงขนเงิน'], ['/learn/research', 'เนื้อหา:งานวิจัย'], ['/gallery', 'Gallery'], ['/contact', 'เนื้อหา:ติดต่อ'], ['/privacy', 'เนื้อหา:ความเป็นส่วนตัว'],
+  ['/stingless-bee', 'เนื้อหา:ชันโรงขนเงิน'], ['/learn/research', 'เนื้อหา:งานวิจัย'], ['/gallery', 'แกลเลอรี'], ['/contact', 'เนื้อหา:ติดต่อ'], ['/privacy', 'เนื้อหา:ความเป็นส่วนตัว'],
   ...saleHives.map((h) => [`/products/hives/${h.code}`, `สินค้า:รัง ${h.code}`, 'product', h]),
   // รังที่ไม่ได้ขาย (ยังไม่ตั้งขาย/ขายแล้ว) ต้องเปิดหน้าสินค้าไม่ได้
   ...hives.filter((h) => !saleHives.includes(h)).slice(0, 20).map((h) => [`/products/hives/${h.code}`, '404', 'product']),

@@ -3,7 +3,7 @@ import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb, getMedia } from '../../server/db.ts';
-import { getSettings, saveContact, saveCourse, saveHero, saveLocation, savePayment } from '../../server/settings.ts';
+import { getSettings, saveContact, saveCourse, saveHero, saveLocation, savePayment, settingsVersion } from '../../server/settings.ts';
 import { getHeroPhoto } from '../../server/public.ts';
 import { imageWidth, MIN_HERO_WIDTH, thumbUrl } from '../../lib/media.ts';
 import { listTraining } from '../../lib/content.ts';
@@ -31,37 +31,47 @@ let errors: FieldErrors = {};
 let errorWhere = '';
 let values: Record<string, string> = {};
 const saved = Astro.url.searchParams.get('saved');
+/** มีคนบันทึกการตั้งค่าไปก่อน (เวอร์ชันไม่ตรง) — ค่าที่กรอกยังอยู่ในฟอร์ม กดบันทึกอีกครั้งเพื่อยืนยัน */
+let conflict = false;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   const intent = String(form.get('intent') ?? '');
+  const version = values.version;
   if (intent === 'contact') {
     const p = contactSchema.safeParse(values);
-    if (p.success) { await saveContact(db, user, p.data); return Astro.redirect('/admin/settings?saved=contact', 303); }
-    errors = fieldErrors(p.error); errorWhere = 'contact';
+    if (p.success && (await saveContact(db, user, p.data, version))) return Astro.redirect('/admin/settings?saved=contact', 303);
+    if (p.success) conflict = true; else errors = fieldErrors(p.error);
+    errorWhere = 'contact';
   } else if (intent === 'course') {
     const p = courseSchema.safeParse(values);
-    if (p.success) { await saveCourse(db, user, p.data); return Astro.redirect(`/admin/settings?saved=course#c-${p.data.slug}`, 303); }
-    errors = fieldErrors(p.error); errorWhere = `course:${values.slug}`;
+    if (p.success && (await saveCourse(db, user, p.data, version))) return Astro.redirect(`/admin/settings?saved=course#c-${p.data.slug}`, 303);
+    if (p.success) conflict = true; else errors = fieldErrors(p.error);
+    errorWhere = `course:${values.slug}`;
   } else if (intent === 'payment') {
     const p = paymentSchema.safeParse(values);
-    if (p.success) { await savePayment(db, user, p.data); return Astro.redirect('/admin/settings?saved=payment#payment', 303); }
-    errors = fieldErrors(p.error); errorWhere = 'payment';
+    if (p.success && (await savePayment(db, user, p.data, version))) return Astro.redirect('/admin/settings?saved=payment#payment', 303);
+    if (p.success) conflict = true; else errors = fieldErrors(p.error);
+    errorWhere = 'payment';
   } else if (intent === 'hero') {
     const p = heroSchema.safeParse(values);
     if (!p.success) { errors = fieldErrors(p.error); errorWhere = 'hero'; }
     else if (p.data.heroHive && !(await getHeroPhoto(db, p.data.heroHive))) { errors = { heroHive: `รัง ${p.data.heroHive} ยังไม่มีรูปสมุดพก (หรือไม่มีรังนี้) — เลือกรังที่มีรูป` }; errorWhere = 'hero'; }
     else if (p.data.heroHive && (await heroTooSmall(p.data.heroHive))) { errors = { heroHive: heroSmallMsg }; errorWhere = 'hero'; }
-    else { await saveHero(db, user, p.data.heroHive); return Astro.redirect('/admin/settings?saved=hero#hero', 303); }
+    else if (await saveHero(db, user, p.data.heroHive, version)) return Astro.redirect('/admin/settings?saved=hero#hero', 303);
+    else { conflict = true; errorWhere = 'hero'; }
   } else if (intent === 'location') {
     const p = locationSchema.safeParse(values);
-    if (p.success) { await saveLocation(db, user, p.data); return Astro.redirect('/admin/settings?saved=location#location', 303); }
-    errors = fieldErrors(p.error); errorWhere = 'location';
+    if (p.success && (await saveLocation(db, user, p.data, version))) return Astro.redirect('/admin/settings?saved=location#location', 303);
+    if (p.success) conflict = true; else errors = fieldErrors(p.error);
+    errorWhere = 'location';
   }
 }
 
 const settings = await getSettings(db);
+// ทุกฟอร์มส่งเวอร์ชันนี้กลับมา (ชนกัน = ได้เวอร์ชันล่าสุดแล้ว กดบันทึกอีกครั้งเพื่อยืนยันค่าของคุณ)
+const version = await settingsVersion(db);
 const hero = await getHeroPhoto(db, settings.heroHive);
 const c = settings.contact;
 const courses = listTraining().map((x) => ({ ...x, eff: effectiveCourse(x, settings.courses[x.slug]) }));
@@ -76,11 +86,12 @@ const messengerMissing = !!c.facebookUrl && !messenger;
 ---
 
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ตั้งค่า" active="settings">
+  {conflict && <p role="alert" class="mb-4 rounded-xl border-2 border-honey-400 bg-honey-50 p-3 font-medium">ยังไม่ได้บันทึก — มีคนบันทึกการตั้งค่าไปก่อนระหว่างที่คุณแก้อยู่ ตรวจค่าในฟอร์มอีกครั้ง แล้วกดบันทึกเพื่อยืนยัน</p>}
   {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — ลูกค้าบางคนอาจเห็นค่าเก่าอีกไม่เกิน 5 นาที</p>}
 
   <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
   <form method="post" class="card space-y-4" id="contact">
-    <input type="hidden" name="intent" value="contact" />
+    <input type="hidden" name="intent" value="contact" /><input type="hidden" name="version" value={version} />
     <div>
       <h2 class="text-lg font-semibold">ช่องทางติดต่อ</h2>
       <p class="hint">ลูกค้ากดปุ่มบนเว็บแล้วเปิดแชต/โทรหาคุณ · <strong>เว้นว่าง = ไม่แสดง</strong></p>
@@ -122,7 +133,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
 
   <div class="space-y-6">
   <form method="post" class="card space-y-3 scroll-mt-20" id="hero">
-    <input type="hidden" name="intent" value="hero" />
+    <input type="hidden" name="intent" value="hero" /><input type="hidden" name="version" value={version} />
     <h2 class="text-lg font-semibold">รูปหัวหน้าแรกของเว็บ</h2>
     <p class="hint">ใส่รหัสรังที่รูปสมุดพกสวยที่สุด (รูปเก่าจาก Excel เล็กเกินไป ต้องถ่ายใหม่) · เว้นว่าง = ใช้โลโก้</p>
     <div class="flex flex-wrap items-end gap-3">
@@ -137,7 +148,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
   </form>
 
   <form method="post" class="card space-y-3 scroll-mt-20" id="payment">
-    <input type="hidden" name="intent" value="payment" />
+    <input type="hidden" name="intent" value="payment" /><input type="hidden" name="version" value={version} />
     <h2 class="text-lg font-semibold">ช่องทางชำระเงิน (สำหรับข้อความสรุปออเดอร์)</h2>
     <p class="hint">ต่อท้ายข้อความสรุปออเดอร์ที่ส่งให้ลูกค้า (ไม่แสดงบนเว็บ)</p>
     <div>
@@ -149,7 +160,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
   </form>
 
   <form method="post" class="card space-y-3 scroll-mt-20" id="location">
-    <input type="hidden" name="intent" value="location" />
+    <input type="hidden" name="intent" value="location" /><input type="hidden" name="version" value={version} />
     <h2 class="text-lg font-semibold">พิกัดฟาร์ม (สำหรับข้อมูลสภาพอากาศ)</h2>
     <p class="hint">ใช้ดึงข้อมูลฝน/อุณหภูมิในหน้า <a class="underline" href="/admin/production">ผลผลิต</a> (ไม่แสดงบนเว็บ)
       {settings.farm.isDefault && <> · <strong class="text-honey-700">ตอนนี้ใช้พิกัดประมาณ อ.ปลวกแดง</strong></>}</p>
@@ -174,7 +185,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
         return (
           <li class="card" id={`c-${x.slug}`}>
             <form method="post" class="space-y-3">
-              <input type="hidden" name="intent" value="course" /><input type="hidden" name="slug" value={x.slug} />
+              <input type="hidden" name="intent" value="course" /><input type="hidden" name="version" value={version} /><input type="hidden" name="slug" value={x.slug} />
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <h3 class="font-semibold">{x.title}</h3>
                 <p class="text-sm text-muted">บนเว็บตอนนี้: {formatPrice(x.eff.priceThb)} · {x.eff.duration} {x.eff.priceIsSample && <SampleBadge />}</p>

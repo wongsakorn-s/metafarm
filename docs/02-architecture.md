@@ -1,6 +1,6 @@
 # Architecture
 
-> Stack: **Astro 7 + React + Tailwind 4 · Cloudflare Workers · D1 + Drizzle · R2** (เหตุผลอยู่ใน [08-stack-comparison.md](08-stack-comparison.md))
+> Stack: **Astro 7 + Tailwind 4 · Cloudflare Workers · D1 + Drizzle · R2** (ไม่ใช้ React — เอาออก 2026-10-10 · เหตุผลเลือก stack อยู่ใน [08-stack-comparison.md](08-stack-comparison.md))
 
 ## โครงสร้างระบบ
 

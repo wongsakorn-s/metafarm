@@ -22,13 +22,13 @@ if (!/^S\d{4}-\d{3,}$/.test(code)) return new Response('ไม่พบออเ
 const today = todayBangkok();
 let errors: Record<string, string> = {};
 let values: Record<string, string> = {};
-let openForm = '';
+/** หมายเหตุล่าสุดเมื่อมีคนแก้ไปก่อน (null = ไม่ชน) */
+let noteConflict: string | null = null;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
   const intent = String(values.intent ?? '');
-  openForm = intent;
   let r: { ok: boolean; error?: string } | null = null;
   if (intent === 'pay') {
     const p = payOrderSchema.safeParse(values);
@@ -40,7 +40,10 @@ if (Astro.request.method === 'POST') {
     r = await cancelOrder(db, user, code, today);
     if (r.ok) return Astro.redirect('/admin/orders?status=cancelled&saved=cancelled', 303);
   } else if (intent === 'note') {
-    r = await updateOrderNote(db, user, code, (values.note ?? '').trim().slice(0, 1000) || undefined);
+    // prevNote = หมายเหตุที่เห็นตอนเปิดหน้า: อีกคนแก้หมายเหตุไปก่อน → ไม่ทับ ให้เทียบแล้วกดบันทึกอีกครั้ง
+    const n = await updateOrderNote(db, user, code, (values.note ?? '').trim().slice(0, 1000) || undefined, values.prevNote);
+    if (!n.ok && n.conflict) { noteConflict = n.latest ?? ''; values.prevNote = noteConflict; }
+    r = n.ok || !n.conflict ? n : null;
   }
   if (r?.ok) return Astro.redirect(`/admin/orders/${code}?saved=${intent}`, 303);
   if (r && !r.ok) errors._ = r.error ?? 'บันทึกไม่สำเร็จ';
@@ -151,6 +154,8 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
       <form method="post" class="card space-y-2">
         <input type="hidden" name="intent" value="note" />
         <label class="label" for="note">หมายเหตุ</label>
+        {noteConflict !== null && <p role="alert" class="rounded-xl bg-honey-50 p-3 text-sm"><strong>ยังไม่ได้บันทึก</strong> — มีคนแก้หมายเหตุไปก่อน ล่าสุดคือ: “{noteConflict || '(ว่าง)'}” · ถ้ากดบันทึกอีกครั้ง ข้อความด้านล่างจะแทนที่</p>}
+        <input type="hidden" name="prevNote" value={values.prevNote ?? o.note ?? ''} />
         <textarea class="field" id="note" name="note" rows="2" maxlength="1000">{v('note', o.note ?? '')}</textarea>
         <button class="btn-ghost" type="submit">บันทึกหมายเหตุ</button>
       </form>

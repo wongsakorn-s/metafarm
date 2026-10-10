@@ -35,7 +35,7 @@ const rows = await listCustomers(getDb(), q);
             <span class="block truncate font-semibold">{c.name}</span>
             <span class="block text-sm text-muted">{c.phone ?? 'ไม่มีเบอร์'}{c.lastOrder && ` · ซื้อล่าสุด ${formatThaiDate(c.lastOrder)}`}</span>
           </span>
-          <span class="shrink-0 text-right text-sm"><span data-num class="block font-semibold">{baht(c.spent)}</span><span class="text-muted">{c.orders} ออเดอร์</span></span>
+          <span class="shrink-0 text-right text-sm"><span data-num class="block font-semibold">{baht(c.spent)}</span><span class="text-muted">ชำระแล้ว {c.orders} ออเดอร์</span></span>
         </a></li>
       ))}
     </ul>

@@ -1,13 +1,14 @@
 // ออเดอร์และลูกค้า (Phase 4.2) — ข้อมูลหลังบ้านทั้งหมด
 // กติกา: ตัดสต็อก/เปลี่ยนรังเป็น "ขายแล้ว" ตอน "ชำระแล้ว" · รังที่อยู่ในออเดอร์ค้างถูกเอาออกจากหน้าขาย · ยกเลิก = คืนทุกอย่าง
 // ทุกการเปลี่ยนแปลงของออเดอร์หนึ่งครั้งอยู่ใน db.batch เดียว (สำเร็จพร้อมกันหรือไม่บันทึกเลย)
-import { and, asc, desc, eq, inArray, like, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
 import { auditLogs, customers, hiveHolds, hives, honeyLots, orderItemLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
-import { canMove, nextSeq, orderCode, orderStatusLabel, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
+import { canMove, dateOrderError, nextSeq, orderCode, orderStatusLabel, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
 import type { SessionUser } from './auth.ts';
-import { isGuardAbort, isOnceConflict, once } from './versioned.ts';
+import { auditIfChanged, isGuardAbort, isOnceConflict, once, type Saved } from './versioned.ts';
+import { CONFLICT_ERROR } from '../lib/concurrency.ts';
 import type { Db } from './db.ts';
 import { byCode, STATUS_RACE, statusStatements } from './hives.ts';
 import { statusLabel } from '../lib/labels.ts';
@@ -213,6 +214,8 @@ async function applyPaid(db: Db, user: SessionUser, code: string, d: z.output<ty
   const { order: o, items } = got;
   if (!canMove(o.status, 'paid')) return { ok: false, error: o.status === 'paid' ? 'ออเดอร์นี้ชำระแล้ว' : 'เปลี่ยนเป็น "ชำระแล้ว" ไม่ได้ในสถานะนี้' };
   if (o.stockApplied) return { ok: true };
+  const badDate = dateOrderError('paid', d.paidOn, o.orderedOn);
+  if (badDate) return { ok: false, error: badDate };
   // รังที่ล่ม/ขายไปแล้วระหว่างรอชำระ → ไม่รับชำระ (เดิมข้ามรังเงียบ ๆ แต่ยังนับรายได้)
   for (const i of items) {
     if (i.kind !== 'hive' || !i.hiveId) continue;
@@ -243,6 +246,8 @@ export async function fulfillOrder(db: Db, user: SessionUser, code: string, d: z
   if (!got) return { ok: false, error: 'ไม่พบออเดอร์' };
   if (got.order.status === 'fulfilled') return { ok: true };
   if (!canMove(got.order.status, 'fulfilled')) return { ok: false, error: 'ต้องบันทึก "ชำระแล้ว" ก่อนส่งของ' };
+  const badDate = dateOrderError('fulfilled', d.fulfilledOn, got.order.paidOn);
+  if (badDate) return { ok: false, error: badDate };
   try {
     await run(db, [
       once(db, onceKey(got.order)),
@@ -298,44 +303,64 @@ export async function cancelOrder(db: Db, user: SessionUser, code: string, today
   return { ok: true };
 }
 
-export async function updateOrderNote(db: Db, user: SessionUser, code: string, note: string | undefined): Promise<Result> {
+/**
+ * แก้หมายเหตุออเดอร์ — prevNote = หมายเหตุที่ฟอร์มเห็นตอนเปิดหน้า: อีกคนแก้หมายเหตุไปก่อน = ไม่ทับ (conflict)
+ * เทียบที่ตัวหมายเหตุ ไม่ใช่ updated_at — กดชำระ/ส่งของระหว่างนั้นไม่นับว่าชนกัน
+ */
+export async function updateOrderNote(db: Db, user: SessionUser, code: string, note: string | undefined, prevNote?: string): Promise<Saved & { latest?: string }> {
   const o = await db.query.orders.findFirst({ where: eq(orders.code, code), columns: { id: true } });
   if (!o) return { ok: false, error: 'ไม่พบออเดอร์' };
-  await run(db, [db.update(orders).set({ note: note ?? null, ...touch }).where(eq(orders.id, o.id)), audit(db, user, 'order.note', 'order', o.id)]);
-  return { ok: true };
+  const seen = prevNote === undefined ? undefined : prevNote.replace(/\r\n/g, '\n').trim();
+  const [updated] = await db.batch([
+    db.update(orders).set({ note: note ?? null, ...touch })
+      .where(and(eq(orders.id, o.id), seen === undefined ? undefined : sql`coalesce(${orders.note}, '') = ${seen}`)).returning({ id: orders.id }),
+    auditIfChanged(db, user.id, 'order.note', 'order', o.id),
+  ]);
+  if (updated.length > 0) return { ok: true };
+  const now = await db.query.orders.findFirst({ where: eq(orders.id, o.id), columns: { note: true } });
+  return { ok: false, error: CONFLICT_ERROR, conflict: true, latest: now?.note ?? '' };
 }
 
 // ---------- ลูกค้า ----------
 
+/**
+ * ยอดของลูกค้า นับแบบเดียวกับรายงานและ CSV: เฉพาะออเดอร์ที่ชำระแล้ว/ส่งแล้ว · ยอด = ค่าสินค้า ไม่รวมค่าส่ง
+ * (เดิมนับออเดอร์ที่ยังไม่จ่ายและรวมค่าส่ง ตัวเลขจึงไม่ตรงกับหน้ารายงาน)
+ * อ้างแถวลูกค้าด้านนอกด้วย "customers.id" ตรง ๆ — ดู sql-correlation.test.ts
+ */
+const paidCount = sql<number>`(select count(*) from orders o where o.customer_id = customers.id and o.status in ('paid', 'fulfilled'))`;
+const paidSpent = sql<number>`coalesce((select sum(i.qty * i.unit_price) from order_items i join orders o on o.id = i.order_id where o.customer_id = customers.id and o.status in ('paid', 'fulfilled')), 0)`;
+
 export async function listCustomers(db: Db, q?: string) {
   const s = q?.replace(/[%_\\]/g, '').trim();
-  const valid = ne(orders.status, 'cancelled');
   return db
     .select({
       id: customers.id, name: customers.name, phone: customers.phone,
-      orders: sql<number>`count(orders.id)`,
-      spent: sql<number>`coalesce(sum(${totalSql}), 0)`,
-      lastOrder: sql<string | null>`max(${orders.orderedOn})`,
+      orders: paidCount,
+      spent: paidSpent,
+      lastOrder: sql<string | null>`(select max(o.ordered_on) from orders o where o.customer_id = customers.id and o.status != 'cancelled')`,
     })
     .from(customers)
-    .leftJoin(orders, and(eq(orders.customerId, customers.id), valid))
     .where(s ? or(like(customers.name, `%${s}%`), like(customers.phone, `%${s}%`)) : (undefined as SQL | undefined))
-    .groupBy(customers.id)
-    .orderBy(desc(sql`count(orders.id)`), asc(customers.name));
+    .orderBy(desc(paidCount), asc(customers.name));
 }
 
 export async function getCustomer(db: Db, id: number) {
   const c = await db.query.customers.findFirst({ where: eq(customers.id, id) });
   if (!c) return null;
-  return { customer: c, orders: await listOrders(db, { customerId: id }) };
+  const [paid] = await db.select({ orders: paidCount, spent: paidSpent }).from(customers).where(eq(customers.id, id));
+  return { customer: c, orders: await listOrders(db, { customerId: id }), paid: paid ?? { orders: 0, spent: 0 } };
 }
 
-export async function updateCustomer(db: Db, user: SessionUser, id: number, d: z.output<typeof customerSchema>): Promise<Result> {
+/** แก้ข้อมูลลูกค้า — version = updated_at ที่ฟอร์มเห็น: อีกคนแก้ไปก่อน = ไม่ทับ (conflict) */
+export async function updateCustomer(db: Db, user: SessionUser, id: number, d: z.output<typeof customerSchema>): Promise<Saved> {
   const c = await db.query.customers.findFirst({ where: eq(customers.id, id), columns: { id: true } });
   if (!c) return { ok: false, error: 'ไม่พบลูกค้า' };
-  await run(db, [
-    db.update(customers).set({ name: d.name, phone: d.phone ?? null, lineName: d.lineName ?? null, address: d.address ?? null, notes: d.notes ?? null, ...touch }).where(eq(customers.id, id)),
-    audit(db, user, 'customer.update', 'customer', id),
+  const [updated] = await db.batch([
+    db.update(customers).set({ name: d.name, phone: d.phone ?? null, lineName: d.lineName ?? null, address: d.address ?? null, notes: d.notes ?? null, ...touch })
+      .where(and(eq(customers.id, id), d.version ? eq(customers.updatedAt, d.version) : undefined)).returning({ id: customers.id }),
+    auditIfChanged(db, user.id, 'customer.update', 'customer', id),
   ]);
+  if (updated.length === 0) return { ok: false, error: CONFLICT_ERROR, conflict: true };
   return { ok: true };
 }

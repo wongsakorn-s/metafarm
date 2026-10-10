@@ -7,7 +7,7 @@ import { captionSchema, GALLERY_CATEGORIES, GALLERY_MAX_PER_CATEGORY, galleryCat
 import { MAX_FILES_PER_REQUEST, thumbUrl, uploadSummary } from '../../lib/media.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
 
-// รูปหน้า Gallery สาธารณะ — เจ้าของ/แอดมินเท่านั้น (MANAGER_ONLY ใน permissions.ts)
+// รูปหน้าแกลเลอรีสาธารณะ — เจ้าของ/แอดมินเท่านั้น (MANAGER_ONLY ใน permissions.ts)
 export const prerender = false;
 
 const db = getDb();
@@ -58,7 +58,7 @@ const sections = GALLERY_CATEGORIES.map((c) => ({ key: c, ...galleryCategory[c],
 const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปหน้า Gallery" active="more">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปหน้าแกลเลอรี" active="more">
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
@@ -89,7 +89,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
       <p class="rounded-xl bg-honey-50 p-3 text-sm">รูปขึ้นหน้าเว็บทันที · รูป<strong>ส่งมอบ</strong>ที่เห็นหน้า บ้าน หรือทะเบียนรถของลูกค้า ควรขออนุญาตลูกค้าก่อน</p>
       <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
       <button id="upload-btn" class="btn-primary w-full" type="submit">อัปโหลด</button>
-      <a class="inline-flex min-h-11 items-center text-sm underline" href="/gallery" target="_blank" rel="noopener">ดูหน้า Gallery บนเว็บ</a>
+      <a class="inline-flex min-h-11 items-center text-sm underline" href="/gallery" target="_blank" rel="noopener">ดูหน้าแกลเลอรีบนเว็บ</a>
     </form>
 
     <div class="space-y-5">
@@ -107,7 +107,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
                     <input class="field" id={`cap-${p.id}`} name="caption" maxlength="200" value={p.caption ?? ''} placeholder="คำบรรยาย" />
                     <button class="btn-ghost w-full" type="submit">บันทึกคำบรรยาย</button>
                   </form>
-                  <form method="post" data-confirm="ลบรูปนี้ออกจากหน้า Gallery ใช่ไหม?">
+                  <form method="post" data-confirm="ลบรูปนี้ออกจากหน้าแกลเลอรีใช่ไหม?">
                     <input type="hidden" name="intent" value="delete" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
                     <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
                   </form>
@@ -156,7 +156,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
       const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
       say('กำลังอัปโหลด…');
       const label = (form.querySelector<HTMLInputElement>('input[name=category]:checked')?.parentElement?.textContent ?? '').trim().split(/\s+\d/)[0];
-      const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `Gallery · ${label} · ${small.length} รูป`, bytes: after });
+      const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `แกลเลอรี · ${label} · ${small.length} รูป`, bytes: after });
       if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
       if (o.kind === 'invalid') say(`ไม่ได้บันทึกรูป: ${o.message}`, true);
       else if (o.kind === 'unsaved') say(UNSAVED_MSG, true);

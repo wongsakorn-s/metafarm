@@ -96,7 +96,18 @@ export const customerSchema = z.object({
   lineName: opt(z.string().max(60)),
   address: opt(z.string().max(500)),
   notes: opt(z.string().max(1000)),
+  /** updated_at ที่ฟอร์มแก้ลูกค้าเห็น (กันเขียนทับกัน) — ฟอร์มออเดอร์ใหม่ไม่ส่ง */
+  version: opt(z.string().max(40)),
 });
+
+/** ค่าการตั้งขายที่ฟอร์มเห็น (ส่งกลับมาเทียบตอนบันทึก) — รูปแบบเดียวกับ SQL ใน updateSale */
+export const saleSeen = (h: { forSale: boolean; salePrice: number | null }) => `${h.forSale ? 1 : 0}:${h.salePrice ?? ''}`;
+
+/** วันที่ชำระ/ส่งของต้องไม่ก่อนเหตุการณ์ก่อนหน้า (รายงานนับรายได้ตามวันที่ชำระ — เลือกผิดปีได้ยอดผิดปี) */
+export function dateOrderError(kind: 'paid' | 'fulfilled', date: string, after: string | null | undefined): string | null {
+  if (!after || date >= after) return null;
+  return kind === 'paid' ? 'วันที่ชำระต้องไม่ก่อนวันที่สั่งซื้อ' : 'วันที่ส่งของต้องไม่ก่อนวันที่ชำระ';
+}
 
 /**
  * ฟอร์มออเดอร์ใหม่ — รายการส่งมาเป็นช่องชื่อ qty_v<variantId>, price_v<variantId>, hive_<hiveId> (ติ๊ก), price_h<hiveId>

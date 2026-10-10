@@ -59,7 +59,12 @@ export const statusSchema = z
   .refine((d) => d.status !== 'unknown', { message: 'เลือกสถานะที่ทราบแล้ว', path: ['status'] });
 
 export const saleSchema = z
-  .object({ forSale: z.preprocess((v) => v === 'on' || v === '1', z.boolean()), salePrice: opt(int(1_000_000)) })
+  .object({
+    forSale: z.preprocess((v) => v === 'on' || v === '1', z.boolean()),
+    salePrice: opt(int(1_000_000)),
+    /** การตั้งขายที่ฟอร์มเห็นตอนเปิดหน้า "<0|1>:<ราคา>" — อีกคนเปลี่ยนไปก่อน = ไม่ทับ (saleSeen ใน src/lib/orders.ts) */
+    seen: opt(z.string().max(40)),
+  })
   .refine((d) => !d.forSale || (d.salePrice ?? 0) > 0, { message: 'ตั้งขายต้องใส่ราคา', path: ['salePrice'] });
 
 /** รหัสรังที่ตั้งเอง (ตรงกับป้ายบนตัวรัง) — ต้องมีตัวอักษรนำหน้า (พิมพ์แค่เลขแยก A12 กับ B12 ไม่ได้) */

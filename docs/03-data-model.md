@@ -11,7 +11,7 @@ species ─< hives ─┬─< hive_events ──(target_hive_id)──▶ hives
                   ├── brood_source_hive_id ─▶ hives   (ไข่อ่อนจาก)
                   └── supplier_id ─▶ suppliers        (หลังบ้านเท่านั้น)
 
-products ─< product_variants            (รังเปล่า, น้ำผึ้ง Size เล็ก/ใหญ่)
+products ─< product_variants            (รังเปล่า, น้ำผึ้งขวด 175 มล. — ขนาดเดิมซ่อนไว้)
 customers ─< orders ─< order_items ─▶ product_variant | hive
 users ─< sessions · audit_logs
 ```
@@ -71,7 +71,7 @@ users ─< sessions · audit_logs
 ### สินค้าและการขาย (Phase 4 — รายละเอียดใน [11-phase4-plan.md](11-phase4-plan.md))
 
 - **products**: `slug`, `name`, `category` (`hive_box` | `honey` | `other`), `description`, `published`, `image_key` (รูปที่เจ้าของอัปโหลด ว่าง = รูปชั่วคราว)
-- **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `price_confirmed` (ยังไม่ยืนยัน = ป้าย "ราคาตัวอย่าง"), `stock_qty` (เว็บแสดงแค่ มี/ไม่มี), `unit_cost` 🔒, `harvest_year_be`
+- **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `price_confirmed` (ยังไม่ยืนยัน = ป้าย "ราคาตัวอย่าง"), `stock_qty` (เว็บแสดงแค่ มี/ไม่มี), `unit_cost` 🔒, `harvest_year_be`, `hidden` (0015: ขนาดที่เลิกขาย — ไม่ลบ ไม่แสดงบนเว็บ/ฟอร์มออเดอร์ใหม่/การบรรจุ)
 - **customers** 🔒: `name`, `phone`, `line_name`, `address`
 - **orders** 🔒: `code` (`S<ปี พ.ศ.>-NNN`), `customer_id`, `channel` (`line` | `facebook` | `phone` | `farm` | `other`), `ordered_on`, `status` (`awaiting_payment` → `paid` → `fulfilled` หรือ `cancelled` ก่อนส่ง), `paid_on`, `pay_method`, `ship_method`, `ship_fee`, `tracking_no`, `fulfilled_on`, `note`, `create_key` (กันสร้างซ้ำ)
 - **order_items** 🔒: `order_id`, `kind` (`variant` | `hive`), `variant_id` **หรือ** `hive_id`, `label`, `qty`, `unit_price`, `stock_taken` (คืนสต็อกตามนี้เมื่อยกเลิก), `prev_for_sale`, `lot_id` (เลิกใช้ตั้งแต่ 0014 — ดู order_item_lots)
@@ -122,3 +122,7 @@ users ─< sessions · audit_logs
 | รูปฝังในชีต | ดึงจาก `xl/media` โดยใช้ตำแหน่ง anchor ใน `drawing7.xml` เพื่อจับคู่กับแถวของรัง |
 
 สคริปต์จะรันซ้ำได้ (idempotent) และสร้างรายงาน `private/import-report.md` ให้ตรวจก่อนใช้งาน
+
+## แกลเลอรี (0016)
+
+- **gallery_photos**: `category` (`farm` ชันโรงของ MetaFarm | `hive_delivery` ส่งมอบรังชันโรง | `honey_delivery` ส่งมอบน้ำผึ้ง | `woodshop` ห้องงานไม้), `r2_key` (unique, `gallery/<หมวด>/…`), `caption`, `sort_order` (มากก่อน = แสดงก่อน), `created_by` — หน้าสาธารณะอ่านแค่หมวด คีย์ และคำบรรยาย (`getGallery`) · หมวดละไม่เกิน 60 รูป

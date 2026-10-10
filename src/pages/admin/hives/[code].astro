@@ -13,6 +13,7 @@ import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
 import { canDeleteRecord, canManageFarm, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
 import { jsonResult, wantsJson } from '../../../lib/http.ts';
+import { saleSeen } from '../../../lib/orders.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
 export const prerender = false;
@@ -297,7 +298,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
           <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
           <form method="post" class="mt-3 space-y-3">
             {formError('sale') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('sale')}</p>}
-            <input type="hidden" name="intent" value="sale" />
+            <input type="hidden" name="intent" value="sale" /><input type="hidden" name="seen" value={saleSeen(hive)} />
             <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="forSale" checked={isOpen('sale') && 'intent' in values ? values.forSale === 'on' : hive.forSale} /> ตั้งขายรังนี้ (แสดงในหน้าสินค้า/รังสมบูรณ์)</label>
             <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
             <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>

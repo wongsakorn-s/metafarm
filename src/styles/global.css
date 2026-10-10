@@ -234,6 +234,11 @@
   .prose-mf blockquote > * + * { margin-top: 0.5rem; }
   .prose-mf hr { border: 0; border-top: 1px solid var(--color-line); margin: 2rem 0; }
   .prose-mf strong { font-weight: 600; }
+  /* เชิงอรรถ = แหล่งอ้างอิง (astro.config.mjs markdown.remarkRehype) */
+  .prose-mf sup a { text-decoration: none; font-weight: 600; padding: 0 0.1em; }
+  .prose-mf .footnotes { margin-top: 2.5rem; border-top: 1px solid var(--color-line); padding-top: 0.5rem; font-size: 0.9375rem; line-height: 1.6; color: var(--color-muted); }
+  .prose-mf .footnotes li { overflow-wrap: anywhere; }
+  .prose-mf .data-footnote-backref, .prose-mf [data-footnote-backref] { text-decoration: none; }
 }
 /* แถวที่เลื่อนแนวนอนได้ (ตัวกรอง/ชิป): ขอบขวาจางลง บอกว่ายังมีต่อ */
 @utility scroll-fade {

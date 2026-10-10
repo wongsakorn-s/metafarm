@@ -8,6 +8,9 @@ import { fieldErrors } from '../../../lib/validation.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { baht } from '../../../lib/labels.ts';
 import { telHref } from '../../../lib/settings.ts';
+import { differingFields, shortStamp, type FieldDiff } from '../../../lib/concurrency.ts';
+import { editedBy } from '../../../server/versioned.ts';
+import ConflictNotice from '../../../components/ConflictNotice.astro';
 
 export const prerender = false;
 const db = getDb();
@@ -15,6 +18,7 @@ const id = Number(Astro.params.id);
 if (!Number.isInteger(id) || id < 1) return new Response('ไม่พบลูกค้า', { status: 404 });
 let errors: Record<string, string> = {};
 let values: Record<string, string> = {};
+let conflict = false;
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
@@ -23,14 +27,19 @@ if (Astro.request.method === 'POST') {
   else {
     const r = await updateCustomer(db, Astro.locals.user!, id, p.data);
     if (r.ok) return Astro.redirect(`/admin/customers/${id}?saved=1`, 303);
-    errors._ = r.error;
+    if (r.conflict) conflict = true; // อีกคนแก้ไปก่อน → กล่องเทียบค่า (ไม่ใช้แถบแดง)
+    else errors._ = r.error;
   }
 }
 const got = await getCustomer(db, id);
 if (!got) return new Response('ไม่พบลูกค้า', { status: 404 });
-const { customer: c, orders } = got;
-const valid = orders.filter((o) => o.status !== 'cancelled');
-const spent = valid.reduce((s, o) => s + o.total, 0);
+const { customer: c, orders, paid } = got;
+// ชนกัน: เทียบค่าที่กรอกกับค่าล่าสุด แล้วเลื่อนเวอร์ชันเป็นล่าสุด (กดบันทึกอีกครั้ง = ยืนยันค่าของคุณ)
+let notice: { diffs: FieldDiff[]; by: string | null; at: string } | null = null;
+if (conflict) {
+  notice = { diffs: differingFields(values, c, { name: 'ชื่อ', phone: 'เบอร์โทร', lineName: 'ชื่อใน LINE / Facebook', address: 'ที่อยู่จัดส่ง', notes: 'หมายเหตุ' }), by: await editedBy(db, 'customer', c.id, values.version ?? ''), at: shortStamp(c.updatedAt) };
+  values.version = c.updatedAt;
+}
 const v = (k: 'name' | 'phone' | 'lineName' | 'address' | 'notes') => values[k] ?? c[k] ?? '';
 const tel = c.phone ? telHref(c.phone) : null;
 const editing = Object.keys(values).length > 0;
@@ -42,7 +51,7 @@ const editing = Object.keys(values).length > 0;
   <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
     <section class="space-y-3" aria-labelledby="ord-h">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="ord-h" class="font-semibold">ประวัติการซื้อ <span class="font-normal text-muted">· {valid.length} ออเดอร์ · รวม <span data-num>{baht(spent)}</span></span></h2>
+        <h2 id="ord-h" class="font-semibold">ประวัติการซื้อ <span class="font-normal text-muted">· ชำระแล้ว {paid.orders} ออเดอร์ · ยอดซื้อ <span data-num>{baht(paid.spent)}</span> (ไม่รวมค่าส่ง)</span></h2>
         <a class="btn-primary" href="/admin/orders/new"><Icon name="plus" class="size-5" />ออเดอร์ใหม่</a>
       </div>
       {orders.length === 0 ? <p class="card text-muted">ยังไม่มีออเดอร์</p> : (
@@ -68,7 +77,9 @@ const editing = Object.keys(values).length > 0;
       )}
       <details open={editing}>
         <summary class="disclosure min-h-11 font-medium">แก้ไขข้อมูล</summary>
-        <form method="post" class="mt-2 space-y-3">
+        {notice && <div class="mt-2"><ConflictNotice form="customer-edit" diffs={notice.diffs} by={notice.by} at={notice.at} /></div>}
+        <form method="post" id="customer-edit" class="mt-2 space-y-3">
+          <input type="hidden" name="version" value={values.version ?? c.updatedAt} />
           <div><label class="label" for="name">ชื่อ</label><input class="field" id="name" name="name" required maxlength="100" value={v('name')} />{errors.name && <p class="error">{errors.name}</p>}</div>
           <div><label class="label" for="phone">เบอร์โทร</label><input class="field" id="phone" name="phone" type="tel" inputmode="tel" value={v('phone')} />{errors.phone && <p class="error">{errors.phone}</p>}</div>
           <div><label class="label" for="lineName">ชื่อใน LINE / Facebook</label><input class="field" id="lineName" name="lineName" maxlength="60" value={v('lineName')} /></div>

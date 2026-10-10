@@ -57,7 +57,7 @@
    ```powershell
    npm run user:create -- --email อีเมลเจ้าของ@ตัวอย่าง.com --name "ชื่อ" --generate --print-sql   # เขียน private/owner.sql (UTF-8) ให้เอง — ห้ามใช้ "> ไฟล์" ใน PowerShell 5.1 (ได้ UTF-16 + หัวของ npm → wrangler รันไม่ได้ ผู้ใช้ไม่ถูกสร้าง)
    npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
-   # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → เข้าระบบแล้วไปเมนู "🔑 บัญชี" เปลี่ยนรหัสทันที จากนั้นลบ owner.sql / prod-owner.txt / private/export
+   # รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt → ตั้งแต่ 2026-10-10 ระบบบังคับเปลี่ยนรหัสตอนเข้าใช้ครั้งแรก (must_change_password) จากนั้นลบ owner.sql / prod-owner.txt / private/export
    ```
 7. Deploy ครั้งแรก: `npm run build` แล้ว `npx wrangler deploy` → ได้ลิงก์ `https://metafarm.<ชื่อบัญชี>.workers.dev`
 8. ตั้ง GitHub Actions (ครั้งต่อไปจะ deploy ผ่านปุ่มใน GitHub):
@@ -84,6 +84,19 @@ $env:ADMIN_PASSWORD = $null
 ```
 
 เช็กด้วยมือ: เข้า `/admin` ด้วยบัญชีเจ้าของ → **ล็อกอินได้ไหม (ดูข้อ 5)** → เปลี่ยนรหัสผ่าน → บันทึกการเก็บน้ำหวานทดลอง 1 รายการ → เปิดหน้าสมุดพกของรังนั้น → อัปโหลดรูปจากมือถือ → ดู `/sitemap.xml` (URL ต้องเป็นโดเมนจริง)
+
+## 3.1 แก้ข้อมูลบนระบบจริงด้วยไฟล์ SQL (`scripts/prod-data/`)
+
+ใช้เมื่อต้องแก้ข้อมูลหลายจุดพร้อมกันแทนการกดในหลังบ้าน (เช่นตามที่เจ้าของขอ) — ไม่ใช่ migration (ไม่อยู่ใน `drizzle/`)
+- ทุกไฟล์: รันซ้ำได้ (ไม่เพิ่มซ้ำ) · ไม่ลบข้อมูล · บันทึก `audit_logs` · หัวไฟล์บอกว่าต้อง deploy ถึง migration ไหนก่อน
+- ลองกับเครื่องตัวเองก่อนเสมอ: `npx wrangler d1 execute metafarm-db --local --file scripts/prod-data/<ไฟล์>.sql`
+- แล้วผู้ดูแลรันกับระบบจริง: `npx wrangler d1 execute metafarm-db --remote --file scripts/prod-data/<ไฟล์>.sql` (ท้ายไฟล์มี SELECT แสดงผลให้ตรวจ)
+
+| ไฟล์ | ต้อง deploy ก่อน | ทำอะไร |
+|---|---|---|
+| `2026-10-10-honey-175-hive-box-750.sql` | migration 0015 | น้ำผึ้ง: เพิ่ม "ขวด" 175 มล. 350 บาท ซ่อน 50/120 มล. ตัดคำ "มีสองขนาด" · รังเปล่า 750 บาท |
+
+**migration รอบ 2026-10-10** (เพิ่มอย่างเดียว ไม่ลบข้อมูล — `deploy.yml` apply ให้ก่อน deploy): 0014 `order_item_lots` (+ ย้ายล็อตของออเดอร์ที่ชำระแล้ว), 0015 `product_variants.hidden`, 0016 `gallery_photos`
 
 ## 4. สำรองและกู้ข้อมูล
 

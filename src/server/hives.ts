@@ -394,13 +394,15 @@ export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.out
   const stmts: BatchItem<'sqlite'>[] = [
     // ตั้งขาย: รังต้องยังอยู่และไม่ถูกจองในออเดอร์ "ตอนบันทึก" (เดิมตรวจก่อน → ออเดอร์ที่สร้างพร้อมกันจองรัง แล้วรังกลับขึ้นหน้าขาย)
     ...(d.forSale ? [abortIf(db, sql`(select status from hives where id = ${hiveId}) != 'active' or exists (select 1 from hive_holds hh where hh.hive_id = ${hiveId})`)] : []),
+    // อีกคนเปลี่ยนการตั้งขาย/ราคาไปก่อน (ค่าที่ฟอร์มเห็นไม่ตรงค่าปัจจุบัน) → ไม่ทับ
+    ...(d.seen !== undefined ? [abortIf(db, sql`(select for_sale || ':' || coalesce(sale_price, '') from hives where id = ${hiveId}) != ${d.seen}`)] : []),
     db.update(hives).set({ forSale: d.forSale, salePrice: d.forSale ? d.salePrice : hive.salePrice, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.sale', hive.id, { forSale: d.forSale, salePrice: d.salePrice }),
   ];
   try {
     await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   } catch (e) {
-    if (isGuardAbort(e)) return { ok: false, error: 'ไม่ได้บันทึก — รังนี้เพิ่งถูกจองในออเดอร์หรือเปลี่ยนสถานะ (อาจจากอีกเครื่อง) โหลดหน้าใหม่แล้วตรวจอีกครั้ง' };
+    if (isGuardAbort(e)) return { ok: false, error: 'ไม่ได้บันทึก — รังนี้เพิ่งถูกจองในออเดอร์ เปลี่ยนสถานะ หรือมีคนแก้การตั้งขายไปก่อน (อาจจากอีกเครื่อง) โหลดหน้าใหม่แล้วตรวจอีกครั้ง' };
     throw e;
   }
   return { ok: true };
