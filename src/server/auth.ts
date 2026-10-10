@@ -4,6 +4,7 @@ import { auditLogs, loginAttempts, sessions, users } from '../db/schema.ts';
 import { newToken, passwordProblem, sha256Hex, verifyPassword, hashPassword } from '../lib/auth/password.ts';
 import { LIMITS, lockedBy, throttleKeys, WINDOW_MIN } from '../lib/auth/throttle.ts';
 import type { Db } from './db.ts';
+import type { Role } from '../lib/permissions.ts';
 
 export const SESSION_COOKIE = 'mf_session';
 const SESSION_DAYS = 30;
@@ -13,7 +14,7 @@ export interface SessionUser {
   id: number;
   email: string;
   name: string;
-  role: 'owner' | 'staff';
+  role: Role;
   /** ใช้รหัสผ่านชั่วคราวอยู่ → middleware บังคับไปหน้าเปลี่ยนรหัสผ่าน */
   mustChangePassword: boolean;
 }

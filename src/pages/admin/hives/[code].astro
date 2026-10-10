@@ -11,7 +11,7 @@ import { baht, boxLabel, eventIcon, eventLabel, originLabel, statusClass, status
 import { formatThaiDate, UNKNOWN } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
-import { isOwner, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
+import { canManageFarm, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
 import { jsonResult, wantsJson } from '../../../lib/http.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
@@ -24,7 +24,7 @@ if (!code) return new Response(null, { status: 404 });
 const db = getDb();
 const user = Astro.locals.user!;
 // พนักงาน: ไม่เห็นราคา/คู่ค้า และไม่มีฟอร์มตั้งขาย (เซิร์ฟเวอร์ปฏิเสธเองด้วย)
-const owner = isOwner(user);
+const owner = canManageFarm(user);
 const today = todayBangkok();
 
 let detail = await getHiveDetail(db, code);

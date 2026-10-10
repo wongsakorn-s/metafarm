@@ -5,7 +5,7 @@ import { getDb } from '../../../server/db.ts';
 import { createHive, nextHiveCode } from '../../../server/hives.ts';
 import { boxLabel, originLabel } from '../../../lib/labels.ts';
 import { newHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
-import { isOwner } from '../../../lib/permissions.ts';
+import { canManageFarm } from '../../../lib/permissions.ts';
 import { expandCodeFields, normalizeHiveCode, splitHiveCode } from '../../../lib/hive-code.ts';
 
 export const prerender = false;
@@ -39,9 +39,9 @@ const v = (k: string, d = '') => values[k] ?? d;
 const err = (k: string) => errors[k];
 ---
 
-<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title="เพิ่มรังใหม่" active="new" column="xl">
+<AdminLayout back={{ href: '/admin/hives', label: 'รังทั้งหมด' }} title="เพิ่มรังใหม่" active="new">
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
-  <form method="post" class="card max-w-xl space-y-4">
+  <form method="post" class="card grid gap-4 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-5">
     <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />
     {/* รหัสรัง: เสนอรหัสถัดไปไว้ให้ แก้ให้ตรงกับป้ายบนตัวรังได้ (ไม่แก้ = อัตโนมัติ ชนกับคนอื่นแล้วระบบเลื่อนให้) */}
     <input type="hidden" name="suggested" value={nextCode} />
@@ -50,7 +50,7 @@ const err = (k: string) => errors[k];
       <input class="field text-xl font-bold tracking-wide uppercase" id="code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" required
         pattern="[A-Za-z]{1,3}[\s\-]?0*[1-9][0-9]{0,4}" value={v('code', nextCode)} aria-describedby="code-hint" />
       {err('code') && <p class="error">{err('code')}</p>}
-      <p id="code-hint" class="hint">ตัวอักษรอังกฤษตามด้วยเลข เช่น A150, B12, G108 · ระบบเสนอ <strong>{nextCode}</strong> ไว้ให้ แก้ให้ตรงกับป้ายบนตัวรังได้ ไม่ต้องเรียงลำดับ (นำเข้ารหัสรังเก่าทีหลังได้) · ใช้รหัสที่มีในทะเบียนแล้วไม่ได้ แม้รังนั้นล่มหรือขายไปแล้ว</p>
+      <p id="code-hint" class="hint">ใส่ให้ตรงกับป้ายบนรัง เช่น A150, B12</p>
     </div>
 
     <div>
@@ -62,21 +62,21 @@ const err = (k: string) => errors[k];
       {err('origin') && <p class="error">{err('origin')}</p>}
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-3 self-start">
       <div><label class="label" for="acq">วันที่ได้มา / วันที่ขยาย</label><input class="field" id="acq" name="acquiredOn" type="date" max={today} value={v('acquiredOn', today)} />{err('acquiredOn') && <p class="error">{err('acquiredOn')}</p>}</div>
-      <div><label class="label" for="qb">วันเกิดนางพญา</label><input class="field" id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />{err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}<p class="hint">ถ้ายังไม่ทราบ เว้นว่างได้ (จะแสดงว่า "ไม่ทราบ" เติมทีหลังได้)</p></div>
+      <div><label class="label" for="qb">วันเกิดนางพญา</label><input class="field" id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />{err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}<p class="hint">ไม่ทราบ เว้นว่างได้</p></div>
     </div>
 
     <fieldset class="rounded-xl border border-line p-3">
-      <legend class="px-1 text-sm font-medium">รังแม่ (สำหรับรังที่ขยายเอง)</legend>
+      <legend class="px-1 text-sm font-medium">รังแม่ (ถ้าขยายเอง)</legend>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="label" for="qs">ไข่นางจากรัง</label><input class="field" id="qs" name="queenSourceCode" placeholder="เช่น A55" value={v('queenSourceCode')} />{err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}</div>
-        <div><label class="label" for="bs">ไข่อ่อนจากรัง</label><input class="field" id="bs" name="broodSourceCode" placeholder="เช่น A89" value={v('broodSourceCode')} />{err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}</div>
+        <div><label class="label" for="qs">ไข่นางจากรัง</label><input class="field" id="qs" name="queenSourceCode" placeholder="เช่น 55" value={v('queenSourceCode')} />{err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}</div>
+        <div><label class="label" for="bs">ไข่อ่อนจากรัง</label><input class="field" id="bs" name="broodSourceCode" placeholder="เช่น 89" value={v('broodSourceCode')} />{err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}</div>
       </div>
-      <p class="hint">ระบบจะบันทึกประวัติ "แยกรัง" ในรังแม่ให้อัตโนมัติ (ตามวันที่ได้มา)</p>
+      <p class="hint">ระบบบันทึกการแยกในรังแม่ให้เอง</p>
     </fieldset>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-3 self-start">
       <div>
         <label class="label" for="box">กล่องรัง</label>
         <select class="field" id="box" name="boxType">
@@ -86,11 +86,11 @@ const err = (k: string) => errors[k];
       <div><label class="label" for="place">สถานที่ซื้อ (ถ้าซื้อมา)</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
     </div>
 
-    {isOwner(Astro.locals.user) && <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} /></div>}
-    <div><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
+    {canManageFarm(Astro.locals.user) && <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} /></div>}
+    <div class="lg:col-span-2"><label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><textarea class="field" id="notes" name="notes" rows="2" maxlength="1000">{v('notes')}</textarea></div>
 
-    <div data-sticky-save class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-      <button class="btn-primary w-full" type="submit" id="create-btn">สร้างรัง <span data-code-label>{normalizeHiveCode(v('code', nextCode)) ?? v('code', nextCode).toUpperCase()}</span></button>
+    <div data-sticky-save class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none lg:col-span-2 lg:flex lg:justify-end">
+      <button class="btn-primary w-full lg:w-auto lg:min-w-64" type="submit" id="create-btn">สร้างรัง <span data-code-label>{normalizeHiveCode(v('code', nextCode)) ?? v('code', nextCode).toUpperCase()}</span></button>
     </div>
   </form>
 </AdminLayout>

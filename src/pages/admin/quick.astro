@@ -4,7 +4,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { codesByNumber, hivePrefixes, recentHiveCodes } from '../../server/hives.ts';
 import { bareNumber, normalizeHiveCode } from '../../lib/hive-code.ts';
-import { isOwner } from '../../lib/permissions.ts';
+import { canManageFarm } from '../../lib/permissions.ts';
 
 // บันทึกด่วนในสวน: พิมพ์เลขรัง (เช่น 25) แล้วเลือกงาน → ไปที่ฟอร์มนั้นของรังทันที ไม่ต้องค้นในรายการ 150 รัง
 export const prerender = false;
@@ -99,7 +99,7 @@ const recent = await recentHiveCodes(db, 8);
   {/* งานอื่นเป็นปุ่มรองทั้งหมด — ปุ่มหลักของหน้านี้มีปุ่มเดียว (เก็บน้ำหวาน) */}
   <section class="mt-6 grid grid-cols-2 gap-3" aria-label="งานอื่น">
     <h2 class="col-span-2 text-sm font-semibold text-muted">งานอื่น</h2>
-    {isOwner(Astro.locals.user)
+    {canManageFarm(Astro.locals.user)
       ? <a class="btn-ghost col-span-2" href="/admin/orders/new"><Icon name="receipt" class="size-5" />จดออเดอร์ใหม่</a>
       : <a class="btn-ghost col-span-2" href="/admin/lots"><Icon name="honey" class="size-5" />ล็อตน้ำผึ้ง (บรรจุขวด / ฉลาก)</a>}
     <a class="btn-ghost" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>

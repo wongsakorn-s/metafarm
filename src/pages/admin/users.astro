@@ -1,14 +1,14 @@
 ---
-// จัดการผู้ใช้ (เจ้าของเท่านั้น — middleware กันพนักงานไว้แล้ว): เพิ่มพนักงาน · ปิด/เปิดบัญชี · รีเซ็ตรหัสผ่าน
+// จัดการผู้ใช้ (เจ้าของเท่านั้น — middleware กันแอดมิน/พนักงานไว้แล้ว): เพิ่มผู้ใช้ · เปลี่ยนบทบาท · ปิด/เปิดบัญชี · รีเซ็ตรหัสผ่าน
 // รหัสผ่านชั่วคราวแสดงในหน้าตอบกลับครั้งเดียว (ไม่เก็บไว้ที่ไหน) → ผู้ใช้ต้องเปลี่ยนตอนเข้าใช้ครั้งแรก
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
-import { createStaff, listUsers, newStaffSchema, resetStaffPassword, setStaffActive, unlockStaff } from '../../server/users.ts';
+import { changeRole, createStaff, listUsers, newStaffSchema, resetStaffPassword, roleSchema, setStaffActive, unlockStaff } from '../../server/users.ts';
 import { emailFailures } from '../../server/auth.ts';
 import { LIMITS } from '../../lib/auth/throttle.ts';
 import { fieldErrors } from '../../lib/validation.ts';
-import { roleLabel } from '../../lib/permissions.ts';
+import { roleHint, roleLabel, ROLES } from '../../lib/permissions.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 
 export const prerender = false;
@@ -30,6 +30,11 @@ if (Astro.request.method === 'POST') {
       if (r.ok) { issued = { name: p.data.name, email: p.data.email, password: r.password, reason: 'created' }; values = {}; }
       else errors = { email: r.error };
     }
+  } else if (intent === 'role') {
+    const p = roleSchema.safeParse(values);
+    const r = p.success ? await changeRole(db, me, p.data) : { ok: false as const, error: 'เลือกบทบาท' };
+    if (r.ok) return Astro.redirect('/admin/users?saved=role', 303);
+    errors._ = r.error;
   } else if (intent === 'unlock') {
     const r = await unlockStaff(db, me, Number(values.userId));
     if (r.ok) return Astro.redirect('/admin/users?saved=unlock', 303);
@@ -59,6 +64,7 @@ const v = (k: string) => values[k] ?? '';
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ผู้ใช้และสิทธิ์" active="users">
   {saved === 'disable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปิดบัญชีแล้ว — ผู้ใช้ถูกออกจากระบบทุกเครื่อง</p>}
   {saved === 'enable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปิดบัญชีแล้ว</p>}
+  {saved === 'role' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปลี่ยนบทบาทแล้ว — ผู้ใช้นั้นต้องล็อกอินใหม่ แล้วจะเห็นเมนูตามบทบาทใหม่</p>}
   {saved === 'unlock' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปลดล็อกแล้ว — ล็อกอินได้ทันที</p>}
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
 
@@ -87,7 +93,7 @@ const v = (k: string) => values[k] ?? '';
               <p class="truncate text-sm text-muted">{u.email}</p>
               <p class="text-xs text-muted">{u.lastLogin ? `ล็อกอินล่าสุด ${formatThaiDate(u.lastLogin.slice(0, 10))}` : 'ยังไม่เคยล็อกอิน'}{u.mustChangePassword && u.active ? ' · รอเปลี่ยนรหัสชั่วคราว' : ''}</p>
             </div>
-            <span class:list={['badge', u.role === 'owner' ? 'bg-palm-100 text-palm-900' : 'bg-canvas text-ink']}>{roleLabel[u.role]}</span>
+            <span class:list={['badge', u.role === 'owner' ? 'bg-palm-100 text-palm-900' : u.role === 'admin' ? 'bg-honey-100 text-honey-700' : 'bg-canvas text-ink']}>{roleLabel[u.role]}</span>
             {!u.active && <span class="badge bg-slate-200 text-slate-700">ปิดอยู่</span>}
             {(fails.get(u.email)?.n ?? 0) > 0 && (
               <p class:list={['w-full text-sm', fails.get(u.email)!.locked ? 'font-medium text-danger' : 'text-honey-700']} data-failures={fails.get(u.email)!.n}>
@@ -97,13 +103,23 @@ const v = (k: string) => values[k] ?? '';
                 {fails.get(u.email)!.locked && u.role === 'owner' && ' — ถ้าไม่ใช่คุณ แปลว่ามีคนพยายามเดารหัสผ่าน อุปกรณ์ที่ล็อกอินอยู่ใช้ต่อได้ตามปกติ'}
               </p>
             )}
-            {u.role === 'staff' && fails.get(u.email)?.locked && (
-              <form method="post" class="w-full sm:w-auto" data-confirm={`ปลดล็อก ${u.name}? (ยืนยันกับพนักงานก่อนว่าเป็นคนพิมพ์ผิดเอง)`}>
+            {u.role !== 'owner' && u.id !== me.id && fails.get(u.email)?.locked && (
+              <form method="post" class="w-full sm:w-auto" data-confirm={`ปลดล็อก ${u.name}? (ยืนยันกับเจ้าของบัญชีก่อนว่าเป็นคนพิมพ์ผิดเอง)`}>
                 <input type="hidden" name="intent" value="unlock" /><input type="hidden" name="userId" value={u.id} />
                 <button class="btn-ghost w-full whitespace-nowrap" type="submit">ปลดล็อก</button>
               </form>
             )}
-            {u.role === 'staff' && (
+            {u.id !== me.id && (
+              <form method="post" class="flex w-full gap-2" data-confirm={`เปลี่ยนบทบาทของ ${u.name} เป็น "{role}"? (ผู้ใช้นั้นจะถูกออกจากระบบ และต้องล็อกอินใหม่)`}>
+                <input type="hidden" name="intent" value="role" /><input type="hidden" name="userId" value={u.id} />
+                <label class="sr-only" for={`role-${u.id}`}>บทบาทของ {u.name}</label>
+                <select class="field flex-1" id={`role-${u.id}`} name="role">
+                  {ROLES.map((r) => <option value={r} selected={u.role === r}>{roleLabel[r]} — {roleHint[r]}</option>)}
+                </select>
+                <button class="btn-ghost whitespace-nowrap" type="submit">เปลี่ยนบทบาท</button>
+              </form>
+            )}
+            {u.role !== 'owner' && u.id !== me.id && (
               <div class="flex w-full gap-2 sm:w-auto">
                 <form method="post" class="flex-1" data-confirm={`รีเซ็ตรหัสผ่านของ ${u.name}? (ออกจากระบบทุกเครื่อง และได้รหัสชั่วคราวใหม่)`}>
                   <input type="hidden" name="intent" value="reset" /><input type="hidden" name="userId" value={u.id} />
@@ -124,15 +140,28 @@ const v = (k: string) => values[k] ?? '';
       <form method="post" class="card space-y-3">
         <input type="hidden" name="intent" value="create" />
         <input type="hidden" name="idem" value={v('idem') || crypto.randomUUID()} />
-        <h2 class="flex items-center gap-2 font-semibold"><Icon name="users" class="size-5 text-palm-700" />เพิ่มพนักงาน</h2>
+        <h2 class="flex items-center gap-2 font-semibold"><Icon name="users" class="size-5 text-palm-700" />เพิ่มผู้ใช้</h2>
         <div><label class="label" for="name">ชื่อ</label><input class="field" id="name" name="name" maxlength="60" required value={v('name')} autocomplete="off" />{errors.name && <p class="error">{errors.name}</p>}</div>
         <div><label class="label" for="email">อีเมล (ใช้ล็อกอิน)</label><input class="field" id="email" name="email" type="email" inputmode="email" autocapitalize="none" maxlength="120" required value={v('email')} autocomplete="off" />{errors.email && <p class="error">{errors.email}</p>}</div>
-        <button class="btn-primary w-full" type="submit">เพิ่มพนักงาน</button>
-        <p class="hint">ระบบสุ่มรหัสผ่านชั่วคราวให้ แล้วแสดงให้คัดลอกส่งต่อ</p>
+        <fieldset>
+          <legend class="label">บทบาท</legend>
+          <div class="grid gap-2">
+            {(['staff', 'admin'] as const).map((r) => (
+              <label class="flex min-h-11 items-start gap-2 rounded-xl border border-line p-3 has-[:checked]:border-palm-600 has-[:checked]:bg-palm-50">
+                <input class="mt-1 size-5 accent-palm-600" type="radio" name="role" value={r} checked={(v('role') || 'staff') === r} />
+                <span><span class="font-medium">{roleLabel[r]}</span><span class="block text-sm text-muted">{roleHint[r]}</span></span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <button class="btn-primary w-full" type="submit">เพิ่มผู้ใช้</button>
+        <p class="hint">ระบบสุ่มรหัสผ่านชั่วคราวให้ แล้วแสดงให้คัดลอกส่งต่อ · ต้องการเจ้าของเพิ่ม: เพิ่มเป็นแอดมินก่อน แล้วเปลี่ยนบทบาท</p>
       </form>
 
       <section class="card text-sm" aria-labelledby="perm-h">
-        <h2 id="perm-h" class="mb-2 font-semibold">พนักงานทำอะไรได้บ้าง</h2>
+        <h2 id="perm-h" class="mb-2 font-semibold">แต่ละบทบาททำอะไรได้บ้าง</h2>
+        <p class="mb-2"><strong>แอดมิน:</strong> ทุกอย่างเหมือนเจ้าของ (ขาย ออเดอร์ รายงาน ต้นทุน ตั้งค่า) ยกเว้นหน้านี้ — เพิ่ม/ปิดบัญชี/เปลี่ยนบทบาทไม่ได้</p>
+        <p class="mb-1 font-medium">พนักงาน:</p>
         <ul class="space-y-1">
           <li class="flex gap-2"><Icon name="check" class="mt-0.5 size-4 shrink-0 text-palm-700" />ดูรัง บันทึกงาน (น้ำหวาน แยกรัง ไข่นางพญา หมายเหตุ รังล่ม)</li>
           <li class="flex gap-2"><Icon name="check" class="mt-0.5 size-4 shrink-0 text-palm-700" />เพิ่มรัง แก้ข้อมูลรัง ถ่ายรูป</li>

@@ -4,14 +4,19 @@ import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
 import { getDashboard } from '../../server/hives.ts';
 import { orderCounts } from '../../server/orders.ts';
-import { baht, eventIcon, eventLabel, originLabel } from '../../lib/labels.ts';
+import { baht, eventIcon, eventLabel, originLabel, statusLabel } from '../../lib/labels.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
-import { isOwner } from '../../lib/permissions.ts';
+import { canManageFarm } from '../../lib/permissions.ts';
+import MonthChart from '../../components/MonthChart.astro';
+import { monthlyProduction, topHoneyHives } from '../../server/production.ts';
+import { saleLines } from '../../server/reports.ts';
+import { monthlyRevenue } from '../../lib/reports.ts';
+import { todayBangkok } from '../../lib/validation.ts';
 
 export const prerender = false;
 
 // พนักงาน: ไม่ดึง/ไม่แสดงตัวเลขออเดอร์และยอดเงิน
-const owner = isOwner(Astro.locals.user);
+const owner = canManageFarm(Astro.locals.user);
 const d = await getDashboard(getDb());
 const oc = owner ? await orderCounts(getDb()) : { awaiting: 0, awaitingTotal: 0, toShip: 0 };
 const count = (s: string) => d.byStatus.find((x) => x.status === s)?.n ?? 0;
@@ -26,6 +31,43 @@ const stats = [
   { label: 'ล่ม', value: count('collapsed'), href: '/admin/hives?status=collapsed' },
 ];
 const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
+
+// ---------- แดชบอร์ด: เดือนนี้เทียบเดือนก่อน + กราฟ 12 เดือน (เจ้าของ/แอดมินเห็นยอดขายด้วย) ----------
+const today = todayBangkok();
+const [ty, tm] = today.split('-').map(Number) as [number, number];
+/** 12 เดือนล่าสุด ('YYYY-MM') ถึงเดือนนี้ */
+const months = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date(Date.UTC(ty, tm - 1 - (11 - i), 1));
+  return d.toISOString().slice(0, 7);
+});
+const db = getDb();
+const [prod, top, linesNow, linesPrev] = await Promise.all([
+  monthlyProduction(db, months[0]!),
+  topHoneyHives(db, `${ty}-01-01`, 5),
+  owner ? saleLines(db, ty) : Promise.resolve([]),
+  owner && months[0]!.slice(0, 4) !== String(ty) ? saleLines(db, ty - 1) : Promise.resolve([]),
+]);
+const honey = months.map((m) => prod.get(m)?.honeyMl ?? 0);
+const growth = months.map((m) => (prod.get(m)?.broodSplits ?? 0) + (prod.get(m)?.queenCells ?? 0));
+const revByYear = new Map([[ty, monthlyRevenue(linesNow)], [ty - 1, monthlyRevenue(linesPrev)]]);
+const revenue = months.map((m) => revByYear.get(Number(m.slice(0, 4)))?.[Number(m.slice(5, 7)) - 1] ?? 0);
+/** เดือนนี้ / เดือนก่อน (index 11 / 10) */
+const kpi = (arr: number[]) => ({ now: arr[11] ?? 0, prev: arr[10] ?? 0 });
+const change = (k: { now: number; prev: number }) => {
+  if (!k.prev) return k.now ? 'เดือนก่อนไม่มี' : '';
+  const d = Math.round(((k.now - k.prev) / k.prev) * 100);
+  return d === 0 ? 'เท่าเดือนก่อน' : `${d > 0 ? '▲' : '▼'} ${Math.abs(d)}% จากเดือนก่อน`;
+};
+const cards = [
+  { label: 'น้ำผึ้งเดือนนี้', value: kpi(honey).now.toLocaleString('th-TH'), unit: 'มล.', note: change(kpi(honey)), href: '/admin/production', tone: 'text-honey-700' },
+  { label: 'ขยายรังเดือนนี้', value: kpi(growth).now.toLocaleString('th-TH'), unit: 'ครั้ง', note: change(kpi(growth)), href: '/admin/production', tone: 'text-palm-700' },
+  ...(owner ? [
+    { label: 'ยอดขายเดือนนี้', value: kpi(revenue).now.toLocaleString('th-TH'), unit: 'บาท', note: change(kpi(revenue)), href: '/admin/reports', tone: 'text-palm-700' },
+    { label: 'ออเดอร์ที่ต้องทำ', value: String(oc.awaiting + oc.toShip), unit: 'ออเดอร์', note: `รอชำระ ${oc.awaiting} · รอส่ง ${oc.toShip}`, href: '/admin/orders?status=open', tone: 'text-palm-700' },
+  ] : [
+    { label: 'รังที่ยังอยู่', value: count('active').toLocaleString('th-TH'), unit: 'รัง', note: '', href: '/admin/hives?status=active', tone: 'text-palm-700' },
+  ]),
+];
 ---
 
 <AdminLayout title="ภาพรวม" active="dashboard">
@@ -36,6 +78,17 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
       <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
         <span data-num class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
         <span class="text-[0.8125rem] leading-tight text-muted md:text-sm">{s.label}</span>
+      </a>
+    ))}
+  </section>
+
+  {/* เดือนนี้: ตัวเลขสำคัญเทียบเดือนก่อน (แตะเพื่อดูรายละเอียด) */}
+  <section aria-label="เดือนนี้" class:list={['mt-4 grid gap-3', cards.length === 4 ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3']}>
+    {cards.map((c) => (
+      <a href={c.href} class="card-link flex flex-col !p-4">
+        <span class="text-sm text-muted">{c.label}</span>
+        <span data-num class:list={['text-2xl font-bold leading-tight md:text-3xl', c.tone]}>{c.value} <span class="text-sm font-medium text-muted">{c.unit}</span></span>
+        {c.note && <span class="mt-1 text-[0.8125rem] text-muted">{c.note}</span>}
       </a>
     ))}
   </section>
@@ -77,6 +130,39 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
       </a></li>
     )}
   </ul>
+
+  <div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <section class="card" aria-label="กราฟน้ำผึ้ง 12 เดือน">
+      <MonthChart title="น้ำผึ้งที่เก็บได้ 12 เดือนล่าสุด" unit="มล./เดือน" months={months} series={[{ label: 'น้ำผึ้ง', color: '#e0a800', values: honey }]}
+        empty="ยังไม่มีการบันทึกเก็บน้ำหวานใน 12 เดือนล่าสุด" />
+    </section>
+    {owner ? (
+      <section class="card" aria-label="กราฟยอดขาย 12 เดือน">
+        <MonthChart title="ยอดขาย 12 เดือนล่าสุด" unit="บาท/เดือน" months={months} series={[{ label: 'ยอดขาย', color: '#0b7a3e', values: revenue }]}
+          empty="ยังไม่มีออเดอร์ที่ชำระแล้วใน 12 เดือนล่าสุด" />
+      </section>
+    ) : (
+      <section class="card" aria-label="กราฟการขยายรัง 12 เดือน">
+        <MonthChart title="การขยายรัง 12 เดือนล่าสุด" unit="ครั้ง/เดือน" months={months} series={[{ label: 'แยกรัง + ไข่นางพญา', color: '#0b7a3e', values: growth }]} />
+      </section>
+    )}
+  </div>
+
+  {top.length > 0 && (
+    <section class="card mt-6" aria-labelledby="top-h">
+      <h2 id="top-h" class="mb-3 text-lg font-semibold">รังที่ให้น้ำผึ้งมากที่สุด ปี {ty + 543}</h2>
+      <ol class="divide-y divide-line">
+        {top.map((h, i) => (
+          <li><a href={`/admin/hives/${h.code}`} class="flex min-h-12 items-center gap-3 py-2 hover:bg-palm-50">
+            <span data-num class="grid size-8 shrink-0 place-items-center rounded-full bg-honey-50 font-bold text-honey-700">{i + 1}</span>
+            <span class="flex-1 font-semibold text-palm-700">{h.code}</span>
+            <span data-num class="text-honey-700">{h.ml.toLocaleString('th-TH')} มล.</span>
+            <span class="w-16 text-right text-sm text-muted">{h.harvests} ครั้ง</span>
+          </a></li>
+        ))}
+      </ol>
+    </section>
+  )}
 
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-labelledby="honey-h">
@@ -137,6 +223,7 @@ const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
             <a class="font-semibold text-palm-700 hover:underline" href={`/admin/hives/${code}`}>{code}</a>
             <span class="ml-1">{eventLabel[e.type]}</span>
             {e.honeyMl ? <span class="ml-1 text-honey-700">{e.honeyMl.toLocaleString('th-TH')} มล.</span> : null}
+            {e.type === 'status_change' && e.toStatus ? <span class="ml-1">→ {statusLabel[e.toStatus]}</span> : null}
           </div>
           <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
         </li>

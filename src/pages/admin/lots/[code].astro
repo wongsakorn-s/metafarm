@@ -8,7 +8,7 @@ import { fieldErrors, todayBangkok } from '../../../lib/validation.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { fmt } from '../../../lib/chart.ts';
 import { baht } from '../../../lib/labels.ts';
-import { isOwner } from '../../../lib/permissions.ts';
+import { canManageFarm } from '../../../lib/permissions.ts';
 
 export const prerender = false;
 const db = getDb();
@@ -16,7 +16,7 @@ const code = Astro.params.code ?? '';
 if (!isLotCode(code)) return new Response('ไม่พบล็อต', { status: 404 });
 const today = todayBangkok();
 // ต้นทุนบรรจุ = เจ้าของเท่านั้น (เซิร์ฟเวอร์ไม่รับต้นทุนจากพนักงาน)
-const owner = isOwner(Astro.locals.user);
+const owner = canManageFarm(Astro.locals.user);
 let errors: Record<string, string> = {};
 let values: Record<string, string> = {};
 if (Astro.request.method === 'POST') {

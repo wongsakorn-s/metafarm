@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import { site } from '../config/site.ts';
 import Icon from '../components/Icon.astro';
-import { isOwner, roleLabel } from '../lib/permissions.ts';
+import { canManageFarm, canManageUsers, roleLabel } from '../lib/permissions.ts';
 
 type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users';
 interface Props {
@@ -15,10 +15,11 @@ interface Props {
 }
 const { title, active, back, column } = Astro.props;
 const user = Astro.locals.user;
-const owner = isOwner(user);
+const owner = canManageFarm(user);
 // พนักงานไม่มีหมวดขาย/ตั้งค่าเว็บ (middleware กันไว้แล้ว ที่นี่แค่ไม่แสดงลิงก์ที่เข้าไม่ได้)
-const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings', 'users']);
-const allowed = (k: string) => owner || !OWNER_KEYS.has(k);
+const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings']);
+// จัดการผู้ใช้: เจ้าของเท่านั้น (แอดมินไม่เห็นเมนูนี้)
+const allowed = (k: string) => (k === 'users' ? canManageUsers(user) : owner || !OWNER_KEYS.has(k));
 
 // แถบล่างบนมือถือ: 5 ปุ่ม — ปุ่มกลาง "บันทึก" เป็นงานที่ทำบ่อยที่สุดในสวน
 // หน้ารองทั้งหมด (ตั้งค่า บัญชี คิวถ่ายรูป ฯลฯ) อยู่ใต้ "เมนู" เพื่อให้ปุ่มหลักใหญ่และไม่แน่น

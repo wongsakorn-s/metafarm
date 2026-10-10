@@ -3,7 +3,7 @@ import { SESSION_COOKIE, userFromToken } from './server/auth.ts';
 import { securityHeaders } from './lib/security-headers.ts';
 import { getDb } from './server/db.ts';
 import { getSettings } from './server/settings.ts';
-import { isOwner, ownerOnlyPath, passwordChangeAllowed } from './lib/permissions.ts';
+import { passwordChangeAllowed, pathAllowed } from './lib/permissions.ts';
 
 const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
 
@@ -26,7 +26,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       return ctx.redirect('/admin/account?first=1');
     }
     // หมวดขาย ตั้งค่า และจัดการผู้ใช้ = เจ้าของเท่านั้น (กันทั้งเปิดหน้า ส่งฟอร์ม และดาวน์โหลดไฟล์)
-    if (!isOwner(user) && ownerOnlyPath(pathname)) {
+    if (!pathAllowed(user, pathname)) {
       if (!isGet || /\.[a-z0-9]+$/i.test(pathname)) return new Response('ไม่มีสิทธิ์', { status: 403, headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' } });
       return next('/admin/forbidden');
     }

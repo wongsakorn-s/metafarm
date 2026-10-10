@@ -75,23 +75,24 @@ const messenger = messengerBase(c);
 const messengerMissing = !!c.facebookUrl && !messenger;
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ตั้งค่า" active="settings" column="2xl">
-  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — เว็บใช้ค่าใหม่ทันที แต่ลูกค้าบางคนอาจยังเห็นค่าเก่าอีกไม่เกิน ~5 นาที (แคชของเว็บ) · แก้ไขได้ทุกเมื่อ</p>}
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ตั้งค่า" active="settings">
+  {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — ลูกค้าบางคนอาจเห็นค่าเก่าอีกไม่เกิน 5 นาที</p>}
 
-  <form method="post" class="card mb-8 max-w-2xl space-y-4" id="contact">
+  <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
+  <form method="post" class="card space-y-4" id="contact">
     <input type="hidden" name="intent" value="contact" />
     <div>
       <h2 class="text-lg font-semibold">ช่องทางติดต่อ</h2>
-      <p class="hint">ใช้บนทุกหน้าเว็บ (ปุ่มติดต่อ ส่วนท้ายหน้า หน้าติดต่อเรา) · ลูกค้ากดแล้วเด้งไปแชต/โทรหาคุณ · <strong>เว้นว่าง = ซ่อนช่องทางนั้น</strong></p>
+      <p class="hint">ลูกค้ากดปุ่มบนเว็บแล้วเปิดแชต/โทรหาคุณ · <strong>เว้นว่าง = ไม่แสดง</strong></p>
     </div>
     {!c.confirmed && <p class="rounded-xl bg-honey-50 p-3 text-sm"><strong>ตอนนี้เป็นข้อมูลตัวอย่าง</strong> เว็บจึงแสดงแถบเหลือง "ข้อมูลตัวอย่าง" ให้ลูกค้าเห็น กรอกข้อมูลจริงแล้วติ๊ก "ยืนยัน" ด้านล่างเพื่อเอาแถบออก</p>}
 
-    <div><label class="label" for="lineId">LINE ID หรือ LINE Official Account</label><input class="field" id="lineId" name="lineId" value={cv('lineId')} placeholder="เช่น @metafarm" autocomplete="off" />{err('lineId', 'contact') && <p class="error">{err('lineId', 'contact')}</p>}<p class="hint">LINE OA ขึ้นต้นด้วย @ (ปุ่มจะใส่ข้อความ "สนใจรัง A25 ราคา …" ให้ลูกค้าอัตโนมัติ) ถ้าเป็น ID ส่วนตัวจะเปิดโปรไฟล์ให้</p></div>
+    <div><label class="label" for="lineId">LINE ID หรือ LINE Official Account</label><input class="field" id="lineId" name="lineId" value={cv('lineId')} placeholder="เช่น @metafarm" autocomplete="off" />{err('lineId', 'contact') && <p class="error">{err('lineId', 'contact')}</p>}<p class="hint">LINE OA ขึ้นต้นด้วย @</p></div>
     <div><label class="label" for="phone">เบอร์โทรศัพท์</label><input class="field" id="phone" name="phone" type="tel" value={cv('phone')} placeholder="เช่น 081-234-5678" />{err('phone', 'contact') && <p class="error">{err('phone', 'contact')}</p>}</div>
-    <div><label class="label" for="facebookUrl">ลิงก์ Facebook (เพจ หรือโปรไฟล์ส่วนตัว)</label><input class="field" id="facebookUrl" name="facebookUrl" type="url" value={cv('facebookUrl')} placeholder="https://www.facebook.com/…" />{err('facebookUrl', 'contact') && <p class="error">{err('facebookUrl', 'contact')}</p>}<p class="hint">ปุ่ม Messenger สร้างจากลิงก์นี้ให้เอง (เปิดหน้าเพจ/โปรไฟล์ใน Facebook แล้วคัดลอกลิงก์จากแถบที่อยู่)</p></div>
+    <div><label class="label" for="facebookUrl">ลิงก์ Facebook (เพจ หรือโปรไฟล์ส่วนตัว)</label><input class="field" id="facebookUrl" name="facebookUrl" type="url" value={cv('facebookUrl')} placeholder="https://www.facebook.com/…" />{err('facebookUrl', 'contact') && <p class="error">{err('facebookUrl', 'contact')}</p>}<p class="hint">คัดลอกจากแถบที่อยู่ของหน้าเพจ/โปรไฟล์ · ปุ่ม Messenger สร้างจากลิงก์นี้</p></div>
     <div><label class="label" for="messengerUrl">ลิงก์ Messenger (ไม่บังคับ)</label><input class="field" id="messengerUrl" name="messengerUrl" type="url" value={cv('messengerUrl')} placeholder="https://m.me/…" />{err('messengerUrl', 'contact') && <p class="error">{err('messengerUrl', 'contact')}</p>}
       {messengerMissing ? <p class="hint font-medium text-honey-700">สร้างลิงก์ Messenger จากลิงก์ Facebook นี้ไม่ได้ (เช่นลิงก์แบบ "แชร์") — ใส่ลิงก์ m.me ที่นี่ หรือใช้ลิงก์ facebook.com/ชื่อเพจ แทน</p>
-        : <p class="hint">เว้นว่างได้ ถ้าปุ่มที่สร้างให้เปิดแชตถูกคนแล้ว (กด "ทดสอบลิงก์ Messenger" ด้านล่าง)</p>}</div>
+        : <p class="hint">เว้นว่างได้ ถ้าปุ่มทดสอบด้านล่างเปิดแชตถูกคน</p>}</div>
     <fieldset>
       <legend class="label">ช่องทางหลัก (ปุ่มใหญ่บนเว็บ)</legend>
       <div class="grid gap-2 sm:grid-cols-3">
@@ -99,10 +100,10 @@ const messengerMissing = !!c.facebookUrl && !messenger;
           <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3"><input class="size-5 accent-palm-600" type="radio" name="primary" value={k} checked={cv('primary') === k} />{label}</label>
         ))}
       </div>
-      <p class="hint">ช่องทางที่เหลือ (ที่กรอกไว้) เป็นปุ่มรองข้าง ๆ · ถ้าช่องทางหลักเว้นว่าง เว็บใช้ช่องทางถัดไปแทน</p>
+      <p class="hint">ช่องทางอื่นที่กรอกไว้เป็นปุ่มรอง</p>
       {err('primary', 'contact') && <p class="error">{err('primary', 'contact')}</p>}
     </fieldset>
-    <div><label class="label" for="mapUrl">ลิงก์แผนที่ฟาร์ม (Google Maps)</label><input class="field" id="mapUrl" name="mapUrl" type="url" value={cv('mapUrl')} placeholder="https://maps.app.goo.gl/…" />{err('mapUrl', 'contact') && <p class="error">{err('mapUrl', 'contact')}</p>}<p class="hint">เปิด Google Maps ที่ตำแหน่งฟาร์ม → กด "แชร์" → "คัดลอกลิงก์" แล้ววางที่นี่</p></div>
+    <div><label class="label" for="mapUrl">ลิงก์แผนที่ฟาร์ม (Google Maps)</label><input class="field" id="mapUrl" name="mapUrl" type="url" value={cv('mapUrl')} placeholder="https://maps.app.goo.gl/…" />{err('mapUrl', 'contact') && <p class="error">{err('mapUrl', 'contact')}</p>}<p class="hint">Google Maps → แชร์ → คัดลอกลิงก์</p></div>
 
     <label class="flex min-h-11 items-start gap-2 rounded-xl border border-line p-3">
       <input class="mt-1 size-5 accent-palm-600" type="checkbox" name="confirmed" checked={confirmedChecked} />
@@ -119,10 +120,11 @@ const messengerMissing = !!c.facebookUrl && !messenger;
     </div>
   </form>
 
-  <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="hero">
+  <div class="space-y-6">
+  <form method="post" class="card space-y-3 scroll-mt-20" id="hero">
     <input type="hidden" name="intent" value="hero" />
     <h2 class="text-lg font-semibold">รูปหัวหน้าแรกของเว็บ</h2>
-    <p class="hint">ใช้รูปสมุดพกรูปแรกของรังที่เลือก (เลือกรังที่รูปสวยที่สุด ถ่ายใหม่ด้วยมือถือ — รูปเก่าจาก Excel เล็กเกินไป ใช้ไม่ได้) · เว้นว่าง = แสดงโลโก้ · เปลี่ยนได้ทุกเมื่อ</p>
+    <p class="hint">ใส่รหัสรังที่รูปสมุดพกสวยที่สุด (รูปเก่าจาก Excel เล็กเกินไป ต้องถ่ายใหม่) · เว้นว่าง = ใช้โลโก้</p>
     <div class="flex flex-wrap items-end gap-3">
       {hero && <img src={thumbUrl(`/img/${hero.key}`)} alt={`รูปรัง ${hero.code} ที่ใช้อยู่`} width="96" height="72" class="h-[72px] w-24 rounded-xl bg-palm-50 object-cover" />}
       <div class="min-w-40 flex-1">
@@ -134,10 +136,10 @@ const messengerMissing = !!c.facebookUrl && !messenger;
     </div>
   </form>
 
-  <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="payment">
+  <form method="post" class="card space-y-3 scroll-mt-20" id="payment">
     <input type="hidden" name="intent" value="payment" />
     <h2 class="text-lg font-semibold">ช่องทางชำระเงิน (สำหรับข้อความสรุปออเดอร์)</h2>
-    <p class="hint">ใส่ท้ายข้อความสรุปออเดอร์ที่ "รอชำระ" เวลากดคัดลอกไปส่งให้ลูกค้าทางแชต — ไม่แสดงบนเว็บสาธารณะ</p>
+    <p class="hint">ต่อท้ายข้อความสรุปออเดอร์ที่ส่งให้ลูกค้า (ไม่แสดงบนเว็บ)</p>
     <div>
       <label class="label" for="paymentInfo">เลขบัญชี / พร้อมเพย์</label>
       <textarea class="field" id="paymentInfo" name="paymentInfo" rows="3" maxlength="500" placeholder="เช่น ธ.กสิกรไทย 123-4-56789-0 ชื่อบัญชี … / พร้อมเพย์ 08x-xxx-xxxx">{errorWhere === 'payment' ? (values.paymentInfo ?? '') : settings.paymentInfo}</textarea>
@@ -146,23 +148,25 @@ const messengerMissing = !!c.facebookUrl && !messenger;
     <button class="btn-primary" type="submit">บันทึกช่องทางชำระเงิน</button>
   </form>
 
-  <form method="post" class="card mb-8 max-w-2xl space-y-3 scroll-mt-20" id="location">
+  <form method="post" class="card space-y-3 scroll-mt-20" id="location">
     <input type="hidden" name="intent" value="location" />
     <h2 class="text-lg font-semibold">พิกัดฟาร์ม (สำหรับข้อมูลสภาพอากาศ)</h2>
-    <p class="hint">ใช้ดึงฝนและอุณหภูมิมาเทียบกับผลผลิตในหน้า <a class="underline" href="/admin/production">ผลผลิต + อากาศ</a> — ไม่แสดงบนเว็บสาธารณะ
+    <p class="hint">ใช้ดึงข้อมูลฝน/อุณหภูมิในหน้า <a class="underline" href="/admin/production">ผลผลิต</a> (ไม่แสดงบนเว็บ)
       {settings.farm.isDefault && <> · <strong class="text-honey-700">ตอนนี้ใช้พิกัดประมาณ อ.ปลวกแดง</strong></>}</p>
     <div>
       <label class="label" for="coords">พิกัด (ละติจูด, ลองจิจูด)</label>
       <input class="field" id="coords" name="coords" inputmode="decimal" autocomplete="off" required value={errorWhere === 'location' ? (values.coords ?? '') : `${settings.farm.lat}, ${settings.farm.lng}`} placeholder="เช่น 12.9812, 101.2234" />
       {err('coords', 'location') && <p class="error">{err('coords', 'location')}</p>}
-      <p class="hint">เปิด Google Maps → กดค้างที่ตำแหน่งฟาร์ม → แตะตัวเลขพิกัดที่ขึ้นมาเพื่อคัดลอก แล้ววางที่นี่ · เปลี่ยนพิกัดแล้ว ระบบดึงข้อมูลอากาศใหม่ให้เอง</p>
+      <p class="hint">Google Maps → กดค้างที่ฟาร์ม → แตะพิกัดเพื่อคัดลอก</p>
     </div>
     <button class="btn-primary" type="submit">บันทึกพิกัด</button>
   </form>
+  </div>
+  </div>
 
-  <section id="courses" aria-labelledby="courses-h" class="max-w-2xl">
+  <section id="courses" aria-labelledby="courses-h" class="mt-8">
     <h2 id="courses-h" class="text-lg font-semibold">หลักสูตรอบรม: ราคาและระยะเวลา</h2>
-    <p class="hint mb-3">แก้ราคา/ระยะเวลาที่แสดงบนเว็บ (เนื้อหาหลักสูตรอยู่ในไฟล์ <code>content/training/</code>) · ติ๊ก "ยืนยัน" เมื่อเป็นค่าจริงแล้ว ป้าย "ราคาตัวอย่าง" จะหายไป</p>
+    <p class="hint mb-3">ติ๊ก "ยืนยัน" เมื่อเป็นราคาจริงแล้ว ป้าย "ราคาตัวอย่าง" จะหายไป</p>
     <ul class="space-y-4">
       {courses.map((x) => {
         const w = `course:${x.slug}`;

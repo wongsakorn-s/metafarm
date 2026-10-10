@@ -1,31 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { isOwner, maskOrderCodes, ownerOnlyPath, passwordChangeAllowed, statusTargets } from './permissions.ts';
+import { canManageFarm, canManageUsers, managerOnlyPath, maskOrderCodes, ownerOnlyPath, passwordChangeAllowed, pathAllowed, statusTargets } from './permissions.ts';
 import { passwordProblem, tempPassword } from './auth/password.ts';
 
-describe('ownerOnlyPath', () => {
-  it('หมวดขาย ตั้งค่า และจัดการผู้ใช้ = เจ้าของเท่านั้น', () => {
-    for (const p of ['/admin/orders', '/admin/orders/new', '/admin/orders/S2569-001', '/admin/customers/3', '/admin/products', '/admin/reports', '/admin/reports/export/orders.csv', '/admin/settings', '/admin/readiness', '/admin/users', '/admin/users/', '/admin/Orders']) {
-      expect(ownerOnlyPath(p), p).toBe(true);
+describe('pathAllowed (เจ้าของ / แอดมิน / พนักงาน)', () => {
+  const owner = { role: 'owner' }, admin = { role: 'admin' }, staff = { role: 'staff' };
+  it('หมวดขาย ตั้งค่า = เจ้าของและแอดมิน', () => {
+    for (const p of ['/admin/orders', '/admin/orders/new', '/admin/orders/S2569-001', '/admin/customers/3', '/admin/products', '/admin/reports', '/admin/reports/export/orders.csv', '/admin/settings', '/admin/readiness', '/admin/Orders']) {
+      expect([pathAllowed(owner, p), pathAllowed(admin, p), pathAllowed(staff, p)], p).toEqual([true, true, false]);
     }
   });
-  it('งานรัง ล็อต ผลผลิต บัญชีตัวเอง = พนักงานเข้าได้', () => {
+  it('จัดการผู้ใช้ = เจ้าของเท่านั้น', () => {
+    for (const p of ['/admin/users', '/admin/users/', '/admin/Users']) {
+      expect(ownerOnlyPath(p), p).toBe(true);
+      expect([pathAllowed(owner, p), pathAllowed(admin, p), pathAllowed(staff, p)], p).toEqual([true, false, false]);
+    }
+  });
+  it('งานรัง ล็อต ผลผลิต บัญชีตัวเอง = ทุกบทบาทเข้าได้', () => {
     for (const p of ['/admin', '/admin/hives', '/admin/hives/A12', '/admin/hives/A12/edit', '/admin/hives/new', '/admin/lots', '/admin/lots/H2569-10-1/labels', '/admin/production', '/admin/quick', '/admin/photos', '/admin/todo', '/admin/more', '/admin/account', '/admin/ordersx', '/admin/usersettings']) {
-      expect(ownerOnlyPath(p), p).toBe(false);
+      expect(managerOnlyPath(p) || ownerOnlyPath(p), p).toBe(false);
+      expect(pathAllowed(staff, p), p).toBe(true);
     }
   });
 });
 
-describe('isOwner', () => {
-  it('เฉพาะ role owner', () => {
-    expect(isOwner({ role: 'owner' })).toBe(true);
-    expect(isOwner({ role: 'staff' })).toBe(false);
-    expect(isOwner(null)).toBe(false);
-    expect(isOwner(undefined)).toBe(false);
+describe('canManageFarm / canManageUsers', () => {
+  it('ขาย/เงิน: เจ้าของ + แอดมิน · ผู้ใช้: เจ้าของเท่านั้น', () => {
+    expect(['owner', 'admin', 'staff'].map((role) => canManageFarm({ role }))).toEqual([true, true, false]);
+    expect(['owner', 'admin', 'staff'].map((role) => canManageUsers({ role }))).toEqual([true, false, false]);
+    expect(canManageFarm(null)).toBe(false);
+    expect(canManageUsers(undefined)).toBe(false);
   });
 });
 
 describe('statusTargets', () => {
-  it('เจ้าของเปลี่ยนได้ทุกสถานะ', () => {
+  it('เจ้าของ/แอดมินเปลี่ยนได้ทุกสถานะ', () => {
+    expect(statusTargets('admin', 'sold')).toEqual(['active', 'collapsed']);
     expect(statusTargets('owner', 'active')).toEqual(['sold', 'collapsed']);
     expect(statusTargets('owner', 'sold')).toEqual(['active', 'collapsed']);
   });

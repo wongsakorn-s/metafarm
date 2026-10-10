@@ -2,12 +2,12 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import type { IconName } from '../../lib/icons.ts';
-import { isOwner, roleLabel } from '../../lib/permissions.ts';
+import { canManageFarm, canManageUsers, roleLabel } from '../../lib/permissions.ts';
 
 // "เมนู" ของมือถือ: หน้ารองทั้งหมดรวมไว้ที่เดียว (เดิมตั้งค่า/บัญชี/ออกจากระบบ อัดอยู่แถบบนจนตัวอักษรตกบรรทัด)
 export const prerender = false;
 const user = Astro.locals.user!;
-const owner = isOwner(user);
+const owner = canManageFarm(user);
 
 const groups = [
   {
@@ -35,7 +35,7 @@ const groups = [
     title: 'บัญชี',
     items: [
       { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่าน', hint: user.email },
-      ...(owner ? [{ href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์', hint: 'เพิ่มพนักงาน ปิดบัญชี รีเซ็ตรหัส' }] : []),
+      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์', hint: 'เพิ่มผู้ใช้ เปลี่ยนบทบาท ปิดบัญชี' }] : []),
     ],
   },
 ] as { title: string; items: { href: string; icon: string; label: string; hint?: string; external?: boolean }[] }[];

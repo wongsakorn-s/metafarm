@@ -9,7 +9,7 @@ import { unknownTopics } from '../../lib/unknown-notes.ts';
 import { fieldErrors, fillSchema, todayBangkok } from '../../lib/validation.ts';
 import { provinceOf } from '../../lib/place.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
-import { isOwner as isOwnerUser } from '../../lib/permissions.ts';
+import { canManageFarm as isOwnerUser } from '../../lib/permissions.ts';
 import { statusTargets } from '../../lib/permissions.ts';
 
 export const prerender = false;

@@ -8,7 +8,7 @@ import { boxLabel, originLabel } from '../../../../lib/labels.ts';
 import { unknownTopics } from '../../../../lib/unknown-notes.ts';
 import { editHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../../lib/validation.ts';
 import { formatThaiDate } from '../../../../lib/thai-date.ts';
-import { isOwner } from '../../../../lib/permissions.ts';
+import { canManageFarm } from '../../../../lib/permissions.ts';
 import { differingFields, shortStamp, type FieldDiff } from '../../../../lib/concurrency.ts';
 import { editedBy } from '../../../../server/versioned.ts';
 import ConflictNotice from '../../../../components/ConflictNotice.astro';
@@ -58,7 +58,7 @@ const cur: Record<string, string> = {
   boxType: hive.boxType,
   queenSourceCode: detail.queenSource ?? '',
   broodSourceCode: detail.broodSource ?? '',
-  purchasePrice: hive.purchasePrice != null && isOwner(Astro.locals.user) ? String(hive.purchasePrice) : '',
+  purchasePrice: hive.purchasePrice != null && canManageFarm(Astro.locals.user) ? String(hive.purchasePrice) : '',
   collapseReason: hive.collapseReason ?? '',
   publicNote: hive.publicNote ?? '',
   notes: hive.notes ?? '',
@@ -68,7 +68,7 @@ const v = (k: string) => (values ? (values[k] ?? '') : cur[k]!);
 if (conflict && values) {
   conflict.diffs = differingFields(values, cur, {
     origin: 'ที่มา', originPlace: 'สถานที่ซื้อ', acquiredOn: 'วันที่ได้มา', queenBornOn: 'วันเกิดนางพญา', boxType: 'กล่องรัง',
-    queenSourceCode: 'รังแม่ (ไข่นาง)', broodSourceCode: 'รังแม่ (ไข่อ่อน)', ...(isOwner(Astro.locals.user) ? { purchasePrice: 'ราคาซื้อ' } : {}),
+    queenSourceCode: 'รังแม่ (ไข่นาง)', broodSourceCode: 'รังแม่ (ไข่อ่อน)', ...(canManageFarm(Astro.locals.user) ? { purchasePrice: 'ราคาซื้อ' } : {}),
     collapseReason: 'สาเหตุที่ล่ม', publicNote: 'หมายเหตุสาธารณะ', notes: 'หมายเหตุภายใน',
   });
 }
@@ -87,7 +87,7 @@ const hl = (k: string) => (needs.has(k) ? 'ring-2 ring-honey-400' : '');
 const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day';
 ---
 
-<AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives" column="xl">
+<AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`แก้ไขรัง ${hive.code}`} active="hives">
 
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
   {conflict && <ConflictNotice form="hive-edit" diffs={conflict.diffs} by={conflict.by} at={conflict.at} format={(k, x) => (k === 'origin' ? (originLabel[x as keyof typeof originLabel] ?? x) : k === 'boxType' ? (boxLabel[x as keyof typeof boxLabel] ?? x) : x)} />}
@@ -100,9 +100,9 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     </section>
   )}
 
-  <form method="post" id="hive-edit" class="card max-w-xl space-y-4">
+  <form method="post" id="hive-edit" class="card grid gap-4 lg:grid-cols-2 lg:gap-x-8 lg:gap-y-5">
     <input type="hidden" name="version" value={values?.version ?? hive.updatedAt} />
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-3 self-start">
       <div>
         <label class="label" for="origin">ที่มา</label>
         <select class="field" id="origin" name="origin" required>
@@ -118,12 +118,12 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-3 self-start">
       <div>
         <label class="label" for="acq">วันที่ได้มา / ขยาย</label>
         <input class:list={['field', hl('acquiredOn')]} id="acq" name="acquiredOn" type="date" max={today} value={v('acquiredOn')} />
         {err('acquiredOn') && <p class="error">{err('acquiredOn')}</p>}
-        {monthOnly && <p class="hint">เดิมระบุแค่ {formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision!)} ถ้าไม่แก้ จะคงไว้แบบเดิม</p>}
+        {monthOnly && <p class="hint">เดิมรู้แค่ {formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision!)}</p>}
       </div>
       <div>
         <label class="label" for="qb">วันเกิดนางพญา {needs.has('queenBornOn') && <span class="text-honey-700">???</span>}</label>
@@ -137,22 +137,22 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="label" for="qs">ไข่นางจากรัง {needs.has('queenSourceCode') && <span class="text-honey-700">???</span>}</label>
-          <input class:list={['field', hl('queenSourceCode')]} id="qs" name="queenSourceCode" placeholder="เช่น A55" value={v('queenSourceCode')} />
+          <input class:list={['field', hl('queenSourceCode')]} id="qs" name="queenSourceCode" placeholder="เช่น 55" value={v('queenSourceCode')} />
           {err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}
         </div>
         <div>
           <label class="label" for="bs">ไข่อ่อนจากรัง {needs.has('broodSourceCode') && <span class="text-honey-700">???</span>}</label>
-          <input class:list={['field', hl('broodSourceCode')]} id="bs" name="broodSourceCode" placeholder="เช่น A89" value={v('broodSourceCode')} />
+          <input class:list={['field', hl('broodSourceCode')]} id="bs" name="broodSourceCode" placeholder="เช่น 89" value={v('broodSourceCode')} />
           {err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}
         </div>
       </div>
-      <p class="hint">แก้ตรงนี้ไม่สร้างประวัติ "แยกรัง" ในรังแม่ให้ (ต่างจากตอนเพิ่มรังใหม่) ถ้าต้องการให้บันทึกในรังแม่ด้วยตัวเอง</p>
+      <p class="hint">แก้ตรงนี้ไม่บันทึกการแยกในรังแม่ให้</p>
     </fieldset>
 
-    <div class:list={['grid gap-3', isOwner(Astro.locals.user) && 'grid-cols-2']}>
+    <div class:list={['grid gap-3 self-start', canManageFarm(Astro.locals.user) && 'grid-cols-2']}>
       <div><label class="label" for="place">สถานที่ซื้อ</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>
       {/* ราคาซื้อ = เจ้าของเท่านั้น (เซิร์ฟเวอร์ไม่รับค่านี้จากพนักงานอยู่แล้ว) */}
-      {isOwner(Astro.locals.user) && <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>}
+      {canManageFarm(Astro.locals.user) && <div><label class="label" for="price">ราคาซื้อ (บาท) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label><input class="field" id="price" name="purchasePrice" type="number" inputmode="numeric" min="0" value={v('purchasePrice')} />{err('purchasePrice') && <p class="error">{err('purchasePrice')}</p>}</div>}
     </div>
 
     {hive.status === 'collapsed' && (
@@ -163,20 +163,20 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <label class="label" for="pub">ข้อความในสมุดพก (แสดงสาธารณะ)</label>
       <input class="field" id="pub" name="publicNote" maxlength="500" value={v('publicNote')} />
       {err('publicNote') && <p class="error">{err('publicNote')}</p>}
-      <p class="hint">เว้นว่างได้ — ข้อความนี้จะเห็นโดยลูกค้า อย่าใส่ข้อมูลส่วนตัว</p>
+      <p class="hint">ลูกค้าเห็นข้อความนี้</p>
     </div>
 
-    <div>
+    <div class="lg:col-span-2">
       <label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label>
       <textarea class="field" id="notes" name="notes" data-internal-notes rows="5" maxlength="2000">{v('notes')}</textarea>
       {err('notes') && <p class="error">{err('notes')}</p>}
-      <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือข้อมูลที่ยังไม่ทราบ ระบบจะลบให้เองเมื่อเติมข้อมูลนั้นแล้ว ลบเองก็ได้</p>
+      <p class="hint">บรรทัด ??? = ข้อมูลที่ยังไม่รู้ เติมแล้วหายเอง</p>
     </div>
 
     {/* มือถือ: ปุ่มบันทึกติดเหนือแถบเมนูล่างตลอด (ฟอร์มยาว ไม่ต้องเลื่อนลงไปหา) */}
-    <div data-sticky-save class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none grid grid-cols-2 gap-3">
-      <a class="btn-ghost" href={`/admin/hives/${hive.code}`}>ยกเลิก</a>
-      <button class="btn-primary" type="submit">บันทึกการแก้ไข</button>
+    <div data-sticky-save class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none grid grid-cols-2 gap-3 lg:col-span-2 lg:flex lg:justify-end">
+      <a class="btn-ghost lg:min-w-40" href={`/admin/hives/${hive.code}`}>ยกเลิก</a>
+      <button class="btn-primary lg:min-w-64" type="submit">บันทึกการแก้ไข</button>
     </div>
   </form>
 </AdminLayout>

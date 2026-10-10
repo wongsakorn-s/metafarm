@@ -7,7 +7,7 @@ import { listHivesWithoutPhoto } from '../../server/hives.ts';
 import { originLabel, statusClass, statusLabel } from '../../lib/labels.ts';
 import { provinceOf } from '../../lib/place.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
-import { isOwner as isOwnerUser } from '../../lib/permissions.ts';
+import { canManageFarm as isOwnerUser } from '../../lib/permissions.ts';
 
 export const prerender = false;
 

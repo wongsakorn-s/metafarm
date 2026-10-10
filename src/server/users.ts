@@ -1,10 +1,11 @@
-// จัดการผู้ใช้ (Phase 5.1) — เจ้าของเพิ่ม/ปิด/รีเซ็ตรหัสผ่านของ "พนักงาน" ได้จากหลังบ้าน (ไม่ต้องรัน wrangler)
-// บัญชีเจ้าของไม่ถูกแตะจากหน้านี้ (กันปิดตัวเอง/ไม่เหลือเจ้าของ) — เจ้าของเพิ่มด้วย scripts/create-owner.ts เท่านั้น
+// จัดการผู้ใช้ (Phase 5.1) — เจ้าของเพิ่ม/ปิด/รีเซ็ตรหัสผ่านของพนักงานและแอดมินได้จากหลังบ้าน (ไม่ต้องรัน wrangler)
+// เปลี่ยนบทบาท (2026-10-10): เจ้าของเปลี่ยนบทบาทผู้อื่นได้ (รวมเลื่อนเป็น/ลดจากเจ้าของ) · แก้บัญชีตัวเองไม่ได้ จึงเหลือเจ้าของอย่างน้อย 1 คนเสมอ
+// บัญชีเจ้าของคนอื่น: เปลี่ยนบทบาทได้อย่างเดียว (ไม่ปิด/รีเซ็ตรหัสของเจ้าของด้วยกัน)
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { auditLogs, sessions, users } from '../db/schema.ts';
 import { hashPassword, tempPassword } from '../lib/auth/password.ts';
-import { isOwner } from '../lib/permissions.ts';
+import { canManageUsers, ROLES, type Role } from '../lib/permissions.ts';
 import { unlockEmail, type SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -17,7 +18,11 @@ export const newStaffSchema = z.object({
   name: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string('กรอกชื่อ').min(1, 'กรอกชื่อ').max(60, 'ยาวเกิน 60 ตัวอักษร')),
   email: z.preprocess((v) => (typeof v === 'string' ? v.trim().toLowerCase() : v), z.string('กรอกอีเมล').regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'อีเมลไม่ถูกต้อง').max(120)),
   idem: z.string().max(80).optional(),
+  /** บทบาทของบัญชีใหม่: พนักงาน หรือ แอดมิน (เจ้าของ: เพิ่มเป็นแอดมินก่อนแล้วเปลี่ยนบทบาท) */
+  role: z.preprocess((v) => v || 'staff', z.enum(['staff', 'admin'])),
 });
+
+export const roleSchema = z.object({ userId: z.coerce.number().int().positive(), role: z.enum(ROLES as [Role, ...Role[]]) });
 
 export async function listUsers(db: Db) {
   return db
@@ -26,39 +31,56 @@ export async function listUsers(db: Db) {
       lastLogin: sql<string | null>`(select max(s.created_at) from sessions s where s.user_id = users.id)`,
     })
     .from(users)
-    .orderBy(sql`case ${users.role} when 'owner' then 0 else 1 end`, asc(users.name));
+    .orderBy(sql`case ${users.role} when 'owner' then 0 when 'admin' then 1 else 2 end`, asc(users.name));
 }
 
-const staffTarget = async (db: Db, by: SessionUser, id: number) => {
-  if (!isOwner(by)) return { error: 'เฉพาะเจ้าของเท่านั้น' } as const;
+/** บัญชีที่เจ้าของจัดการได้: ไม่ใช่ตัวเอง · ปิด/รีเซ็ต/ปลดล็อก ได้เฉพาะพนักงานและแอดมิน (ไม่แตะเจ้าของด้วยกัน) */
+const staffTarget = async (db: Db, by: SessionUser, id: number, allowOwner = false) => {
+  if (!canManageUsers(by)) return { error: 'เฉพาะเจ้าของเท่านั้น' } as const;
   if (id === by.id) return { error: 'แก้บัญชีของตัวเองจากหน้านี้ไม่ได้ — ใช้หน้าบัญชีของฉัน' } as const;
   const u = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!u) return { error: 'ไม่พบผู้ใช้' } as const;
-  if (u.role !== 'staff') return { error: 'จัดการได้เฉพาะบัญชีพนักงาน' } as const;
+  if (u.role === 'owner' && !allowOwner) return { error: 'บัญชีเจ้าของจัดการจากหน้านี้ไม่ได้ — เปลี่ยนบทบาทเป็นแอดมินก่อน' } as const;
   return { user: u } as const;
 };
+
+/**
+ * เปลี่ยนบทบาท (เจ้าของเท่านั้น · แก้ตัวเองไม่ได้ → มีเจ้าของเหลืออย่างน้อย 1 คนเสมอ)
+ * เปลี่ยนแล้วออกจากระบบทุกเครื่องของผู้นั้น — ล็อกอินใหม่แล้วเห็นเมนูตามบทบาทใหม่
+ */
+export async function changeRole(db: Db, by: SessionUser, d: z.output<typeof roleSchema>): Promise<Result> {
+  const t = await staffTarget(db, by, d.userId, true);
+  if ('error' in t) return { ok: false, error: t.error! };
+  if (t.user.role === d.role) return { ok: true };
+  await db.batch([
+    db.update(users).set({ role: d.role, ...touch }).where(eq(users.id, d.userId)),
+    db.delete(sessions).where(eq(sessions.userId, d.userId)),
+    audit(db, by, 'user.role', d.userId, { from: t.user.role, to: d.role }),
+  ]);
+  return { ok: true };
+}
 
 /**
  * เพิ่มพนักงาน: สุ่มรหัสผ่านชั่วคราว (แสดงครั้งเดียว) และบังคับเปลี่ยนตอนเข้าใช้ครั้งแรก
  * ส่งฟอร์มซ้ำด้วยคีย์เดิม (กดสองครั้ง/รีเฟรช) → สุ่มรหัสใหม่ให้บัญชีเดิม เพราะรหัสครั้งแรกอาจไม่ได้เห็น
  */
 export async function createStaff(db: Db, by: SessionUser, d: z.output<typeof newStaffSchema>): Promise<Result<{ id: number; password: string }>> {
-  if (!isOwner(by)) return { ok: false, error: 'เฉพาะเจ้าของเท่านั้น' };
+  if (!canManageUsers(by)) return { ok: false, error: 'เฉพาะเจ้าของเท่านั้น' };
   const existing = await db.query.users.findFirst({ where: eq(users.email, d.email) });
   if (existing) {
     const mine = d.idem
       ? await db.select({ id: auditLogs.id }).from(auditLogs)
           .where(and(eq(auditLogs.action, 'user.create'), eq(auditLogs.entityId, existing.id), eq(auditLogs.userId, by.id), sql`json_extract(${auditLogs.diff}, '$.idem') = ${d.idem}`)).limit(1)
       : [];
-    if (mine.length && existing.role === 'staff') {
+    if (mine.length && existing.role !== 'owner') {
       const r = await resetStaffPassword(db, by, existing.id);
       return r.ok ? { ok: true, id: existing.id, password: r.password } : r;
     }
     return { ok: false, error: 'อีเมลนี้มีบัญชีอยู่แล้ว' };
   }
   const password = tempPassword();
-  const [row] = await db.insert(users).values({ email: d.email, name: d.name, passwordHash: await hashPassword(password), role: 'staff', active: true, mustChangePassword: true }).returning({ id: users.id });
-  await audit(db, by, 'user.create', row!.id, { email: d.email, role: 'staff', idem: d.idem ?? null });
+  const [row] = await db.insert(users).values({ email: d.email, name: d.name, passwordHash: await hashPassword(password), role: d.role, active: true, mustChangePassword: true }).returning({ id: users.id });
+  await audit(db, by, 'user.create', row!.id, { email: d.email, role: d.role, idem: d.idem ?? null });
   return { ok: true, id: row!.id, password };
 }
 

@@ -1,19 +1,35 @@
 // สิทธิ์ผู้ใช้หลังบ้าน (Phase 5.1): เจ้าของ (owner) ทำได้ทุกอย่าง · พนักงาน (staff) ทำงานรังได้ แต่ไม่เห็นเรื่องเงิน
+// แอดมิน (admin, 2026-10-10): เหมือนเจ้าของทุกอย่าง ยกเว้นจัดการผู้ใช้ (เพิ่ม/ปิด/เปลี่ยนบทบาท) — กันแอดมินยึดบัญชี
 // ตรวจ 3 ชั้น: middleware กัน path (ownerOnlyPath) · ฝั่งเซิร์ฟเวอร์ไม่รับช่องเงินจากพนักงาน · หน้าเว็บซ่อนเมนู/ช่อง
 // ตารางสิทธิ์เต็ม: docs/12-phase5-plan.md
 
-export type Role = 'owner' | 'staff';
-export const roleLabel: Record<Role, string> = { owner: 'เจ้าของ', staff: 'พนักงาน' };
+export type Role = 'owner' | 'admin' | 'staff';
+export const ROLES: Role[] = ['owner', 'admin', 'staff'];
+export const roleLabel: Record<Role, string> = { owner: 'เจ้าของ', admin: 'แอดมิน', staff: 'พนักงาน' };
+export const roleHint: Record<Role, string> = {
+  owner: 'ทำได้ทุกอย่าง รวมจัดการผู้ใช้',
+  admin: 'เหมือนเจ้าของ ยกเว้นจัดการผู้ใช้',
+  staff: 'งานรังเท่านั้น ไม่เห็นเรื่องเงิน/ลูกค้า',
+};
 
-export const isOwner = (u: { role: string } | null | undefined): boolean => u?.role === 'owner';
+/** เห็นและจัดการเรื่องขาย เงิน ลูกค้า ตั้งค่าเว็บ (เจ้าของ + แอดมิน) */
+export const canManageFarm = (u: { role: string } | null | undefined): boolean => u?.role === 'owner' || u?.role === 'admin';
+/** จัดการผู้ใช้และบทบาท (เจ้าของเท่านั้น) */
+export const canManageUsers = (u: { role: string } | null | undefined): boolean => u?.role === 'owner';
 
-/** หน้า/คำขอที่เฉพาะเจ้าของ (ทั้ง GET และ POST): หมวดขายทั้งหมด ตั้งค่าเว็บ และจัดการผู้ใช้ */
-const OWNER_ONLY = ['/admin/orders', '/admin/customers', '/admin/products', '/admin/reports', '/admin/settings', '/admin/readiness', '/admin/users'];
-
-export function ownerOnlyPath(pathname: string): boolean {
+/** หน้า/คำขอเฉพาะเจ้าของและแอดมิน (ทั้ง GET และ POST): หมวดขายทั้งหมด และตั้งค่าเว็บ */
+const MANAGER_ONLY = ['/admin/orders', '/admin/customers', '/admin/products', '/admin/reports', '/admin/settings', '/admin/readiness'];
+/** หน้าเฉพาะเจ้าของ: จัดการผู้ใช้ */
+const OWNER_ONLY = ['/admin/users'];
+const under = (list: string[], pathname: string) => {
   const p = pathname.replace(/\/+$/, '').toLowerCase();
-  return OWNER_ONLY.some((x) => p === x || p.startsWith(`${x}/`));
-}
+  return list.some((x) => p === x || p.startsWith(`${x}/`));
+};
+export const managerOnlyPath = (pathname: string) => under(MANAGER_ONLY, pathname);
+export const ownerOnlyPath = (pathname: string) => under(OWNER_ONLY, pathname);
+/** ผู้ใช้นี้เข้า path นี้ได้ไหม (middleware) */
+export const pathAllowed = (u: { role: string } | null | undefined, pathname: string) =>
+  ownerOnlyPath(pathname) ? canManageUsers(u) : managerOnlyPath(pathname) ? canManageFarm(u) : true;
 
 /** หน้าที่เข้าได้ระหว่างบังคับเปลี่ยนรหัสผ่านชั่วคราว */
 export const passwordChangeAllowed = (pathname: string) => ['/admin/account', '/admin/logout'].includes(pathname.replace(/\/+$/, ''));
@@ -29,7 +45,7 @@ type HiveStatus = 'active' | 'sold' | 'collapsed' | 'unknown';
  */
 export function statusTargets(role: Role, from: HiveStatus): ('active' | 'sold' | 'collapsed')[] {
   const all = (['active', 'sold', 'collapsed'] as const).filter((s) => s !== from);
-  if (role === 'owner') return [...all];
+  if (role === 'owner' || role === 'admin') return [...all];
   if (from === 'sold') return [];
   return all.filter((s) => s !== 'sold');
 }

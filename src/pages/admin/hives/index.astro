@@ -8,11 +8,11 @@ import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
-import { isOwner } from '../../../lib/permissions.ts';
+import { canManageFarm } from '../../../lib/permissions.ts';
 
 export const prerender = false;
 // พนักงาน: เห็นว่ารังไหนตั้งขาย แต่ไม่เห็นราคา
-const owner = isOwner(Astro.locals.user);
+const owner = canManageFarm(Astro.locals.user);
 
 const sp = Astro.url.searchParams;
 const filter = {

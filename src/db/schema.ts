@@ -28,7 +28,7 @@ export const EVENT_TYPES = [
   'status_change',
 ] as const;
 export const MEDIA_KINDS = ['passport', 'sale', 'video'] as const;
-export const USER_ROLES = ['owner', 'staff'] as const;
+export const USER_ROLES = ['owner', 'admin', 'staff'] as const;
 
 export const species = sqliteTable('species', {
   id: integer('id').primaryKey({ autoIncrement: true }),

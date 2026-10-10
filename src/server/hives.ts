@@ -3,7 +3,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, hiveEvents, hiveHolds, hiveMedia, hives, orders, species, suppliers, users } from '../db/schema.ts';
 import { holdBlocks } from '../lib/orders.ts';
-import { isOwner, statusTargets } from '../lib/permissions.ts';
+import { canManageFarm, statusTargets } from '../lib/permissions.ts';
 import { suggestNextCode } from '../lib/hive-code.ts';
 import { CONFLICT_ERROR } from '../lib/concurrency.ts';
 import { auditIfChanged, type Saved } from './versioned.ts';
@@ -287,7 +287,7 @@ export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.o
   if (await alreadySaved(db, key)) return { ok: true };
   if (d.status === hive.status) return { ok: false, error: 'รังอยู่ในสถานะนี้แล้ว' };
   if (!statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
-  const held = holdBlocks(await hiveHold(db, hive.id), d, isOwner(user));
+  const held = holdBlocks(await hiveHold(db, hive.id), d, canManageFarm(user));
   if (held) return { ok: false, error: held };
   await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   return { ok: true };
@@ -328,7 +328,7 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
     queenSourceHiveId: queen.id,
     broodSourceHiveId: brood.id,
     // ราคาซื้อ = ข้อมูลเงิน → พนักงานแก้ไม่ได้ (ฟอร์มของพนักงานไม่มีช่องนี้ และค่าที่ส่งมาเองถูกข้าม)
-    purchasePrice: isOwner(user) ? (d.purchasePrice ?? null) : hive.purchasePrice,
+    purchasePrice: canManageFarm(user) ? (d.purchasePrice ?? null) : hive.purchasePrice,
     collapseReason: hive.status === 'collapsed' ? (d.collapseReason ?? null) : hive.collapseReason,
     publicNote: d.publicNote ?? null,
     notes,
@@ -348,7 +348,7 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
 }
 
 export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof saleSchema>): Promise<Result> {
-  if (!isOwner(user)) return { ok: false, error: 'การตั้งขายเป็นสิทธิ์ของเจ้าของฟาร์ม' };
+  if (!canManageFarm(user)) return { ok: false, error: 'การตั้งขายเป็นสิทธิ์ของเจ้าของฟาร์ม' };
   if (d.forSale && hive.status !== 'active') return { ok: false, error: 'ตั้งขายได้เฉพาะรังที่ยังอยู่ (active)' };
   const held = d.forSale ? holdBlocks(await hiveHold(db, hive.id), 'sale', true) : null;
   if (held) return { ok: false, error: held };
@@ -405,7 +405,7 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
   // ทั้งหมดอยู่ใน batch เดียว — สำเร็จพร้อมกันหรือไม่บันทึกเลย (เดิมแยก 2 ครั้ง ถ้าครั้งหลังล้ม สถานะเปลี่ยนแต่ข้อมูลอื่นหาย)
   const statusChange = d.status && d.status !== hive.status;
   if (statusChange && !statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
-  const held = statusChange ? holdBlocks(await hiveHold(db, hive.id), { status: d.status! }, isOwner(user)) : null;
+  const held = statusChange ? holdBlocks(await hiveHold(db, hive.id), { status: d.status! }, canManageFarm(user)) : null;
   if (held) return { ok: false, error: held };
   const stmts: BatchItem<'sqlite'>[] = statusChange ? statusStatements(db, user, hive, { status: d.status!, occurredOn: todayBangkok() } as z.output<typeof statusSchema>, null) : [];
   const status = statusChange ? d.status! : hive.status;
@@ -490,7 +490,7 @@ export async function createHive(db: Db, user: SessionUser, d: z.output<typeof n
       db.insert(hives).values({
         code, speciesId: 1, origin: d.origin, originPlace: d.originPlace, acquiredOn, acquiredOnPrecision: acquiredOn ? 'day' : null,
         queenBornOn: d.queenBornOn, boxType: d.boxType, status: 'active', queenSourceHiveId: queen?.id, broodSourceHiveId: brood?.id,
-        purchasePrice: isOwner(user) ? d.purchasePrice : null, notes: d.notes, createKey,
+        purchasePrice: canManageFarm(user) ? d.purchasePrice : null, notes: d.notes, createKey,
       }),
       // บันทึกในรังแม่ให้อัตโนมัติ (วันที่ = วันที่ได้มา ถ้ามี)
       ...(brood && acquiredOn ? [db.insert(hiveEvents).values({ hiveId: brood.id, type: 'brood_split', occurredOn: acquiredOn, targetHiveId: id, createdBy: user.id, idempotencyKey: `auto:${code}:brood` }).onConflictDoNothing()] : []),

@@ -6,7 +6,7 @@ import { getDb } from '../../../server/db.ts';
 import { listLots, unassignedHarvests } from '../../../server/lots.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { fmt } from '../../../lib/chart.ts';
-import { isOwner } from '../../../lib/permissions.ts';
+import { canManageFarm } from '../../../lib/permissions.ts';
 
 // ล็อตน้ำผึ้ง: เก็บน้ำหวาน → สร้างล็อต → บรรจุขวด → พิมพ์ฉลาก QR → ขาย (ระบบผูกล็อตเก่าก่อนให้เอง)
 export const prerender = false;
@@ -14,7 +14,7 @@ const db = getDb();
 const [lots, pending] = await Promise.all([listLots(db), unassignedHarvests(db)]);
 const pendingMl = pending.reduce((s, e) => s + (e.ml ?? 0), 0);
 // พนักงาน: ไม่มีแถบหมวดขาย และไม่เห็นยอดขายต่อล็อต
-const owner = isOwner(Astro.locals.user);
+const owner = canManageFarm(Astro.locals.user);
 ---
 
 <AdminLayout title={owner ? 'ขาย' : 'ล็อตน้ำผึ้ง'} active="lots">
