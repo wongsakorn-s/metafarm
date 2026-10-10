@@ -185,3 +185,89 @@ describe('ข้อมูลเดิมก่อน migration 0013 (hive_holds)
     }
   }, 60_000);
 });
+
+describe('ข้อมูลเปลี่ยนระหว่างตรวจกับบันทึก (อีกเครื่องบันทึกแทรก)', () => {
+  it('รังล่มระหว่างกด "ชำระแล้ว" → ไม่รับชำระทั้งออเดอร์ (ไม่ตัดสต็อก ไม่นับรายได้) · ชำระซ้ำได้คำตอบตามจริง', async () => {
+    const f = await fixture();
+    const code = ((await order(f)) as { code: string }).code;
+    // จำลองอีกเครื่อง: รังกลายเป็น "ล่ม" หลังจากที่ applyPaid ตรวจไปแล้ว แต่ก่อน batch ชำระทำงาน (คำสั่งแรกของ batch = once key)
+    await t.d1.prepare(`CREATE TRIGGER collapse_mid_pay BEFORE INSERT ON once_keys BEGIN UPDATE hives SET status = 'collapsed' WHERE id = ${f.hiveId}; END`).run();
+    const r = await payOrder(t.db, t.owner, code, paid);
+    await t.d1.prepare(`DROP TRIGGER collapse_mid_pay`).run();
+    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('สถานะรังเพิ่งถูกเปลี่ยน') });
+    // trigger ย้อนกลับไปพร้อม batch → สถานะเดิม · ออเดอร์ยังรอชำระ และไม่ได้ตัดสต็อก
+    expect(await state(f, code)).toMatchObject({ status: 'awaiting_payment', stock: 7, stockApplied: false });
+    expect((await payOrder(t.db, t.owner, code, paid)).ok).toBe(true);
+  });
+
+  it('เปลี่ยนสถานะจากค่าที่อ่านไว้นานแล้ว (อีกเครื่องเปลี่ยนไปก่อน) → ไม่เขียนทับ', async () => {
+    const f = await fixture();
+    const stale = await hiveOf(f.hiveId);
+    expect((await changeStatus(t.db, t.staff, await hiveOf(f.hiveId), { status: 'collapsed', occurredOn: TODAY, idem: `a-${f.hiveId}-xxxxxx` } as never)).ok).toBe(true);
+    const r = await changeStatus(t.db, t.owner, stale, { status: 'sold', occurredOn: TODAY, soldPrice: 1500, idem: `b-${f.hiveId}-xxxxxx` } as never);
+    expect(r).toMatchObject({ ok: false, error: expect.stringContaining('สถานะรังเพิ่งถูกเปลี่ยน') });
+    expect((await hiveOf(f.hiveId)).status).toBe('collapsed');
+  });
+
+  it('ส่งการเปลี่ยนสถานะเดิมซ้ำพร้อมกัน (คิวรอส่ง) → สำเร็จทั้งคู่ บันทึกครั้งเดียว', async () => {
+    const f = await fixture();
+    const hive = await hiveOf(f.hiveId);
+    const d = { status: 'collapsed', occurredOn: TODAY, idem: `same-${f.hiveId}-xxxx` } as never;
+    const rs = await Promise.all([changeStatus(t.db, t.staff, hive, d), changeStatus(t.db, t.staff, hive, d)]);
+    expect(rs.every((r) => r.ok)).toBe(true);
+    const n = await t.d1.prepare(`SELECT count(*) n FROM hive_events WHERE hive_id = ? AND type = 'status_change'`).bind(f.hiveId).first<{ n: number }>();
+    expect(n!.n).toBe(1);
+  });
+
+  it('ตั้งขายจากหน้าที่โหลดไว้ก่อนรังล่ม → ไม่ตั้งขาย', async () => {
+    const f = await fixture();
+    await t.d1.prepare(`UPDATE hives SET for_sale = 0 WHERE id = ?`).bind(f.hiveId).run();
+    const before = await hiveOf(f.hiveId);
+    await changeStatus(t.db, t.staff, await hiveOf(f.hiveId), { status: 'collapsed', occurredOn: TODAY, collapseReason: 'มด' } as never);
+    expect(await updateSale(t.db, t.owner, before, { forSale: true, salePrice: 1500 })).toMatchObject({ ok: false, error: expect.stringContaining('เพิ่งถูกจอง') });
+    expect((await hiveOf(f.hiveId)).forSale).toBe(false);
+  });
+
+  it('ตั้งขายตอนรังถูกจองแล้ว แม้การตรวจก่อนบันทึกพลาด → ตัวกันใน batch ไม่ให้ตั้งขาย', async () => {
+    const f = await fixture();
+    await t.d1.prepare(`UPDATE hives SET for_sale = 0 WHERE id = ?`).bind(f.hiveId).run();
+    // hold ที่ชี้ไปออเดอร์ "ยกเลิก" → holdBlocks ปล่อยผ่าน (จำลองการตรวจที่อ่านค่าก่อนอีกเครื่องจอง) แต่แถว hold มีอยู่ตอน batch
+    const o = await t.d1.prepare(`INSERT INTO orders (code, ordered_on, status) VALUES (?, ?, 'cancelled') RETURNING id`).bind(`S2569-9${f.hiveId}`, TODAY).first<{ id: number }>();
+    await t.d1.prepare(`INSERT INTO hive_holds (hive_id, order_id) VALUES (?, ?)`).bind(f.hiveId, o!.id).run();
+    expect(await updateSale(t.db, t.owner, await hiveOf(f.hiveId), { forSale: true, salePrice: 1500 })).toMatchObject({ ok: false });
+    expect((await hiveOf(f.hiveId)).forSale).toBe(false);
+  });
+});
+
+describe('ลูกค้าใหม่ในฟอร์มออเดอร์', () => {
+  const newCustomerOrder = (f: { variantId: number; hiveId: number }, name: string) =>
+    createOrder(t.db, t.owner, {
+      customerMode: 'new', customer: { name, phone: '0812345678' }, channel: 'line', orderedOn: TODAY, shipMethod: 'pickup', shipFee: 0,
+      paidNow: false, idem: `cust-${++seq}-xxxx`, items: [{ kind: 'variant', id: f.variantId, qty: 1, unitPrice: 250 }, { kind: 'hive', id: f.hiveId, qty: 1, unitPrice: 1700 }],
+    } as never);
+  const countNamed = async (name: string) => (await t.d1.prepare(`SELECT count(*) n FROM customers WHERE name = ?`).bind(name).first<{ n: number }>())!.n;
+
+  it('ออเดอร์ผูกกับลูกค้าที่สร้าง และมี audit ของลูกค้า', async () => {
+    const f = await fixture();
+    const r = await newCustomerOrder(f, 'คุณบี');
+    const got = (await getOrder(t.db, (r as { code: string }).code))!;
+    expect(got.customer).toMatchObject({ name: 'คุณบี', phone: '0812345678' });
+    const a = await t.d1.prepare(`SELECT entity_id e FROM audit_logs WHERE action = 'customer.create' ORDER BY id DESC`).first<{ e: number }>();
+    expect(a!.e).toBe(got.customer!.id);
+  });
+
+  it('บันทึกออเดอร์ล้ม → ไม่มีลูกค้าค้าง (กดใหม่ไม่ได้ลูกค้าซ้ำ)', async () => {
+    const f = await fixture();
+    await t.d1.prepare(`CREATE TRIGGER fail_order BEFORE INSERT ON orders BEGIN SELECT RAISE(ABORT, 'boom'); END`).run();
+    await expect(newCustomerOrder(f, 'คุณซี')).rejects.toThrow();
+    await t.d1.prepare(`DROP TRIGGER fail_order`).run();
+    expect(await countNamed('คุณซี')).toBe(0);
+  });
+
+  it('สองเครื่องสร้างออเดอร์รังเดียวกันพร้อมลูกค้าใหม่ → ลูกค้าเกิดเฉพาะของออเดอร์ที่สำเร็จ', async () => {
+    const f = await fixture();
+    const rs = await Promise.all([newCustomerOrder(f, 'คุณดี'), newCustomerOrder(f, 'คุณดี')]);
+    expect(rs.filter((r) => r.ok)).toHaveLength(1);
+    expect(await countNamed('คุณดี')).toBe(1);
+  });
+});

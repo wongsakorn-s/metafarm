@@ -6,7 +6,7 @@ import { holdBlocks } from '../lib/orders.ts';
 import { canDeleteRecord, canManageFarm, DELETE_DENIED, statusTargets } from '../lib/permissions.ts';
 import { suggestNextCode } from '../lib/hive-code.ts';
 import { CONFLICT_ERROR } from '../lib/concurrency.ts';
-import { auditIfChanged, type Saved } from './versioned.ts';
+import { abortIf, auditIfChanged, isGuardAbort, type Saved } from './versioned.ts';
 import type { z } from 'zod';
 import { todayBangkok } from '../lib/validation.ts';
 import type { broodSplitSchema, editHiveSchema, fillSchema, honeyHarvestSchema, newHiveSchema, noteSchema, queenCellSchema, saleSchema, statusSchema } from '../lib/validation.ts';
@@ -280,7 +280,11 @@ export async function deleteEvent(db: Db, user: SessionUser, hive: Hive, eventId
 /** คำสั่งเปลี่ยนสถานะ (บันทึกเหตุการณ์ + อัปเดตรัง + audit) — แยกออกมาให้ fillMissing รวมเป็น batch เดียวได้ */
 export function statusStatements(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof statusSchema>, key: string | null): BatchItem<'sqlite'>[] {
   const sold = d.status === 'sold';
+  const hiveId = hive.id;
   return [
+    // สถานะต้องยังเป็นค่าที่อ่านมาตรวจ — เดิมอ่านแล้วค่อยเขียนทับ: พนักงานบันทึก "ล่ม" ระหว่างเจ้าของกด "ชำระแล้ว"
+    // → รังที่ล่มกลายเป็น "ขายแล้ว" และนับเป็นรายได้ · ตอนนี้คำขอที่ช้ากว่าย้อนกลับทั้ง batch (STATUS_RACE)
+    abortIf(db, sql`coalesce((select status from hives where id = ${hiveId}), '') != ${hive.status}`),
     db.insert(hiveEvents).values({ hiveId: hive.id, type: 'status_change', occurredOn: d.occurredOn, fromStatus: hive.status, toStatus: d.status, note: d.note ?? d.collapseReason, createdBy: user.id, idempotencyKey: key }).onConflictDoNothing(),
     db
       .update(hives)
@@ -314,9 +318,18 @@ export async function changeStatus(db: Db, user: SessionUser, hive: Hive, d: z.o
   if (!statusTargets(user.role, hive.status).includes(d.status as 'active')) return { ok: false, error: STATUS_DENIED };
   const held = holdBlocks(await hiveHold(db, hive.id), d, canManageFarm(user));
   if (held) return { ok: false, error: held };
-  await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  try {
+    await db.batch(statusStatements(db, user, hive, d, key) as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  } catch (e) {
+    // คำขอเดิมส่งซ้ำพร้อมกัน (คิวรอส่ง) → อีกคำขอบันทึกไปแล้ว = สำเร็จ
+    if (isGuardAbort(e)) return (await alreadySaved(db, key)) ? { ok: true } : { ok: false, error: STATUS_RACE };
+    throw e;
+  }
   return { ok: true };
 }
+
+/** สถานะรังเปลี่ยนระหว่างที่บันทึก (statusStatements ย้อนกลับทั้ง batch) */
+export const STATUS_RACE = 'ไม่ได้บันทึก — สถานะรังเพิ่งถูกเปลี่ยน (อาจจากอีกเครื่อง) โหลดหน้าใหม่แล้วตรวจอีกครั้ง';
 
 /** แก้ไขข้อมูลรัง (ไม่รวมสถานะ/การขาย ซึ่งมีฟอร์มแยก) */
 export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof editHiveSchema>): Promise<Saved> {
@@ -377,10 +390,19 @@ export async function updateSale(db: Db, user: SessionUser, hive: Hive, d: z.out
   if (d.forSale && hive.status !== 'active') return { ok: false, error: 'ตั้งขายได้เฉพาะรังที่ยังอยู่ (active)' };
   const held = d.forSale ? holdBlocks(await hiveHold(db, hive.id), 'sale', true) : null;
   if (held) return { ok: false, error: held };
-  await db.batch([
+  const hiveId = hive.id;
+  const stmts: BatchItem<'sqlite'>[] = [
+    // ตั้งขาย: รังต้องยังอยู่และไม่ถูกจองในออเดอร์ "ตอนบันทึก" (เดิมตรวจก่อน → ออเดอร์ที่สร้างพร้อมกันจองรัง แล้วรังกลับขึ้นหน้าขาย)
+    ...(d.forSale ? [abortIf(db, sql`(select status from hives where id = ${hiveId}) != 'active' or exists (select 1 from hive_holds hh where hh.hive_id = ${hiveId})`)] : []),
     db.update(hives).set({ forSale: d.forSale, salePrice: d.forSale ? d.salePrice : hive.salePrice, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.sale', hive.id, { forSale: d.forSale, salePrice: d.salePrice }),
-  ]);
+  ];
+  try {
+    await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  } catch (e) {
+    if (isGuardAbort(e)) return { ok: false, error: 'ไม่ได้บันทึก — รังนี้เพิ่งถูกจองในออเดอร์หรือเปลี่ยนสถานะ (อาจจากอีกเครื่อง) โหลดหน้าใหม่แล้วตรวจอีกครั้ง' };
+    throw e;
+  }
   return { ok: true };
 }
 
@@ -448,7 +470,12 @@ export async function fillMissing(db: Db, user: SessionUser, hive: Hive, d: z.ou
     db.update(hives).set({ ...next, notes, ...touch }).where(eq(hives.id, hive.id)),
     audit(db, user, 'hive.fill', hive.id, { fields: Object.keys(d).filter((k) => (d as Record<string, unknown>)[k] != null) }),
   );
-  await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  try {
+    await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  } catch (e) {
+    if (isGuardAbort(e)) return { ok: false, error: STATUS_RACE };
+    throw e;
+  }
   return { ok: true };
 }
 

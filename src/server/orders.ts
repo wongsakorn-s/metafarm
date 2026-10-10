@@ -7,9 +7,9 @@ import type { z } from 'zod';
 import { auditLogs, customers, hiveHolds, hives, honeyLots, orderItemLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
 import { canMove, nextSeq, orderCode, orderStatusLabel, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
 import type { SessionUser } from './auth.ts';
-import { isOnceConflict, once } from './versioned.ts';
+import { isGuardAbort, isOnceConflict, once } from './versioned.ts';
 import type { Db } from './db.ts';
-import { byCode, statusStatements } from './hives.ts';
+import { byCode, STATUS_RACE, statusStatements } from './hives.ts';
 import { statusLabel } from '../lib/labels.ts';
 import { allocateLots } from './lots.ts';
 
@@ -115,22 +115,19 @@ export async function createOrder(db: Db, user: SessionUser, d: z.output<typeof 
   }
   if (new Set(hiveIds).size !== hiveIds.length) return { ok: false, error: 'เลือกรังเดียวกันซ้ำ' };
 
-  // ลูกค้า: เดิม หรือสร้างใหม่ (สร้างก่อนแยกต่างหาก — ลูกค้าที่ไม่มีออเดอร์ไม่ทำให้อะไรผิด)
-  let customerId = d.customerMode === 'existing' ? d.customerId! : null;
-  if (d.customerMode === 'existing' && !opts.customers.some((c) => c.id === customerId)) return { ok: false, error: 'ไม่พบลูกค้านี้' };
-  if (d.customerMode === 'new') {
-    const c = d.customer!;
-    const [row] = await db.insert(customers).values({ name: c.name!, phone: c.phone ?? null, lineName: c.lineName ?? null, address: c.address ?? null, notes: c.notes ?? null }).returning({ id: customers.id });
-    customerId = row!.id;
-    await db.insert(auditLogs).values({ userId: user.id, action: 'customer.create', entity: 'customer', entityId: customerId });
-  }
+  // ลูกค้า: เดิม หรือสร้างใหม่ใน batch เดียวกับออเดอร์ (เดิมสร้างก่อนแยกต่างหาก — ออเดอร์ล้มแล้วกดใหม่ ได้ลูกค้าซ้ำ)
+  if (d.customerMode === 'existing' && !opts.customers.some((c) => c.id === d.customerId)) return { ok: false, error: 'ไม่พบลูกค้านี้' };
+  const c = d.customerMode === 'new' ? d.customer! : null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const prefix = orderCode(d.orderedOn!, 0).slice(0, 6); // "S2569-"
     const codes = (await db.select({ code: orders.code }).from(orders).where(like(orders.code, `${prefix}%`))).map((r) => r.code);
     const code = orderCode(d.orderedOn!, nextSeq(codes));
     const orderId = sql`(select id from orders where code = ${code})`;
+    // ลูกค้าใหม่ = แถวที่เพิ่ง insert เป็นคำสั่งก่อนหน้าใน batch นี้ (last_insert_rowid) · ล้มทั้ง batch = ไม่มีลูกค้าค้าง
+    const customerId = c ? (sql`last_insert_rowid()` as unknown as number) : d.customerId!;
     const stmts: BatchItem<'sqlite'>[] = [
+      ...(c ? [db.insert(customers).values({ name: c.name!, phone: c.phone ?? null, lineName: c.lineName ?? null, address: c.address ?? null, notes: c.notes ?? null })] : []),
       db.insert(orders).values({
         // สร้างเป็น "รอชำระ" เสมอ แล้วชำระด้วยขั้นปกติ — ถ้าขั้นชำระล้ม ออเดอร์ยังกดชำระต่อได้
         // (เดิมบันทึกเป็น "ชำระแล้ว" ตั้งแต่แรก ถ้าตัดสต็อกล้ม ออเดอร์ค้างแบบชำระแล้วแต่ไม่ตัดสต็อก และไม่มีปุ่มให้แก้)
@@ -148,6 +145,7 @@ export async function createOrder(db: Db, user: SessionUser, d: z.output<typeof 
       ...hiveIds.map((hiveId) => db.insert(hiveHolds).values({ hiveId, orderId: orderId as unknown as number })),
       ...(hiveIds.length ? [db.update(hives).set({ forSale: false, ...touch }).where(inArray(hives.id, hiveIds))] : []),
       audit(db, user, 'order.create', 'order', null, { code, items: d.items.length, paid: d.paidNow }),
+      ...(c ? [db.insert(auditLogs).values({ userId: user.id, action: 'customer.create', entity: 'customer', entityId: sql`(select customer_id from orders where code = ${code})` as unknown as number })] : []),
     ];
     try {
       await run(db, stmts);
@@ -231,6 +229,8 @@ async function applyPaid(db: Db, user: SessionUser, code: string, d: z.output<ty
     ]);
   } catch (e) {
     if (isOnceConflict(e)) return afterRace(db, code, 'paid');
+    // รังในออเดอร์เปลี่ยนสถานะ (เช่นพนักงานบันทึก "ล่ม") ระหว่างตรวจกับบันทึก → ไม่รับชำระ ไม่ตัดสต็อก
+    if (isGuardAbort(e)) return { ok: false, error: `${STATUS_RACE} — ถ้ารังล่มแล้ว ให้ยกเลิกออเดอร์นี้แล้วสร้างใหม่โดยไม่มีรังนั้น` };
     throw e;
   }
   return { ok: true };
@@ -291,6 +291,7 @@ export async function cancelOrder(db: Db, user: SessionUser, code: string, today
     await run(db, stmts);
   } catch (e) {
     if (isOnceConflict(e)) return afterRace(db, code, 'cancelled');
+    if (isGuardAbort(e)) return { ok: false, error: STATUS_RACE };
     throw e;
   }
   return { ok: true };

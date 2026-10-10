@@ -1,7 +1,7 @@
 // ตัวช่วยกันเขียนทับกัน (Phase 5.3) — ใช้คู่กับ src/lib/concurrency.ts
 // รูปแบบ: db.batch([ UPDATE ... WHERE id = ? AND updated_at = <เวอร์ชันที่ฟอร์มเห็น> RETURNING id, auditIfChanged(...) ])
 //   ผลของคำสั่งแรกว่าง = มีคนบันทึกไปก่อน → ไม่มีอะไรเปลี่ยน และ audit ก็ไม่ถูกเขียน (อยู่ใน batch/transaction เดียวกัน)
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, sql, type SQL } from 'drizzle-orm';
 import { auditLogs, onceKeys, users } from '../db/schema.ts';
 import type { Db } from './db.ts';
 
@@ -39,6 +39,16 @@ export async function editedBy(db: Db, entity: string, entityId: number, since: 
 export const once = (db: Db, key: string) => db.insert(onceKeys).values({ key });
 const ONCE_DUP = /UNIQUE constraint failed: once_keys/i;
 export const isOnceConflict = (e: unknown) => ONCE_DUP.test(String(e)) || ONCE_DUP.test(String((e as { cause?: unknown })?.cause ?? ''));
+
+/**
+ * ตัวกันใน batch: ถ้าเงื่อนไขเป็นจริง (ข้อมูลเปลี่ยนไปหลังจากที่อ่านมาตรวจ) ทั้ง batch ย้อนกลับ — จับด้วย isGuardAbort
+ * SQLite ไม่มี RAISE นอก trigger จึงใส่ NULL ลง once_keys.key (NOT NULL) ให้คำสั่งล้มเฉพาะเมื่อเงื่อนไขจริง
+ * ใช้เมื่อการตัดสินใจอาศัยค่าที่อ่านก่อน batch เช่นสถานะรัง (อ่านแล้ว → อีกเครื่องเปลี่ยน → batch ของเราต้องไม่ทับ)
+ */
+export const abortIf = (db: Db, condition: SQL) =>
+  db.insert(onceKeys).select(sql`select null, (strftime('%Y-%m-%dT%H:%M:%fZ','now')) where ${condition}`);
+const GUARD = /NOT NULL constraint failed: once_keys\.key/i;
+export const isGuardAbort = (e: unknown) => GUARD.test(String(e)) || GUARD.test(String((e as { cause?: unknown })?.cause ?? ''));
 
 /** ผลของการบันทึกที่อาจชน: conflict = มีคนบันทึกไปก่อน (หน้าแสดงค่าล่าสุดให้เทียบ) */
 export type Saved = { ok: true } | { ok: false; error: string; conflict?: boolean };
