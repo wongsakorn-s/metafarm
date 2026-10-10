@@ -9,7 +9,7 @@ export const prerender = false;
 export const GET: APIRoute = async ({ url }) => {
   const d = await getSitemapData(getDb());
   const paths = [
-    '/', '/stingless-bee', '/honey', '/learn/research', '/products', '/products/hives', '/training', '/passport', '/contact', '/privacy',
+    '/', '/stingless-bee', '/honey', '/learn/research', '/products', '/products/hives', '/training', '/passport', '/gallery', '/contact', '/privacy',
     ...d.productSlugs.map((s) => `/products/${s}`),
     ...d.saleCodes.map((c) => `/products/hives/${c}`),
     ...d.hiveCodes.map((c) => `/passport/${c}`),

@@ -5,4 +5,5 @@ export const placeholder = {
   hiveBox: '/placeholder/hive-box.svg',
   honey: '/placeholder/honey.svg',
   training: '/placeholder/training.svg',
+  gallery: '/placeholder/gallery.svg',
 } as const;

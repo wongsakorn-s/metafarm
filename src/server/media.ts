@@ -88,7 +88,7 @@ export async function uploadImages(
   return { added, skipped };
 }
 
-async function validThumb(f: File | undefined): Promise<{ bytes: Uint8Array; mime: string } | null> {
+export async function validThumb(f: File | undefined): Promise<{ bytes: Uint8Array; mime: string } | null> {
   if (!(f instanceof File) || f.size === 0 || f.size > MAX_THUMB_BYTES) return null;
   const bytes = new Uint8Array(await f.arrayBuffer());
   const type = detectImageType(bytes);

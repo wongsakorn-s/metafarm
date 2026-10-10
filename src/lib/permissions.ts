@@ -18,7 +18,8 @@ export const canManageFarm = (u: { role: string } | null | undefined): boolean =
 export const canManageUsers = (u: { role: string } | null | undefined): boolean => u?.role === 'owner';
 
 /** หน้า/คำขอเฉพาะเจ้าของและแอดมิน (ทั้ง GET และ POST): หมวดขายทั้งหมด และตั้งค่าเว็บ */
-const MANAGER_ONLY = ['/admin/orders', '/admin/customers', '/admin/products', '/admin/reports', '/admin/settings', '/admin/readiness'];
+// gallery: รูปขึ้นหน้าสาธารณะทันที (รูปส่งมอบอาจมีหน้า/บ้านลูกค้า) — ให้เจ้าของ/แอดมินตัดสินใจ
+const MANAGER_ONLY = ['/admin/orders', '/admin/customers', '/admin/products', '/admin/reports', '/admin/settings', '/admin/readiness', '/admin/gallery'];
 /** หน้าเฉพาะเจ้าของ: จัดการผู้ใช้ */
 const OWNER_ONLY = ['/admin/users'];
 const under = (list: string[], pathname: string) => {

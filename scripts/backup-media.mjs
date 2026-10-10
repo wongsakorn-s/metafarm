@@ -3,7 +3,7 @@
 //   node scripts/backup-media.mjs --local    ทดสอบกับข้อมูลในเครื่อง (.wrangler/state)
 //   ตัวเลือก: --limit N (สำรองไม่เกิน N รูปต่อรอบ)
 //
-// วิธีทำงาน: wrangler ไม่มีคำสั่ง list ของ R2 จึงเอารายชื่อรูปจากฐานข้อมูล (hive_media.r2_key + products.image_key)
+// วิธีทำงาน: wrangler ไม่มีคำสั่ง list ของ R2 จึงเอารายชื่อรูปจากฐานข้อมูล (hive_media.r2_key + products.image_key + gallery_photos.r2_key)
 // คีย์รูปมี UUID ในชื่อและเนื้อไฟล์ไม่เปลี่ยน → จดรายชื่อที่สำรองแล้วไว้ใน media/_manifest.txt แล้วคัดลอกเฉพาะรูปใหม่
 // รูปที่ถูกลบในแอปยังอยู่ในที่สำรอง (กู้คืนได้) · รูปย่อ (thumb/) ไม่สำรอง เพราะไม่จำเป็นต่อการกู้
 import { execFileSync } from 'node:child_process';
@@ -27,7 +27,7 @@ let exitCode = 0;
 try {
   // 1) รายชื่อรูปทั้งหมดที่ฐานข้อมูลอ้างถึง
   const out = wrangler('d1', 'execute', 'metafarm-db', where, '--json', '--command',
-    "SELECT r2_key AS k FROM hive_media WHERE r2_key IS NOT NULL UNION SELECT image_key FROM products WHERE image_key IS NOT NULL");
+    "SELECT r2_key AS k FROM hive_media WHERE r2_key IS NOT NULL UNION SELECT image_key FROM products WHERE image_key IS NOT NULL UNION SELECT r2_key FROM gallery_photos");
   const keys = JSON.parse(out)[0].results.map((r) => r.k).filter((k) => typeof k === 'string' && !k.includes('..'));
 
   // 2) รายชื่อที่สำรองแล้ว (ครั้งแรกยังไม่มี)

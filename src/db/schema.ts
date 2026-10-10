@@ -29,6 +29,8 @@ export const EVENT_TYPES = [
   'status_change',
 ] as const;
 export const MEDIA_KINDS = ['passport', 'sale', 'video'] as const;
+/** หมวดรูปในหน้า Gallery (เจ้าของฟาร์ม 2026-10-10) — ชื่อหมวดภาษาไทยอยู่ที่ src/lib/gallery.ts */
+export const GALLERY_CATEGORIES = ['farm', 'hive_delivery', 'honey_delivery', 'woodshop'] as const;
 export const USER_ROLES = ['owner', 'admin', 'staff'] as const;
 
 export const species = sqliteTable('species', {
@@ -429,4 +431,23 @@ export const orderItemLots = sqliteTable(
     qty: integer('qty').notNull(),
   },
   (t) => [primaryKey({ columns: [t.orderItemId, t.lotId] }), index('order_item_lots_lot_idx').on(t.lotId), check('order_item_lots_qty_pos', sql`${t.qty} > 0`)],
+);
+
+/**
+ * รูปในหน้า Gallery สาธารณะ (/gallery) — เจ้าของ/แอดมินอัปโหลดที่ /admin/gallery
+ * ไฟล์ใน R2: gallery/<หมวด>/<id>.<ext> (+ รูปย่อ thumb/…) · ลบ GPS/EXIF ก่อนเก็บเหมือนรูปรัง
+ */
+export const galleryPhotos = sqliteTable(
+  'gallery_photos',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    category: text('category', { enum: GALLERY_CATEGORIES }).notNull(),
+    r2Key: text('r2_key').notNull(),
+    caption: text('caption'),
+    /** มากก่อน = แสดงก่อน (รูปใหม่ได้ค่ามากสุดของหมวด) */
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdBy: integer('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('gallery_photos_key_uq').on(t.r2Key), index('gallery_photos_cat_idx').on(t.category, t.sortOrder)],
 );

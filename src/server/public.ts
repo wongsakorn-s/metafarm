@@ -5,7 +5,7 @@
 // ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
-import { hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, species } from '../db/schema.ts';
+import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
 import { byCode } from './hives.ts';
@@ -362,7 +362,23 @@ export async function searchHiveCodes(db: Db, q: string, limit = 12): Promise<st
  * รูปที่เปิดสาธารณะได้: รูปสมุดพก (passport) ทุกรัง
  * และรูปขาย (sale) เฉพาะรังที่ตั้งขายอยู่และยังไม่ขาย — รูปอื่น/คีย์ที่เดาเอาเองจะไม่ผ่าน
  */
+// ---------- Gallery (/gallery) ----------
+
+/** รูปในหน้า Gallery: เฉพาะหมวด คีย์รูป และคำบรรยาย (ไม่มีผู้อัปโหลด/เวลา) · ใหม่ก่อนในแต่ละหมวด */
+export interface PublicGalleryPhoto { category: (typeof galleryPhotos.$inferSelect)['category']; key: string; caption: string | null }
+export async function getGallery(db: Db): Promise<PublicGalleryPhoto[]> {
+  return db
+    .select({ category: galleryPhotos.category, key: galleryPhotos.r2Key, caption: galleryPhotos.caption })
+    .from(galleryPhotos)
+    .orderBy(galleryPhotos.category, desc(galleryPhotos.sortOrder), desc(galleryPhotos.id));
+}
+
 export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
+  // รูป Gallery: เปิดทุกรูปที่ยังอยู่ในตาราง (ลบแล้ว = 404)
+  if (key.startsWith('gallery/')) {
+    const g = await db.select({ one: sql<number>`1` }).from(galleryPhotos).where(eq(galleryPhotos.r2Key, key)).limit(1);
+    return g.length > 0;
+  }
   // รูปสินค้า: เปิดเฉพาะสินค้าที่แสดงบนเว็บ (published) และเป็นรูปปัจจุบันของสินค้านั้น
   if (key.startsWith('products/')) {
     const p = await db.select({ one: sql<number>`1` }).from(products).where(and(eq(products.imageKey, key), eq(products.published, true))).limit(1);

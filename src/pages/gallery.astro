@@ -1,0 +1,56 @@
+---
+import Icon from '../components/Icon.astro';
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { site } from '../config/site.ts';
+import { GALLERY_CATEGORIES, GALLERY_PLACEHOLDERS, galleryCategory } from '../lib/gallery.ts';
+import { photoSrcset, thumbUrl } from '../lib/media.ts';
+import { placeholder } from '../lib/placeholders.ts';
+import { getDb } from '../server/db.ts';
+import { getGallery } from '../server/public.ts';
+
+// Gallery (เจ้าของฟาร์ม 2026-10-10): 4 หมวด · รูปจากหลังบ้าน /admin/gallery · หมวดที่ยังไม่มีรูป = กรอบรูปชั่วคราว
+export const prerender = false;
+
+const photos = await getGallery(getDb());
+const sections = GALLERY_CATEGORIES.map((c) => ({ key: c, ...galleryCategory[c], photos: photos.filter((p) => p.category === c) }));
+// สั้น: เจ้าของอัปโหลดแล้วกด "ดูหน้า Gallery" ต้องเห็นรูปใหม่ (เดิม 5 นาที เห็นหน้าเก่า)
+Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+---
+
+<PublicLayout title="Gallery" description={`ภาพจาก ${site.name}: ชันโรงขนเงินในสวนปาล์ม การส่งมอบรังและน้ำผึ้งชันโรง และห้องงานไม้ที่ทำรังไม้สัก`} active="gallery">
+  <h1 class="text-3xl font-bold">Gallery</h1>
+  <p class="mt-2 max-w-2xl text-muted">ภาพจากฟาร์ม {site.name} ทั้งชันโรงของเรา การส่งมอบรังและน้ำผึ้งถึงลูกค้า และห้องงานไม้</p>
+
+  <nav aria-label="หมวดรูป" class="mt-5 flex flex-wrap gap-2">
+    {sections.map((s) => (
+      <a href={`#${s.key}`} class="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 font-medium hover:bg-palm-50">
+        <Icon name={s.icon} class="size-5 text-palm-700" />{s.label}
+      </a>
+    ))}
+  </nav>
+
+  {sections.map((s, si) => (
+    <section id={s.key} class="mt-10 scroll-mt-20" aria-labelledby={`${s.key}-h`}>
+      <h2 id={`${s.key}-h`} class="flex items-center gap-2 text-2xl font-bold"><Icon name={s.icon} class="size-6 text-palm-700" />{s.label}</h2>
+      <p class="mt-1 text-muted">{s.hint}</p>
+      <ul class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+        {s.photos.length > 0 ? s.photos.map((p, i) => (
+          <li>
+            <figure>
+              <a href={`/img/${p.key}`} class="block overflow-hidden rounded-2xl" aria-label={`ดูรูปขนาดเต็ม: ${p.caption ?? s.label}`}>
+                <img src={thumbUrl(`/img/${p.key}`)} srcset={photoSrcset(`/img/${p.key}`)} sizes="(min-width: 768px) 33vw, 50vw" width="800" height="600"
+                  loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-fast) hover:scale-[1.02]" />
+              </a>
+              {p.caption && <figcaption class="mt-1 text-sm text-muted">{p.caption}</figcaption>}
+            </figure>
+          </li>
+        )) : Array.from({ length: GALLERY_PLACEHOLDERS }, () => (
+          <li>
+            <img src={placeholder.gallery} alt="" width="800" height="600" loading="lazy" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover" />
+            <p class="mt-1 text-sm text-muted">รูปกำลังจะมา</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</PublicLayout>
