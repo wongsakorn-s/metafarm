@@ -4,54 +4,108 @@ import type { IconName } from '../lib/icons.ts';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { site } from '../config/site.ts';
-import { lineChatUrl, telHref } from '../lib/settings.ts';
-import { messengerBase } from '../lib/contact.ts';
+import { actionLabel, channelName, contactActions, type Channel } from '../lib/contact.ts';
 
 export const prerender = false;
 
 const c = Astro.locals.settings!.contact;
-const line = lineChatUrl(c, 'สอบถามข้อมูล');
-const tel = telHref(c.phone);
-const messenger = messengerBase(c);
-// ช่องทางหลัก (เจ้าของเลือกในหลังบ้าน) ขึ้นก่อน พร้อมป้าย "ช่องทางหลัก"
-const PRIMARY_NOTE = 'ช่องทางหลัก — สั่งซื้อ สอบถาม นัดหมาย';
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
-const chat = [
-  messenger && { key: 'messenger', icon: 'messenger', label: 'Messenger', value: 'แชตกับ MetaFarm', href: messenger, note: '' },
-  line && { key: 'line', icon: 'line', label: 'LINE', value: c.lineId, href: line, note: '' },
-  tel && { key: 'phone', icon: 'phone', label: 'โทรศัพท์', value: c.phone, href: tel, note: '' },
-].filter(Boolean) as { key: string; icon: IconName; label: string; value: string; href: string; note: string }[];
-chat.sort((a, b) => Number(b.key === c.primary) - Number(a.key === c.primary));
-if (chat[0]) chat[0].note = PRIMARY_NOTE;
-const channels = [
-  ...chat,
-  c.facebookUrl && { key: 'facebook', icon: 'thumbs', label: 'Facebook', value: 'เพจ MetaFarm', href: c.facebookUrl, note: 'ติดตามความรู้และภาพจากฟาร์ม' },
-].filter(Boolean) as { icon: IconName; label: string; value: string; href: string; note: string }[];
+// ช่องทางหลัก (เจ้าของเลือกในหลังบ้าน) = กรอบใหญ่ด้านบน · ช่องทางอื่นที่กรอกไว้ + เพจ Facebook = รายการด้านล่าง
+const actions = contactActions(c);
+const primary = actions[0];
+const icon: Record<Channel, IconName> = { line: 'line', messenger: 'messenger', phone: 'phone' };
+const tone: Record<Channel, string> = { line: 'text-brand-line', messenger: 'text-brand-messenger', phone: 'text-palm-700' };
+const valueOf: Record<Channel, string> = { line: c.lineId, messenger: 'แชตกับเพจ MetaFarm', phone: c.phone };
+const others = [
+  ...actions.slice(1).map((a) => ({ icon: icon[a.channel], tone: tone[a.channel], label: channelName[a.channel], value: valueOf[a.channel], href: a.href, phone: a.channel === 'phone' })),
+  ...(c.facebookUrl ? [{ icon: 'thumbs' as IconName, tone: 'text-brand-messenger', label: 'เพจ Facebook', value: 'ติดตามความรู้และภาพจากฟาร์ม', href: c.facebookUrl, phone: false }] : []),
+];
+
+// เลือกเรื่อง → เปิดช่องทางหลักพร้อมข้อความ (LINE ใส่ในแชตให้ · Messenger คัดลอกไว้ให้วาง · โทร = โทรเลย)
+const topics = [
+  { icon: 'hive', title: 'รังชันโรงขนเงิน', text: 'รังที่เปิดขาย การรับ-ส่ง และการเลี้ยง', message: 'สอบถามเรื่องรังชันโรงขนเงิน' },
+  { icon: 'honey', title: 'น้ำผึ้งชันโรง', text: 'ขนาดขวด ล็อตที่มี และการส่ง', message: 'สอบถามเรื่องน้ำผึ้งชันโรง' },
+  { icon: 'training', title: 'หลักสูตรอบรม', text: 'รอบอบรมถัดไปและการสมัคร', message: 'สอบถามเรื่องหลักสูตรอบรม' },
+  { icon: 'pin', title: 'เข้าชมฟาร์ม / รับสินค้าที่ฟาร์ม', text: 'นัดวันและเวลาล่วงหน้า', message: 'ขอนัดเข้าชมฟาร์ม / รับสินค้าที่ฟาร์ม' },
+] as const;
+const topicLinks = topics.map((t) => ({ ...t, action: contactActions(c, t.message)[0] }));
+const ext = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
 ---
 
-<PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
-  <h1 class="text-3xl font-bold md:text-4xl">ติดต่อเรา</h1>
-  <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ได้ตามช่องทางด้านล่าง</p>
+<PublicLayout title="ติดต่อเรา" description={`ติดต่อ ${site.name} สอบถามรังชันโรงขนเงิน น้ำผึ้ง และหลักสูตรอบรม ที่ ${site.address}`} active="contact" jsonLd={businessLd(site, c, Astro.url.origin)}>
+  <h1 class="text-[2rem] font-bold text-palm-900 sm:text-4xl">ติดต่อเรา</h1>
+  <p class="mt-2 max-w-2xl text-lg text-muted">สอบถามรังชันโรงขนเงิน น้ำผึ้ง หลักสูตรอบรม หรือนัดเข้าชมฟาร์ม</p>
 
-  <ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {channels.map((ch) => (
-      <li>
-        <a href={ch.href} rel="noopener" class="card-link flex items-center gap-4">
-          <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={ch.icon} class="size-6" /></span>
-          <span><span class="block text-sm text-muted">{ch.label}</span><span class="block text-lg font-semibold">{ch.value}</span>{ch.note && <span class="block text-sm text-muted">{ch.note}</span>}</span>
+  {primary ? (
+    <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+      <section class="rounded-3xl bg-palm-50 p-5 sm:p-8" aria-labelledby="chat-h" data-contact-buttons>
+        <div class="flex items-center gap-4" data-primary-channel={primary.channel}>
+          <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-surface shadow-card"><Icon name={icon[primary.channel]} class:list={['size-7', tone[primary.channel]]} /></span>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-palm-700">ช่องทางหลัก</p>
+            <h2 id="chat-h" class="text-2xl font-bold text-palm-900">{channelName[primary.channel]}</h2>
+            <p class="break-words text-muted">{valueOf[primary.channel]}</p>
+          </div>
+        </div>
+        <p class="mt-4">สั่งซื้อ สอบถาม หรือนัดหมาย ติดต่อทางนี้ได้เลย</p>
+        <a href={primary.href} {...ext(primary.channel)} data-channel={primary.channel} class="btn-primary mt-5 w-full font-semibold sm:w-auto">
+          <Icon name={icon[primary.channel]} class="size-5" />{actionLabel(primary.channel)}
         </a>
-      </li>
-    ))}
-  </ul>
 
-  <section class="card mt-6 flex flex-col gap-4 md:flex-row md:items-center" aria-labelledby="addr-h">
-    <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="pin" class="size-6" /></span>
-    <div class="flex-1">
-      <h2 id="addr-h" class="text-lg font-semibold">ที่ตั้งฟาร์ม</h2>
-      <p>{site.name} · {site.address}</p>
-      <p class="hint">หากต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณาติดต่อล่วงหน้า</p>
+        {others.length > 0 && (
+          <>
+            <h3 class="mt-8 text-sm font-semibold text-muted">ช่องทางอื่น</h3>
+            <ul class="mt-2 grid gap-2">
+              {others.map((o) => (
+                <li>
+                  <a href={o.href} {...(o.phone ? {} : { rel: 'noopener' })} class="card-link flex h-full items-center gap-3 py-3">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-palm-50"><Icon name={o.icon} class:list={['size-5', o.tone]} /></span>
+                    <span class="min-w-0 flex-1">
+                      <span class="block text-sm text-muted">{o.label}</span>
+                      <span class="block break-words font-semibold">{o.value}</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section class="card p-5 sm:p-6" aria-labelledby="topic-h" data-contact-buttons>
+        <h2 id="topic-h" class="text-xl font-bold text-palm-900">อยากถามเรื่องไหน</h2>
+        <p class="hint mt-1">{primary.channel === 'phone' ? 'กดเพื่อโทร แล้วบอกเรื่องที่อยากถาม' : `กดแล้วเปิด ${channelName[primary.channel]} พร้อมข้อความให้`}</p>
+        <ul class="mt-3 divide-y divide-line">
+          {topicLinks.map((t) => (
+            <li>
+              <a href={t.action!.href} {...ext(t.action!.channel)} data-channel={t.action!.channel} data-copy={t.action!.channel === 'messenger' ? t.message : undefined}
+                class="group flex min-h-16 items-center gap-3 py-3 transition-colors duration-(--duration-fast) hover:text-palm-700">
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={t.icon} class="size-5" /></span>
+                <span class="min-w-0 flex-1">
+                  <span class="block font-semibold">{t.title}</span>
+                  <span class="block text-sm text-muted">{t.text}</span>
+                </span>
+                <Icon name="chevron" class="size-5 shrink-0 text-palm-700 transition-transform duration-(--duration-fast) group-hover:translate-x-0.5" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
-    {c.mapUrl && <a class="btn-ghost shrink-0" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="size-5" />เปิดแผนที่</a>}
+  ) : (
+    <p class="card mt-8 text-muted">ยังไม่ได้ตั้งช่องทางติดต่อ</p>
+  )}
+
+  <section class="mt-6 rounded-3xl border border-line bg-surface p-5 shadow-card sm:p-8" aria-labelledby="addr-h">
+    <div class="flex flex-col gap-5 md:flex-row md:items-center">
+      <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="pin" class="size-7" /></span>
+      <div class="min-w-0 flex-1">
+        <h2 id="addr-h" class="text-xl font-bold text-palm-900">ที่ตั้งฟาร์ม</h2>
+        <p class="mt-1 text-lg">{site.name} · {site.address}</p>
+        <p class="mt-2 flex items-start gap-2 text-[0.9375rem] text-muted"><Icon name="info" class="mt-0.5 size-5 shrink-0" />ต้องการเข้าชมฟาร์มหรือรับสินค้าที่ฟาร์ม กรุณานัดล่วงหน้าก่อนมา</p>
+      </div>
+      {c.mapUrl && <a class="btn-ghost w-full shrink-0 md:w-auto" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="size-5" />เปิดแผนที่นำทาง</a>}
+    </div>
   </section>
 </PublicLayout>

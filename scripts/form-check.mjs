@@ -826,8 +826,10 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
   }
   {
     const { c, pg } = await pub('/contact', false);
-    const firstCard = (await pg.locator('main ul li').first().textContent()) ?? '';
-    check(firstCard.includes('โทรศัพท์') && firstCard.includes('ช่องทางหลัก'), 'หน้าติดต่อเรา: ช่องทางหลักขึ้นก่อนพร้อมป้าย "ช่องทางหลัก"', 'หน้าติดต่อไม่เรียงตามช่องทางหลัก: ' + firstCard.slice(0, 60));
+    const firstCard = (await pg.locator('main [data-primary-channel]').textContent()) ?? '';
+    const topics = await pg.$$eval('main [aria-labelledby="topic-h"] a', (as) => as.map((a) => a.getAttribute('href')));
+    check(firstCard.includes('โทรศัพท์') && firstCard.includes('ช่องทางหลัก') && topics.length === 4 && topics.every((h) => h.startsWith('tel:')),
+      'หน้าติดต่อเรา: ช่องทางหลัก (โทร) อยู่กรอบใหญ่ · "อยากถามเรื่องไหน" 4 เรื่องไปที่ช่องทางหลัก', 'หน้าติดต่อไม่ตามช่องทางหลัก: ' + firstCard.slice(0, 60) + ' ' + topics);
     await c.close();
   }
   // ลิงก์ Facebook แบบแชร์ (แปลงไม่ได้) → หลังบ้านเตือนให้ใส่ m.me เอง
