@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel } from './products.ts';
+import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel, variantName } from './products.ts';
 
 describe('products helpers', () => {
   it('formatPrice', () => {
@@ -26,5 +26,14 @@ describe('products helpers', () => {
     expect(pricePer100ml(250, 50)).toBe(500);
     expect(pricePer100ml(550, 120)).toBe(458);
     expect(pricePer100ml(550, 120)).toBeLessThan(pricePer100ml(250, 50));
+  });
+});
+
+describe('ชื่อตัวเลือกพร้อมขนาด', () => {
+  it('ต่อขนาดให้ · ไม่ต่อซ้ำถ้าชื่อมีขนาดอยู่แล้ว · ไม่มีขนาด = ชื่อเดิม', () => {
+    expect(variantName('Size เล็ก', 50)).toBe('Size เล็ก · 50 มล.');
+    expect(variantName('ขวด 175 มล.', 175)).toBe('ขวด 175 มล.');
+    expect(variantName('รังไม้สัก 2 ห้อง', null)).toBe('รังไม้สัก 2 ห้อง');
+    expect(variantName('ขวด', 175, ' ')).toBe('ขวด 175 มล.');
   });
 });

@@ -161,7 +161,7 @@ export async function getPublicProducts(db: Db, slug?: string): Promise<PublicPr
       harvestYearBe: productVariants.harvestYearBe,
     })
     .from(productVariants)
-    .where(inArray(productVariants.productId, prods.map((p) => p.id)))
+    .where(and(inArray(productVariants.productId, prods.map((p) => p.id)), eq(productVariants.hidden, false))) // ขนาดที่ซ่อน (เลิกขาย) ไม่แสดง
     .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
   return prods
     .map(({ id, ...p }) => ({

@@ -1,5 +1,8 @@
 // ตัวช่วยแสดงสินค้า (ไม่ผูกกับ runtime)
 
+/** ใต้ราคาสินค้าทุกจุดบนหน้าสาธารณะ (เจ้าของฟาร์ม 2026-10-10: ค่าส่งคิดแยก ไม่แสดงอัตรา) — ไม่ใช้กับค่าอบรม */
+export const SHIPPING_NOTE = 'ยังไม่รวมค่าขนส่ง';
+
 /** "1,590 บาท" — ใช้บนหน้าสาธารณะ */
 export const formatPrice = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
 
@@ -21,6 +24,14 @@ export function orderMessage(name: string, opts: { variant?: string; price?: num
 
 /** "50 มล." / null */
 export const sizeLabel = (ml: number | null | undefined) => (ml ? `${ml.toLocaleString('th-TH')} มล.` : null);
+
+/**
+ * ชื่อตัวเลือกพร้อมขนาด: "Size เล็ก · 50 มล." — ไม่ต่อขนาดซ้ำถ้าชื่อมีตัวเลขขนาดอยู่แล้ว ("ขวด 175 มล." ไม่เป็น "ขวด 175 มล. · 175 มล.")
+ */
+export function variantName(label: string, sizeMl: number | null | undefined, sep = ' · '): string {
+  const size = sizeLabel(sizeMl);
+  return size && !label.includes(String(sizeMl)) ? `${label}${sep}${size}` : label;
+}
 
 /** ราคาต่อ 100 มล. ช่วยเทียบความคุ้มของขนาด (ปัดเป็นจำนวนเต็ม) */
 export const pricePer100ml = (priceThb: number, sizeMl: number) => Math.round((priceThb / sizeMl) * 100);

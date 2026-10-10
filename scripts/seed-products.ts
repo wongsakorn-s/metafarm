@@ -19,7 +19,7 @@ const PRODUCTS = [
     name: 'น้ำผึ้งชันโรงขนเงิน ปี 2569',
     category: 'honey',
     sortOrder: 30,
-    description: 'น้ำผึ้งชันโรงขนเงินจากสวนปาล์มของ MetaFarm จ.ระยอง รสเปรี้ยวอมหวานแบบน้ำผึ้งชันโรง มีสองขนาด',
+    description: 'น้ำผึ้งชันโรงขนเงินจากสวนปาล์มของ MetaFarm จ.ระยอง รสเปรี้ยวอมหวานแบบน้ำผึ้งชันโรง',
     variants: [
       { label: 'Size เล็ก', sizeMl: 50, priceThb: 250, harvestYearBe: 2569 },
       { label: 'Size ใหญ่', sizeMl: 120, priceThb: 550, harvestYearBe: 2569 },

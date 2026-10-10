@@ -1,5 +1,5 @@
 ---
-import { formatPrice } from '../lib/products.ts';
+import { formatPrice, SHIPPING_NOTE } from '../lib/products.ts';
 import { formatThaiDate } from '../lib/thai-date.ts';
 import { placeholder } from '../lib/placeholders.ts';
 import { photoSrcset } from '../lib/media.ts';
@@ -17,7 +17,7 @@ const origin = originText(hive.origin, hive.province, site.name);
   <div class="p-4">
     <div class="flex items-baseline justify-between gap-2">
       <h3 class="text-lg font-bold">รัง {hive.code}</h3>
-      <p data-num class="text-xl font-bold text-palm-700">{formatPrice(hive.priceThb)}</p>
+      <p data-num class="text-right text-xl font-bold text-palm-700">{formatPrice(hive.priceThb)}<span class="block text-xs font-normal text-muted">{SHIPPING_NOTE}</span></p>
     </div>
     <p class="text-sm text-muted">{hive.species}{origin ? ` · ${origin}` : ''}</p>
     {hive.queenBornOn && <p class="text-sm text-muted">นางพญาเกิด {formatThaiDate(hive.queenBornOn)}</p>}

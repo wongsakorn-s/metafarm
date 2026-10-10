@@ -7,7 +7,7 @@ import ContactButtons from '../../components/ContactButtons.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts, getSaleHives } from '../../server/public.ts';
-import { formatPrice, sizeLabel } from '../../lib/products.ts';
+import { formatPrice, SHIPPING_NOTE, variantName } from '../../lib/products.ts';
 import { placeholder } from '../../lib/placeholders.ts';
 import { site } from '../../config/site.ts';
 
@@ -22,18 +22,21 @@ const range = (p: (typeof products)[number]) => {
   return lo === hi ? formatPrice(lo) : `${formatPrice(lo)} – ${formatPrice(hi)}`;
 };
 const queueMessage = 'สนใจจองคิวรังชันโรงขนเงินชุดถัดไป';
+// ช่องทางสั่งซื้อขณะนี้ = Facebook ของเจ้าของ (ลิงก์จากตั้งค่า ไม่เขียนตายในหน้า) · ยังไม่ใส่ลิงก์ = บอกแบบทั่วไป
+const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
 ---
 
 <PublicLayout title="สินค้า" description={`รังสมบูรณ์ชันโรงขนเงิน รังเปล่ารังไม้สัก และน้ำผึ้งชันโรง จาก ${site.name} จ.ระยอง`} active="products">
   <h1 class="text-3xl font-bold">สินค้า</h1>
-  <p class="mt-2 max-w-2xl text-muted">รังชันโรงขนเงินและผลิตภัณฑ์จากฟาร์ม {site.name} สั่งซื้อทางแชตหรือโทรศัพท์</p>
+  <p class="mt-2 max-w-2xl text-muted">รังชันโรงขนเงินและน้ำผึ้งชันโรงขนเงิน จาก {site.name}
+    {facebookUrl ? <>· ช่องทางสั่งซื้อขณะนี้: <a class="font-medium text-palm-700 underline" href={facebookUrl} target="_blank" rel="noopener">ทักข้อความทาง Facebook</a></> : '· สั่งซื้อทางแชตหรือโทรศัพท์'}</p>
 
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">
       <h2 id="hives-h" class="text-2xl font-bold"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> รังสมบูรณ์ชันโรงขนเงิน</h2>
       {saleHives.length > 0 && <a class="inline-flex min-h-11 items-center text-palm-700 underline" href="/products/hives">ดูทั้งหมด ({saleHives.length} รัง) →</a>}
     </div>
-    <p class="mt-1 text-muted">รังที่มีชันโรงพร้อมเลี้ยง ทุกรังมีสมุดพกให้ตรวจสอบประวัติ</p>
+    <p class="mt-1 text-muted">รังที่มีชันโรงพร้อมเลี้ยง ทุกรังมีสมุดพก เพื่อพัฒนาสายพันธุ์และส่งต่อที่มาให้ลูกค้า</p>
     {saleHives.length === 0 ? (
       <div class="mt-4 flex flex-col items-center gap-4 rounded-3xl border border-dashed border-palm-500/40 bg-palm-50/60 px-5 py-7 text-center md:flex-row md:text-left">
         <span class="grid size-14 shrink-0 place-items-center rounded-2xl bg-surface text-palm-700 shadow-card"><Icon name="hive" class="size-7" /></span>
@@ -60,9 +63,9 @@ const queueMessage = 'สนใจจองคิวรังชันโรง�
             <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
             <div class="p-4">
               <h3 class="text-lg font-bold">{p.name}</h3>
-              <p data-num class="text-xl font-bold text-palm-700">{range(p)}</p>
+              <p data-num class="text-xl font-bold text-palm-700">{range(p)} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
               <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-                {p.variants.map((v) => <span>{v.label}{sizeLabel(v.sizeMl) ? ` ${sizeLabel(v.sizeMl)}` : ''}</span>)}
+                {p.variants.map((v) => <span>{variantName(v.label, v.sizeMl, ' ')}</span>)}
                 {p.variants.some((v) => v.priceIsSample) && <SampleBadge />}
               </p>
             </div>

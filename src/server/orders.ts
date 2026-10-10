@@ -75,7 +75,8 @@ export async function orderFormOptions(db: Db) {
     db.select({ id: customers.id, name: customers.name, phone: customers.phone }).from(customers)
       .orderBy(desc(sql`coalesce((select max(o.ordered_on) from orders o where o.customer_id = customers.id), ${customers.createdAt})`), asc(customers.name)),
     db.select({ id: productVariants.id, label: productVariants.label, sizeMl: productVariants.sizeMl, price: productVariants.priceThb, stock: productVariants.stockQty, product: products.name })
-      .from(productVariants).innerJoin(products, eq(products.id, productVariants.productId)).orderBy(asc(products.sortOrder), asc(productVariants.sortOrder), asc(productVariants.id)),
+      .from(productVariants).innerJoin(products, eq(products.id, productVariants.productId)).where(eq(productVariants.hidden, false)) // ขนาดที่ซ่อนขายไม่ได้แล้ว
+      .orderBy(asc(products.sortOrder), asc(productVariants.sortOrder), asc(productVariants.id)),
     db.select({ id: hives.id, code: hives.code, forSale: hives.forSale, salePrice: hives.salePrice }).from(hives)
       .where(and(eq(hives.status, 'active'), sql`not exists (select 1 from hive_holds hh where hh.hive_id = hives.id)`))
       .orderBy(desc(hives.forSale), ...byCode()),

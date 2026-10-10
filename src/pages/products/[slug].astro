@@ -6,7 +6,7 @@ import ContactButtons from '../../components/ContactButtons.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts } from '../../server/public.ts';
-import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel } from '../../lib/products.ts';
+import { formatPrice, orderMessage, pricePer100ml, SHIPPING_NOTE, stockLabel, variantName } from '../../lib/products.ts';
 import { site } from '../../config/site.ts';
 import { placeholder } from '../../lib/placeholders.ts';
 import NotFound from '../../components/NotFound.astro';
@@ -27,7 +27,7 @@ const jsonLd = product
   ? [
       productLd(
         { name: product.name, description: product.description, url: `/products/${product.slug}`, image, brand: site.name },
-        product.variants.map((v) => ({ name: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), priceThb: v.priceThb, confirmed: !v.priceIsSample, inStock: v.inStock })),
+        product.variants.map((v) => ({ name: variantName(v.label, v.sizeMl, ' '), priceThb: v.priceThb, confirmed: !v.priceIsSample, inStock: v.inStock })),
         Astro.url.origin,
       ),
       breadcrumbLd([['หน้าแรก', '/'], ['สินค้า', '/products'], [product.name, `/products/${product.slug}`]], Astro.url.origin),
@@ -50,13 +50,13 @@ const jsonLd = product
 
         <ul class="mt-5 space-y-3">
           {product.variants.map((v) => {
-            const msg = (orderMessage(product.name, { variant: [v.label, sizeLabel(v.sizeMl)].filter(Boolean).join(' '), price: v.priceThb, sample: v.priceIsSample }));
+            const msg = (orderMessage(product.name, { variant: variantName(v.label, v.sizeMl, ' '), price: v.priceThb, sample: v.priceIsSample }));
             const stock = stockLabel(v.inStock);
             return (
               <li class="card">
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 class="text-lg font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</h2>
-                  <p data-num class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)}</p>
+                  <h2 class="text-lg font-semibold">{variantName(v.label, v.sizeMl)}</h2>
+                  <p data-num class="text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)} <span class="block text-right text-xs font-normal text-muted">{SHIPPING_NOTE}</span></p>
                 </div>
                 <div class="mt-1 flex flex-wrap items-center gap-2 text-sm">
                   <span class:list={['badge', stock.tone]}>{stock.text}</span>
@@ -69,7 +69,7 @@ const jsonLd = product
             );
           })}
         </ul>
-        <p class="mt-4 text-sm text-muted">สินค้าของ {site.name} · สอบถามสต็อกและวิธีรับสินค้าทางแชตหรือโทรก่อนสั่ง</p>
+        <p class="mt-4 text-sm text-muted">ราคา{SHIPPING_NOTE} · สอบถามสต็อกก่อนสั่ง</p>
       </section>
     </div>
     <div class="mt-10"><HowToOrder buttons={false} message={orderMessage(product.name)} /></div>

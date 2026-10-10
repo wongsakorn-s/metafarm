@@ -11,7 +11,7 @@ export async function getReadiness(db: Db, settings: SiteSettings) {
     return r[0]?.n ?? 0;
   };
   const [unconfirmedPrices, productsWithoutImage, activeHivesWithoutPhoto, incompleteHives, saleHivesNotReady] = await Promise.all([
-    one(sql`select count(*) n from product_variants v join products p on p.id = v.product_id where p.published = 1 and v.price_confirmed = 0`),
+    one(sql`select count(*) n from product_variants v join products p on p.id = v.product_id where p.published = 1 and v.hidden = 0 and v.price_confirmed = 0`),
     one(sql`select count(*) n from products where published = 1 and image_key is null`),
     one(sql`select count(*) n from hives h where h.status = 'active' and not exists (select 1 from hive_media m where m.hive_id = h.id and m.kind = 'passport' and m.r2_key is not null)`),
     one(sql`select count(*) n from hives where notes like '%???%'`),

@@ -202,6 +202,8 @@ export const productVariants = sqliteTable('product_variants', {
   unitCost: integer('unit_cost'),
   harvestYearBe: integer('harvest_year_be'),
   sortOrder: integer('sort_order').notNull().default(0),
+  /** ซ่อนขนาดที่เลิกขาย (ไม่ลบ — ออเดอร์/การบรรจุเก่าอ้างถึง) · ไม่แสดงบนเว็บ ในฟอร์มออเดอร์ใหม่ และการบรรจุขวด */
+  hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
   ...timestamps,
 });
 

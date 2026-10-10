@@ -1,0 +1,1 @@
+ALTER TABLE `product_variants` ADD `hidden` integer DEFAULT false NOT NULL;

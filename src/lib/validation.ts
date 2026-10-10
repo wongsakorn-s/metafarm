@@ -104,6 +104,25 @@ export const variantSchema = z.object({
   version: opt(z.string().max(40)),
 });
 
+/** เพิ่มขนาด/ตัวเลือกสินค้า (เช่นน้ำผึ้ง 175 มล.) — ราคาที่เจ้าของกรอกเองถือว่ายืนยันแล้ว */
+export const newVariantSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  label: z.preprocess(blank, z.string('กรอกชื่อตัวเลือก เช่น "ขวด 175 มล."').min(1).max(60, 'ยาวเกิน 60 ตัวอักษร')),
+  sizeMl: opt(z.coerce.number('ต้องเป็นตัวเลข').int('ต้องเป็นจำนวนเต็ม').min(1, 'ต้องมากกว่า 0').max(10_000, 'ต้องไม่เกิน 10,000')),
+  priceThb: int(1_000_000).refine((n) => n >= 1, 'ราคาต้องมากกว่า 0'),
+});
+
+/** คำอธิบายสินค้าใต้ชื่อบนเว็บ (เช่นเมื่อเหลือขนาดเดียว ข้อความ "มีสองขนาด" ต้องแก้ได้เอง) */
+export const productTextSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  description: opt(z.string().max(300, 'ยาวเกิน 300 ตัวอักษร')),
+});
+
+export const variantHiddenSchema = z.object({
+  variantId: z.coerce.number().int().positive(),
+  hidden: z.preprocess((v) => v === 'on' || v === '1' || v === 'true', z.boolean()),
+});
+
 export const publishSchema = z.object({
   productId: z.coerce.number().int().positive(),
   published: z.preprocess((v) => v === 'on' || v === '1' || v === 'true', z.boolean()),

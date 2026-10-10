@@ -52,6 +52,9 @@ export function messengerChatUrl(c: Pick<ContactSettings, 'facebookUrl' | 'messe
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 
+/** ลิงก์ Facebook ที่ใส่ไว้ (https เท่านั้น — ตั้งค่าตรวจโดเมนแล้ว) หรือ null */
+const facebookPage = (url: string): string | null => (/^https:\/\//i.test(url.trim()) ? url.trim() : null);
+
 export interface ContactAction {
   channel: Channel;
   href: string;
@@ -64,7 +67,9 @@ export interface ContactAction {
 export function contactActions(c: ContactSettings, message?: string): ContactAction[] {
   const href: Record<Channel, string | null> = {
     line: lineChatUrl(c, message),
-    messenger: messengerChatUrl(c, message),
+    // ลิงก์ที่แปลงเป็น m.me ไม่ได้ (เช่นลิงก์แชร์ facebook.com/share/…) → เปิดหน้า Facebook นั้นแทน (มีปุ่ม "ส่งข้อความ")
+    // เดิมปุ่มหายไปเลย ทั้งที่ Facebook เป็นช่องทางสั่งซื้อหลักของฟาร์ม
+    messenger: messengerChatUrl(c, message) ?? facebookPage(c.facebookUrl),
     phone: telHref(c.phone),
   };
   const order = [c.primary, ...CHANNELS.filter((x) => x !== c.primary)];

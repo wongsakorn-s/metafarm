@@ -7,7 +7,7 @@ import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
 import { getFarmStats, getHeroPhoto, getPublicProducts, getSaleHives } from '../server/public.ts';
 import SampleBadge from '../components/SampleBadge.astro';
-import { formatPrice } from '../lib/products.ts';
+import { formatPrice, SHIPPING_NOTE } from '../lib/products.ts';
 import { photoSrcset } from '../lib/media.ts';
 import { placeholder } from '../lib/placeholders.ts';
 import { site } from '../config/site.ts';
@@ -29,9 +29,9 @@ const priceRows = [
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const highlights = [
-  { icon: 'wood' as const, title: 'รังไม้สักออกแบบเอง', text: 'รัง 2 ห้องแนวนอน ทำจากไม้สักทั้งหลัง เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
-  { icon: 'queen' as const, title: 'เพาะนางพญาเอง', text: `ขยายรังจากรังแม่พันธุ์ของฟาร์มเอง ปัจจุบันมีรังที่เพาะเอง ${stats.queenBred.toLocaleString('th-TH')} รัง` },
-  { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'ตรวจสอบที่มา วันเกิดนางพญา สายพันธุ์รังแม่ และประวัติการดูแลได้ด้วยรหัสรัง' },
+  { icon: 'wood' as const, title: `รังไม้สัก ${site.name}`, text: 'รัง 2 ห้องแนวนอน เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
+  { icon: 'queen' as const, title: 'พัฒนาสายพันธุ์ขนเงิน', text: 'ให้เหมาะกับภูมิอากาศของภาคตะวันออกโดยเฉพาะ' },
+  { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'จดบันทึกที่มาของนางพญา วันเกิด และกิจกรรมต่าง ๆ ของแต่ละรัง' },
 ];
 ---
 
@@ -54,7 +54,7 @@ const highlights = [
           <ul class="divide-y divide-line">
             {priceRows.map((r) => (
               <li><a href={r.href} class="flex min-h-14 items-center gap-3 px-4 active:bg-palm-50">
-                <span class="min-w-0 flex-1 font-medium">{r.name}{r.sample && <span class="block text-sm font-normal text-muted">ราคาตัวอย่าง</span>}</span>
+                <span class="min-w-0 flex-1 font-medium">{r.name}<span class="block text-sm font-normal text-muted">{r.sample ? `ราคาตัวอย่าง · ${SHIPPING_NOTE}` : SHIPPING_NOTE}</span></span>
                 <span data-num class="shrink-0 font-bold text-palm-700">{r.price}</span>
                 <Icon name="chevron" class="size-5 shrink-0 text-muted" />
               </a></li>
@@ -94,7 +94,7 @@ const highlights = [
               <img src={saleHives[0]!.coverKey ? `/img/${saleHives[0]!.coverKey}` : placeholder.hive} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
               <div class="p-4">
                 <h3 class="text-lg font-bold">รังสมบูรณ์ชันโรงขนเงิน</h3>
-                <p data-num class="text-xl font-bold text-palm-700">{from(saleHives.map((h) => h.priceThb))}</p>
+                <p data-num class="text-xl font-bold text-palm-700">{from(saleHives.map((h) => h.priceThb))} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
                 <p class="text-sm text-muted">เปิดขาย {saleHives.length} รัง · ทุกรังมีสมุดพก</p>
               </div>
             </a>
@@ -106,7 +106,7 @@ const highlights = [
               <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
               <div class="p-4">
                 <h3 class="text-lg font-bold">{p.name}</h3>
-                <p data-num class="text-xl font-bold text-palm-700">{from(p.variants.map((v) => v.priceThb))}</p>
+                <p data-num class="text-xl font-bold text-palm-700">{from(p.variants.map((v) => v.priceThb))} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
                 {p.variants.some((v) => v.priceIsSample) && <p class="mt-1"><SampleBadge /></p>}
               </div>
             </a>
@@ -122,7 +122,7 @@ const highlights = [
       <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>
       <div class="mt-3 space-y-3 text-lg">
         <p>เราเริ่มจากการทดลองเลี้ยงชันโรงหลายสายพันธุ์ ทั้งขนเงิน ถ้วยดำ จิ่วดุ ปากแตร อิตาม่า และบิงฮามี่</p>
-        <p>แต่ภูมิอากาศที่ระยองค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
+        <p>แต่ภูมิอากาศที่ จ.ระยอง ค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
         <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
       </div>
     </div>
@@ -142,8 +142,8 @@ const highlights = [
     <ul class="mt-4 grid gap-4 md:grid-cols-3">
       {/* มือถือ: ไอคอนซ้าย ข้อความขวา (การ์ดเตี้ย เลื่อนน้อย) · คอม: 3 คอลัมน์ ไอคอนบน */}
       {([
-        ['/stingless-bee', 'hive', 'รู้จักชันโรงขนเงิน', 'ลักษณะ โครงสร้างรัง และเหตุผลที่เราเลือกเลี้ยง'],
-        ['/honey', 'honey', 'น้ำผึ้งชันโรง', 'ต่างจากน้ำผึ้งทั่วไปอย่างไร พร้อมสรุปงานวิจัย'],
+        ['/stingless-bee', 'hive', 'รู้จักชันโรงขนเงิน', 'ลักษณะ โครงสร้างรัง กล่องเลี้ยงที่เหมาะสมและได้มาตรฐาน'],
+        ['/honey', 'honey', 'น้ำผึ้งชันโรง', 'สรรพคุณ และวิธีการบริโภค'],
         ['/training', 'training', 'อบรม', 'การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป'],
       ] as const).map(([href, icon, title, text]) => (
         <li><a href={href} class="card-link group flex h-full items-center gap-4 md:block">
@@ -158,7 +158,7 @@ const highlights = [
     <div class="grid items-center gap-6 md:grid-cols-[1fr_auto]">
       <div>
         <h2 id="pp-h" class="text-2xl font-bold text-palm-900"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง {site.name}</h2>
-        <p class="mt-2 max-w-2xl">ทะเบียน {stats.total.toLocaleString('th-TH')} รัง เลี้ยงอยู่ {stats.active.toLocaleString('th-TH')} รัง ทุกรังบันทึกที่มา สายพันธุ์รังแม่ และประวัติการขยายรัง เปิดดูได้ฟรีด้วยรหัสรัง</p>
+        <p class="mt-2 max-w-2xl">ประวัติ และกิจกรรมต่าง ๆ ของแต่ละรัง</p>
       </div>
       <a class="btn-primary" href="/passport">เปิดสมุดพก</a>
     </div>

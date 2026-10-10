@@ -9,7 +9,7 @@ import { learnPhotos as P } from '../lib/learn-photos.ts';
 import { site } from '../config/site.ts';
 import { getDb } from '../server/db.ts';
 import { getPublicProducts } from '../server/public.ts';
-import { formatPrice, sizeLabel } from '../lib/products.ts';
+import { formatPrice, SHIPPING_NOTE, variantName } from '../lib/products.ts';
 
 export const prerender = false;
 
@@ -46,8 +46,9 @@ const gallery = [P.honeyBox, P.honeyHarvest];
           <li class="card flex items-center gap-3">
             <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-6" /></span>
             <span>
-              <span class="block font-semibold">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</span>
+              <span class="block font-semibold">{variantName(v.label, v.sizeMl)}</span>
               <span data-num class="block text-2xl font-bold text-palm-700">{formatPrice(v.priceThb)} {v.priceIsSample && <SampleBadge />}</span>
+              <span class="block text-sm text-muted">{SHIPPING_NOTE}</span>
             </span>
           </li>
         ))}

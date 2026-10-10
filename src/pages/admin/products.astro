@@ -6,9 +6,9 @@ import { getDb } from '../../server/db.ts';
 import { getMedia } from '../../server/db.ts';
 import { removeProductImage, setProductImage } from '../../server/media.ts';
 import { placeholder } from '../../lib/placeholders.ts';
-import { listProductsAdmin, setProductPublished, updateVariant } from '../../server/products.ts';
-import { categoryLabel, formatPrice, sizeLabel } from '../../lib/products.ts';
-import { parseForm, publishSchema, variantSchema } from '../../lib/validation.ts';
+import { addVariant, listProductsAdmin, setProductPublished, setVariantHidden, updateProductDescription, updateVariant } from '../../server/products.ts';
+import { categoryLabel, formatPrice, variantName } from '../../lib/products.ts';
+import { newVariantSchema, parseForm, productTextSchema, publishSchema, variantHiddenSchema, variantSchema } from '../../lib/validation.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
 import { differingFields, shortStamp, type FieldDiff } from '../../lib/concurrency.ts';
 import ConflictNotice from '../../components/ConflictNotice.astro';
@@ -23,6 +23,8 @@ let errorFields: Record<string, string> = {};
 let posted: Record<string, string> = {};
 const saved = Astro.url.searchParams.get('saved');
 let conflictVariant = 0;
+/** ฟอร์มเพิ่มขนาดของสินค้าไหนที่ส่งมา (เปิดค้างไว้พร้อมค่าที่กรอก เมื่อกรอกผิด) */
+let addFor = 0;
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
@@ -37,6 +39,32 @@ if (Astro.request.method === 'POST') {
       // ชนกัน: แถวนั้นแสดงค่าที่กรอกไว้ + กล่องเทียบค่าล่าสุด (ไม่ใช้แถบแดงด้านบน)
       if (r.conflict) { conflictVariant = p.data.variantId; errorVariant = conflictVariant; }
       else error = r.error;
+    }
+  } else if (intent === 'variant_add') {
+    posted = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+    addFor = Number(form.get('productId'));
+    const p = parseForm(newVariantSchema, form);
+    if (!p.ok) errorFields = p.errors;
+    else {
+      const r = await addVariant(db, user, p.data);
+      if (r.ok) return Astro.redirect('/admin/products?saved=variant_add', 303);
+      error = r.error;
+    }
+  } else if (intent === 'product_text') {
+    const p = parseForm(productTextSchema, form);
+    if (!p.ok) error = p.errors.description ?? 'ข้อมูลไม่ถูกต้อง';
+    else {
+      const r = await updateProductDescription(db, user, p.data);
+      if (r.ok) return Astro.redirect('/admin/products?saved=product_text', 303);
+      error = r.error;
+    }
+  } else if (intent === 'variant_hidden') {
+    const p = parseForm(variantHiddenSchema, form);
+    if (!p.ok) error = 'ข้อมูลไม่ถูกต้อง';
+    else {
+      const r = await setVariantHidden(db, user, p.data);
+      if (r.ok) return Astro.redirect(`/admin/products?saved=${p.data.hidden ? 'variant_hide' : 'variant_show'}`, 303);
+      error = r.error;
     }
   } else if (intent === 'publish') {
     const p = parseForm(publishSchema, form);
@@ -73,7 +101,7 @@ if (latestVariant) {
   conflict = { diffs: differingFields(posted, latestVariant, { priceThb: 'ราคา (บาท)', stockQty: 'สต็อก (ชิ้น)', unitCost: 'ต้นทุน/ชิ้น' }), at: shortStamp(latestVariant.updatedAt) };
   posted.version = latestVariant.updatedAt;
 }
-const savedText: Record<string, string> = { variant: 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)', publish: 'บันทึกการแสดง/ซ่อนสินค้าแล้ว', image: 'เปลี่ยนรูปสินค้าแล้ว', image_removed: 'ลบรูปสินค้าแล้ว (เว็บกลับไปใช้รูปชั่วคราว)' };
+const savedText: Record<string, string> = { product_text: 'บันทึกคำอธิบายสินค้าแล้ว', variant_add: 'เพิ่มขนาดแล้ว — แสดงบนเว็บทันที (สต็อกเริ่มที่ 0)', variant_hide: 'ซ่อนขนาดแล้ว — ไม่แสดงบนเว็บและในฟอร์มออเดอร์ใหม่', variant_show: 'แสดงขนาดนั้นอีกครั้งแล้ว', variant: 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)', publish: 'บันทึกการแสดง/ซ่อนสินค้าแล้ว', image: 'เปลี่ยนรูปสินค้าแล้ว', image_removed: 'ลบรูปสินค้าแล้ว (เว็บกลับไปใช้รูปชั่วคราว)' };
 ---
 
 <AdminLayout title="สินค้า" active="products">
@@ -119,15 +147,25 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
           </div>
         </div>
 
+        <details class="mt-3">
+          <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">คำอธิบายสินค้าบนเว็บ</summary>
+          <form method="post" class="mt-2 space-y-2">
+            <input type="hidden" name="intent" value="product_text" /><input type="hidden" name="productId" value={p.id} />
+            <label class="sr-only" for={`pd-${p.id}`}>คำอธิบายสินค้า {p.name}</label>
+            <textarea class="field" id={`pd-${p.id}`} name="description" rows="2" maxlength="300">{p.description ?? ''}</textarea>
+            <button class="btn-primary" type="submit">บันทึกคำอธิบาย</button>
+          </form>
+        </details>
+
         <ul class="mt-4 space-y-3">
-          {p.variants.map((v) => (
+          {p.variants.filter((v) => !v.hidden).map((v) => (
             <li class="rounded-xl border border-line p-3">
               {conflict && conflictVariant === v.id && <ConflictNotice form={`variant-${v.id}`} diffs={conflict.diffs} by={null} reason="คนอื่นบันทึก หรือออเดอร์ตัด/คืนสต็อก" at={conflict.at} />}
               <form method="post" id={`variant-${v.id}`} class="grid grid-cols-3 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
                 <input type="hidden" name="intent" value="variant" /><input type="hidden" name="variantId" value={v.id} />
                 <input type="hidden" name="version" value={errorVariant === v.id && posted.version ? posted.version : v.updatedAt} />
                 <div class="col-span-3 sm:col-span-1">
-                  <p class="font-medium">{v.label}{sizeLabel(v.sizeMl) ? ` · ${sizeLabel(v.sizeMl)}` : ''}</p>
+                  <p class="font-medium">{variantName(v.label, v.sizeMl)}</p>
                   <p class="text-sm text-muted">{v.priceConfirmed ? `ราคาปัจจุบัน ${formatPrice(v.priceThb)} (ยืนยันแล้ว)` : <span class="font-medium text-honey-700">ราคาตัวอย่าง {formatPrice(v.priceThb)} — ยังไม่ได้ยืนยัน</span>}</p>
                 </div>
                 <div><label class="label" for={`pr-${v.id}`}>ราคา (บาท)</label><input class="field" id={`pr-${v.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={errorVariant === v.id ? (posted.priceThb ?? '') : v.priceThb} />{errorVariant === v.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
@@ -135,10 +173,46 @@ const savedText: Record<string, string> = { variant: 'บันทึกรา�
                 <div><label class="label" for={`co-${v.id}`}>ต้นทุน/ชิ้น</label><input class="field" id={`co-${v.id}`} name="unitCost" type="number" inputmode="numeric" min="0" placeholder="ไม่ทราบ" value={errorVariant === v.id ? (posted.unitCost ?? '') : (v.unitCost ?? '')} />{errorVariant === v.id && errorFields.unitCost && <p class="error">{errorFields.unitCost}</p>}</div>
                 <button class="btn-primary col-span-3 sm:col-span-1" type="submit">บันทึก</button>
               </form>
-              <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกก่อนสั่ง" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น) · ต้นทุนใช้คิดกำไรในรายงาน ไม่แสดงบนเว็บ (น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดก่อน)</p>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="hint">สต็อก 0 = เว็บแสดง "สอบถามสต็อกก่อนสั่ง" (ไม่แสดงจำนวนจริงให้ลูกค้าเห็น) · ต้นทุนใช้คิดกำไรในรายงาน ไม่แสดงบนเว็บ (น้ำผึ้งใช้ต้นทุนตอนบรรจุขวดก่อน)</p>
+                {/* เลิกขายขนาดนี้ → ซ่อน (ไม่ลบ: ออเดอร์และการบรรจุเก่าอ้างถึง) */}
+                <form method="post" data-confirm={`ซ่อนขนาด "${v.label}" ใช่ไหม? จะไม่แสดงบนเว็บ ในฟอร์มออเดอร์ใหม่ และการบรรจุขวด (แสดงกลับได้ภายหลัง)`}>
+                  <input type="hidden" name="intent" value="variant_hidden" /><input type="hidden" name="variantId" value={v.id} /><input type="hidden" name="hidden" value="on" />
+                  <button class="inline-flex min-h-11 items-center text-sm text-muted underline" type="submit">ซ่อนขนาดนี้</button>
+                </form>
+              </div>
             </li>
           ))}
         </ul>
+
+        {p.variants.some((v) => v.hidden) && (
+          <details class="mt-3">
+            <summary class="disclosure min-h-11 text-sm text-muted">ขนาดที่ซ่อนอยู่ ({p.variants.filter((v) => v.hidden).length})</summary>
+            <ul class="mt-2 divide-y divide-line">
+              {p.variants.filter((v) => v.hidden).map((v) => (
+                <li class="flex flex-wrap items-center justify-between gap-2 py-1">
+                  <span class="text-sm">{variantName(v.label, v.sizeMl)} · {formatPrice(v.priceThb)} · สต็อก {v.stockQty}</span>
+                  <form method="post">
+                    <input type="hidden" name="intent" value="variant_hidden" /><input type="hidden" name="variantId" value={v.id} />
+                    <button class="btn-ghost" type="submit">แสดงอีกครั้ง</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        <details class="mt-3" open={addFor === p.id}>
+          <summary class="disclosure min-h-11 font-medium text-palm-700">เพิ่มขนาด / ตัวเลือก</summary>
+          <form method="post" class="mt-2 grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_auto]">
+            <input type="hidden" name="intent" value="variant_add" /><input type="hidden" name="productId" value={p.id} />
+            <div class="col-span-2 sm:col-span-1"><label class="label" for={`nv-l-${p.id}`}>ชื่อตัวเลือก</label><input class="field" id={`nv-l-${p.id}`} name="label" required maxlength="60" placeholder={p.category === 'honey' ? 'เช่น ขวด 175 มล.' : 'เช่น รังไม้สัก 2 ห้อง'} value={addFor === p.id ? (posted.label ?? '') : ''} />{addFor === p.id && errorFields.label && <p class="error">{errorFields.label}</p>}</div>
+            <div><label class="label" for={`nv-s-${p.id}`}>ขนาด (มล.)</label><input class="field" id={`nv-s-${p.id}`} name="sizeMl" type="number" inputmode="numeric" min="1" required={p.category === 'honey'} placeholder={p.category === 'honey' ? '175' : 'ไม่มี'} value={addFor === p.id ? (posted.sizeMl ?? '') : ''} />{addFor === p.id && errorFields.sizeMl && <p class="error">{errorFields.sizeMl}</p>}</div>
+            <div><label class="label" for={`nv-p-${p.id}`}>ราคา (บาท)</label><input class="field" id={`nv-p-${p.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={addFor === p.id ? (posted.priceThb ?? '') : ''} />{addFor === p.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
+            <button class="btn-primary col-span-2 sm:col-span-1" type="submit">เพิ่ม</button>
+          </form>
+          <p class="hint">ราคาที่กรอกถือว่ายืนยันแล้ว · สต็อกเริ่ม 0{p.category === 'honey' ? ' (เพิ่มจากการบรรจุขวดในหน้าล็อต)' : ''} · ขนาดเดิมที่เลิกขาย กด "ซ่อนขนาดนี้"</p>
+        </details>
       </section>
     ))}
   </div>

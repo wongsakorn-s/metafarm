@@ -31,7 +31,7 @@ export async function honeyVariants(db: Db) {
     .select({ id: productVariants.id, label: productVariants.label, sizeMl: productVariants.sizeMl, product: products.name, stock: productVariants.stockQty })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .where(and(eq(products.category, 'honey'), sql`coalesce(${productVariants.sizeMl}, 0) > 0`))
+    .where(and(eq(products.category, 'honey'), sql`coalesce(${productVariants.sizeMl}, 0) > 0`, eq(productVariants.hidden, false))) // ขนาดที่ซ่อนไม่บรรจุเพิ่ม
     .orderBy(asc(productVariants.sizeMl));
 }
 

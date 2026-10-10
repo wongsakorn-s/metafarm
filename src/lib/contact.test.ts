@@ -46,6 +46,12 @@ describe('contactActions', () => {
     expect(contactActions(noFb).map((a) => [a.channel, a.primary])).toEqual([['line', true], ['phone', false]]);
     expect(contactActions({ ...base, lineId: '', phone: '', facebookUrl: '' })).toEqual([]);
   });
+  it('ลิงก์ Facebook ที่แปลงเป็น Messenger ไม่ได้ (ลิงก์แชร์) → ปุ่มเปิดหน้า Facebook นั้นแทน ไม่หายไป', () => {
+    const share = { ...base, facebookUrl: 'https://www.facebook.com/share/1AbCdEf/' };
+    expect(contactActions(share, 'สนใจ')[0]).toMatchObject({ channel: 'messenger', primary: true, href: 'https://www.facebook.com/share/1AbCdEf/' });
+    // โปรไฟล์ส่วนตัวที่มีเลข id ยังได้ m.me ตามเดิม
+    expect(contactActions({ ...base, facebookUrl: 'https://www.facebook.com/profile.php?id=100012345678901' })[0]!.href).toBe('https://m.me/100012345678901');
+  });
   it('โทร = tel: · ข้อความติดไปด้วยเพื่อบอกตอนโทร', () => {
     const p = contactActions({ ...base, primary: 'phone' }, 'รัง A25')[0]!;
     expect(p).toMatchObject({ channel: 'phone', href: 'tel:0812345678', message: 'รัง A25' });

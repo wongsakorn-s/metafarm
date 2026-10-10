@@ -1,6 +1,7 @@
 ---
 import ContactButtons from './ContactButtons.astro';
 import { channelName, contactActions } from '../lib/contact.ts';
+import { SHIPPING_NOTE } from '../lib/products.ts';
 
 // ขั้นตอนสั่งซื้อ/สมัครอบรม — ทักแชต (LINE/Messenger) หรือโทร ตามช่องทางที่เจ้าของเปิดไว้ (ช่องทางหลักก่อน)
 // kind="training" ใช้ถ้อยคำของหลักสูตร ไม่ใช่การซื้อสินค้า
@@ -8,18 +9,23 @@ import { channelName, contactActions } from '../lib/contact.ts';
 interface Props { message?: string; kind?: 'order' | 'training'; buttons?: boolean }
 const { kind = 'order', buttons = true, message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
 const channels = contactActions(Astro.locals.settings!.contact, message).map((a) => channelName[a.channel]);
-const via = channels.length ? channels.join(' / ') : 'ช่องทางติดต่อ';
+// เจ้าของเรียกช่องทางนี้ว่า "Facebook" (ทักข้อความหาโปรไฟล์ แล้วคุยต่อใน Messenger)
+const named = channels.map((c) => (c === channelName.messenger ? 'Facebook' : c));
+const via = named.length ? named.join(' / ') : 'ช่องทางติดต่อ';
+const primaryVia = named[0] ?? 'ช่องทางติดต่อ';
 const copy = {
+  // สั่งซื้อ (ถ้อยคำของเจ้าของฟาร์ม 2026-10-10): ทักข้อความเป็นหัวข้อ แล้วเหลือ 2 ขั้น
   order: {
     title: 'วิธีสั่งซื้อ',
+    lead: `ทักข้อความผ่าน ${primaryVia}`,
     steps: [
-      ['ทักแชตหรือโทร', `ติดต่อทาง ${via} บอกสินค้าที่สนใจ (ปุ่มแชตเตรียมข้อความสินค้าไว้ให้)`],
-      ['ยืนยันรายละเอียด', 'แจ้งราคา สต็อก และวิธีรับ-ส่ง (รังเป็นสิ่งมีชีวิต สอบถามวิธีรับส่งที่เหมาะสมก่อน)'],
-      ['ชำระเงินและรับสินค้า', 'ชำระเงินตามที่ตกลงกัน แล้วรับสินค้าตามที่นัดหมาย'],
+      ['ยืนยันรายละเอียด', 'แจ้งรายละเอียดสินค้าที่ต้องการ'],
+      ['ชำระเงินและรับสินค้า', `สินค้าจะจัดส่งให้หลังลูกค้าชำระเงิน (ราคา${SHIPPING_NOTE})`],
     ],
   },
   training: {
     title: 'วิธีสมัครอบรม',
+    lead: '',
     steps: [
       ['ทักแชตหรือโทร', `ติดต่อทาง ${via} บอกหลักสูตรที่สนใจ`],
       ['เลือกรอบอบรม', 'แจ้งวันที่สะดวกและจำนวนผู้เรียน ฟาร์มจะยืนยันรอบและค่าอบรม'],
@@ -31,7 +37,8 @@ const copy = {
 
 <section class="rounded-3xl bg-palm-50 p-6" aria-labelledby="order-h">
   <h2 id="order-h" class="text-xl font-bold text-palm-900">{copy.title}</h2>
-  <ol class="mt-3 grid gap-3 md:grid-cols-3">
+  {copy.lead && <p class="mt-1 font-semibold">{copy.lead}</p>}
+  <ol class:list={['mt-3 grid gap-3', copy.steps.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3']}>
     {copy.steps.map(([t, d], i) => (
       <li class="flex gap-3">
         <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-600 font-bold text-white" aria-hidden="true">{i + 1}</span>
