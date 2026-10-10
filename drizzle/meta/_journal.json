@@ -99,6 +99,13 @@
       "when": 1791564095209,
       "tag": "0013_hive_holds",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1791614521724,
+      "tag": "0014_lot_allocations",
+      "breakpoints": true
     }
   ]
 }

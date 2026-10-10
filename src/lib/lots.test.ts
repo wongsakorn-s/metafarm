@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bottlingSchema, isLotCode, lotCode, lotPrefix, maxBottles, nextLotSeq, pickLot, remainingMl } from './lots.ts';
+import { bottlingSchema, isLotCode, lotCode, lotPrefix, lotsLabel, maxBottles, nextLotSeq, remainingMl } from './lots.ts';
 
 describe('รหัสล็อต', () => {
   it('H + พ.ศ. + เดือน + ลำดับ', () => {
@@ -24,15 +24,11 @@ describe('ปริมาณ', () => {
   });
 });
 
-describe('เลือกล็อตตอนขาย', () => {
-  it('ล็อตเก่าก่อน ที่ยังมีขวดเหลือ · ไม่มี → null', () => {
-    const lots = [
-      { id: 3, harvestedTo: '2026-09-30', bottled: 10, sold: 2 },
-      { id: 1, harvestedTo: '2026-08-31', bottled: 5, sold: 5 },
-      { id: 2, harvestedTo: '2026-09-15', bottled: 4, sold: 0 },
-    ];
-    expect(pickLot(lots)).toBe(2);
-    expect(pickLot([{ id: 1, harvestedTo: '2026-08-31', bottled: 5, sold: 5 }])).toBeNull();
+describe('ล็อตของบรรทัดออเดอร์', () => {
+  it('ล็อตเดียวไม่บอกจำนวน · หลายล็อตบอกจำนวนต่อล็อต · ไม่มีล็อต = ว่าง', () => {
+    expect(lotsLabel([{ code: 'H2569-10-1', qty: 5 }])).toBe('ล็อต H2569-10-1');
+    expect(lotsLabel([{ code: 'H2569-08-1', qty: 2 }, { code: 'H2569-10-1', qty: 3 }])).toBe('ล็อต H2569-08-1 ×2, H2569-10-1 ×3');
+    expect(lotsLabel([])).toBe('');
   });
 });
 

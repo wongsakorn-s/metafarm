@@ -19,6 +19,7 @@ const owner = canManageFarm(Astro.locals.user);
 
 <AdminLayout title={owner ? 'ขาย' : 'ล็อตน้ำผึ้ง'} active="lots">
   {owner && <SalesTabs active="lots" />}
+  {Astro.url.searchParams.get('saved') === 'deleted' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ลบล็อตแล้ว — การเก็บน้ำหวานในล็อตนั้นกลับมาให้เลือกใหม่ (หรือลบในหน้ารัง ถ้าบันทึกผิด)</p>}
 
   <section class="card mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
     <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-honey-50 text-honey-700"><Icon name="honey" class="size-6" /></span>

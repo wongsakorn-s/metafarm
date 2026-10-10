@@ -8,7 +8,8 @@ const yearRange = (year: number) => [`${year}-01-01`, `${year + 1}-01-01`] as co
 
 /**
  * ต้นทุนต่อชิ้นของแต่ละรายการ:
- * - ขวดน้ำผึ้ง: ต้นทุนเฉลี่ยตอนบรรจุของล็อตนั้น (ขนาดนั้น) → ถ้าไม่มี ใช้ต้นทุนในหน้าสินค้า
+ * - ขวดน้ำผึ้ง: เฉลี่ยตามจำนวนขวดจากแต่ละล็อต (order_item_lots) — ล็อตละใช้ต้นทุนเฉลี่ยตอนบรรจุ (ขนาดนั้น) → ถ้าไม่มี ใช้ต้นทุนในหน้าสินค้า
+ *   ขวดที่ไม่ผูกล็อต (สต็อกใส่มือ) ใช้ต้นทุนในหน้าสินค้า · ส่วนไหนไม่รู้ต้นทุน = ทั้งบรรทัด null (ไม่เดา)
  * - รัง: ซื้อมา = ราคาซื้อ (ไม่รู้ = null) · ขยายเอง/แยกรัง/ธรรมชาติ = 0 · ไม่รู้ที่มา = null
  */
 export async function saleLines(db: Db, year: number): Promise<SaleLine[]> {
@@ -18,10 +19,15 @@ export async function saleLines(db: Db, year: number): Promise<SaleLine[]> {
            i.kind as kind, i.variant_id as variantId, i.label as label, i.qty as qty, i.unit_price as unitPrice,
            case when i.kind = 'hive' then
                   case h.origin when 'purchased' then h.purchase_price when 'unknown' then null else 0 end
-                else coalesce(
-                  (select sum(b.qty * b.unit_cost) * 1.0 / sum(b.qty) from bottlings b
-                    where b.lot_id = i.lot_id and b.variant_id = i.variant_id and b.unit_cost is not null),
-                  v.unit_cost)
+                else (
+                  select case when sum(x.cost is null) > 0 then null
+                              else (coalesce(sum(x.qty * x.cost), 0)
+                                    + case when i.qty > coalesce(sum(x.qty), 0) then (i.qty - coalesce(sum(x.qty), 0)) * v.unit_cost else 0 end) * 1.0 / i.qty end
+                    from (select a.qty as qty,
+                                 coalesce((select sum(b.qty * b.unit_cost) * 1.0 / sum(b.qty) from bottlings b
+                                            where b.lot_id = a.lot_id and b.variant_id = i.variant_id and b.unit_cost is not null),
+                                          v.unit_cost) as cost
+                            from order_item_lots a where a.order_item_id = i.id) x)
            end as unitCost
       from order_items i
       join orders o on o.id = i.order_id

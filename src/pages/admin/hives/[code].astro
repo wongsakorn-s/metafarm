@@ -6,12 +6,12 @@ import CreateTarget from '../../../components/CreateTarget.astro';
 import type { z } from 'zod';
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { getDb } from '../../../server/db.ts';
-import { addBroodSplit, addHoneyHarvest, addNote, addQueenCell, changeStatus, getHiveDetail, updateSale } from '../../../server/hives.ts';
+import { addBroodSplit, addHoneyHarvest, addNote, addQueenCell, changeStatus, deletableEvent, deleteEvent, getHiveDetail, updateSale } from '../../../server/hives.ts';
 import { baht, boxLabel, eventIcon, eventLabel, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
 import { formatThaiDate, UNKNOWN } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
 import { thumbUrl } from '../../../lib/media.ts';
-import { canManageFarm, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
+import { canDeleteRecord, canManageFarm, maskOrderCodes, statusTargets } from '../../../lib/permissions.ts';
 import { jsonResult, wantsJson } from '../../../lib/http.ts';
 import { broodSplitSchema, honeyHarvestSchema, noteSchema, parseForm, queenCellSchema, saleSchema, statusSchema, todayBangkok, type FieldErrors } from '../../../lib/validation.ts';
 
@@ -30,7 +30,7 @@ const today = todayBangkok();
 let detail = await getHiveDetail(db, code);
 if (!detail) return new Response('ไม่พบรังนี้', { status: 404 });
 
-const savedLabel: Record<string, string> = { honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
+const savedLabel: Record<string, string> = { deleted: 'ลบบันทึกแล้ว — ถ้าต้องการ บันทึกค่าที่ถูกต้องใหม่ได้เลย', honey: 'บันทึกการเก็บน้ำหวานแล้ว', queen: 'บันทึกการเก็บไข่นางพญาแล้ว', brood: 'บันทึกการแยกรังแล้ว', note: 'บันทึกหมายเหตุแล้ว', status: 'เปลี่ยนสถานะแล้ว', sale: 'บันทึกการตั้งขายแล้ว', edited: 'บันทึกการแก้ไขแล้ว', created: 'สร้างรังใหม่แล้ว' };
 /** หลังบันทึก: ปุ่ม "รังต่อไป" พาไปหน้าบันทึกด่วนพร้อมงานเดิม (เดินทำทีละรัง ไม่ต้องเลือกงานใหม่ทุกรัง) */
 const nextJob: Record<string, string> = { honey: 'เก็บน้ำหวาน', queen: 'เก็บไข่นางพญา', brood: 'แยกรัง', note: 'หมายเหตุ' };
 let errors: FieldErrors = {};
@@ -68,6 +68,11 @@ if (Astro.request.method === 'POST') {
   else if (intent === 'note') res = await run(parseForm(noteSchema, form), (d) => addNote(db, user, hive, d));
   else if (intent === 'status') res = await run(parseForm(statusSchema, form), (d) => changeStatus(db, user, hive, d));
   else if (intent === 'sale') res = await run(parseForm(saleSchema, form), (d) => updateSale(db, user, hive, d));
+  else if (intent === 'delete-event') {
+    const r = await deleteEvent(db, user, hive, Number(form.get('eventId')));
+    if (r.ok) res = Astro.redirect(`/admin/hives/${code}?saved=deleted`, 303);
+    else errors = { _: r.error };
+  }
   else errors = { _: 'คำสั่งไม่ถูกต้อง' };
   // คิวรอส่ง (scripts/outbox.ts) ขอผลเป็น JSON — ฟอร์มธรรมดาได้ redirect/หน้าเว็บตามเดิม
   if (wantsJson(Astro.request)) {
@@ -189,7 +194,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
       {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
         <ol class="divide-y divide-line">
-          {events.map(({ e, targetCode, by }) => (
+          {events.map(({ e, targetCode, by, lotCode }) => (
             <li class="flex gap-3 py-3">
               <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
               <div class="min-w-0 flex-1">
@@ -202,8 +207,18 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
                 </p>
                 {e.note && <p class="break-words text-sm text-muted">{owner ? e.note : maskOrderCodes(e.note)}</p>}
                 {by && <p class="text-xs text-muted">บันทึกโดย {by}</p>}
+                {lotCode && <p class="text-xs text-muted">อยู่ในล็อต <a class="underline" href={`/admin/lots/${lotCode}`}>{lotCode}</a></p>}
               </div>
-              <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
+              <div class="flex shrink-0 flex-col items-end">
+                <time class="text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
+                {/* บันทึกผิด → ลบแล้วบันทึกใหม่ (การเปลี่ยนสถานะ และการเก็บที่อยู่ในล็อตแล้ว ลบไม่ได้) */}
+                {deletableEvent(e) && !lotCode && canDeleteRecord(user, e) && (
+                  <form method="post" data-confirm={`ลบบันทึก "${eventLabel[e.type]}" วันที่ ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)} ใช่ไหม?`}>
+                    <input type="hidden" name="intent" value="delete-event" /><input type="hidden" name="eventId" value={e.id} />
+                    <button class="inline-flex min-h-11 items-center px-1 text-sm text-danger underline" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}>ลบ</button>
+                  </form>
+                )}
+              </div>
             </li>
           ))}
         </ol>

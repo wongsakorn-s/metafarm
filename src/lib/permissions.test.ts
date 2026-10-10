@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canManageFarm, canManageUsers, managerOnlyPath, maskOrderCodes, ownerOnlyPath, passwordChangeAllowed, pathAllowed, statusTargets } from './permissions.ts';
+import { canDeleteRecord, canManageFarm, canManageUsers, managerOnlyPath, maskOrderCodes, ownerOnlyPath, passwordChangeAllowed, pathAllowed, statusTargets } from './permissions.ts';
 import { passwordProblem, tempPassword } from './auth/password.ts';
 
 describe('pathAllowed (เจ้าของ / แอดมิน / พนักงาน)', () => {
@@ -70,5 +70,23 @@ describe('tempPassword', () => {
     expect(a).not.toMatch(/[01OlI]/);
     expect(passwordProblem(a)).toBeNull();
     expect(new Set(Array.from({ length: 50 }, tempPassword)).size).toBe(50);
+  });
+});
+
+describe('ลบบันทึกที่กรอกผิด', () => {
+  const now = Date.parse('2026-10-10T12:00:00.000Z');
+  const rec = (createdBy: number | null, hoursAgo: number) => ({ createdBy, createdAt: new Date(now - hoursAgo * 3_600_000).toISOString() });
+  it('เจ้าของ/แอดมินลบได้ทุกรายการ ไม่จำกัดเวลา', () => {
+    expect(canDeleteRecord({ id: 1, role: 'owner' }, rec(9, 500), now)).toBe(true);
+    expect(canDeleteRecord({ id: 1, role: 'admin' }, rec(null, 500), now)).toBe(true);
+  });
+  it('พนักงาน: เฉพาะของตัวเองภายใน 24 ชม.', () => {
+    const staff = { id: 2, role: 'staff' };
+    expect(canDeleteRecord(staff, rec(2, 1), now)).toBe(true);
+    expect(canDeleteRecord(staff, rec(2, 25), now)).toBe(false);
+    expect(canDeleteRecord(staff, rec(3, 1), now)).toBe(false);
+    expect(canDeleteRecord(staff, rec(null, 1), now)).toBe(false);
+    expect(canDeleteRecord(staff, { createdBy: 2, createdAt: 'ไม่ใช่วันที่' }, now)).toBe(false);
+    expect(canDeleteRecord(null, rec(2, 1), now)).toBe(false);
   });
 });

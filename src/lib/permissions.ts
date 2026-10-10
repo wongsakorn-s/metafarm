@@ -31,6 +31,20 @@ export const ownerOnlyPath = (pathname: string) => under(OWNER_ONLY, pathname);
 export const pathAllowed = (u: { role: string } | null | undefined, pathname: string) =>
   ownerOnlyPath(pathname) ? canManageUsers(u) : managerOnlyPath(pathname) ? canManageFarm(u) : true;
 
+/** ช่วงเวลาที่พนักงานลบรายการที่ตัวเองบันทึกผิดได้ (หลังจากนั้นให้เจ้าของ/แอดมินลบ) */
+export const OWN_DELETE_HOURS = 24;
+export const DELETE_DENIED = `ลบได้เฉพาะรายการที่ตัวเองบันทึกภายใน ${OWN_DELETE_HOURS} ชั่วโมง — ให้เจ้าของหรือแอดมินลบให้`;
+/**
+ * ลบบันทึกที่กรอกผิด (เหตุการณ์รัง การบรรจุขวด ล็อต): เจ้าของ/แอดมินลบได้ทุกรายการ ·
+ * พนักงานลบได้เฉพาะของตัวเองภายใน 24 ชม. (แก้พิมพ์ผิดเองได้ทันที ไม่ต้องรอเจ้าของ)
+ */
+export function canDeleteRecord(u: { id: number; role: string } | null | undefined, rec: { createdBy: number | null; createdAt: string }, now = Date.now()): boolean {
+  if (!u) return false;
+  if (canManageFarm(u)) return true;
+  const at = Date.parse(rec.createdAt);
+  return rec.createdBy === u.id && Number.isFinite(at) && now - at < OWN_DELETE_HOURS * 3_600_000;
+}
+
 /** หน้าที่เข้าได้ระหว่างบังคับเปลี่ยนรหัสผ่านชั่วคราว */
 export const passwordChangeAllowed = (pathname: string) => ['/admin/account', '/admin/logout'].includes(pathname.replace(/\/+$/, ''));
 

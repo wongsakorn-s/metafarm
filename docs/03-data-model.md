@@ -74,12 +74,14 @@ users ─< sessions · audit_logs
 - **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `price_confirmed` (ยังไม่ยืนยัน = ป้าย "ราคาตัวอย่าง"), `stock_qty` (เว็บแสดงแค่ มี/ไม่มี), `unit_cost` 🔒, `harvest_year_be`
 - **customers** 🔒: `name`, `phone`, `line_name`, `address`
 - **orders** 🔒: `code` (`S<ปี พ.ศ.>-NNN`), `customer_id`, `channel` (`line` | `facebook` | `phone` | `farm` | `other`), `ordered_on`, `status` (`awaiting_payment` → `paid` → `fulfilled` หรือ `cancelled` ก่อนส่ง), `paid_on`, `pay_method`, `ship_method`, `ship_fee`, `tracking_no`, `fulfilled_on`, `note`, `create_key` (กันสร้างซ้ำ)
-- **order_items** 🔒: `order_id`, `kind` (`variant` | `hive`), `variant_id` **หรือ** `hive_id`, `label`, `qty`, `unit_price`, `stock_taken` (คืนสต็อกตามนี้เมื่อยกเลิก), `prev_for_sale`, `lot_id`
+- **order_items** 🔒: `order_id`, `kind` (`variant` | `hive`), `variant_id` **หรือ** `hive_id`, `label`, `qty`, `unit_price`, `stock_taken` (คืนสต็อกตามนี้เมื่อยกเลิก), `prev_for_sale`, `lot_id` (เลิกใช้ตั้งแต่ 0014 — ดู order_item_lots)
+- **order_item_lots** 🔒: `order_item_id`, `lot_id`, `qty` — ขวดของบรรทัดนั้นมาจากล็อตไหนกี่ขวด (แบ่งตอนชำระ ล็อตเก่าก่อน · ลบเมื่อยกเลิก · ขวดที่ไม่มีแถว = สต็อกใส่มือ)
   - ตัดสต็อกและตั้งรังเป็น `sold` เมื่อออเดอร์เป็น **paid** เท่านั้น · รังที่อยู่ในออเดอร์ที่ยังเปิดถูกถอดจากการขาย
 - **hive_holds**: รังหนึ่งอยู่ได้ในออเดอร์ที่ยังไม่ยกเลิกได้ออเดอร์เดียว (`hive_id` เป็น PK)
 - **honey_lots**: `code`, `harvested_from`, `harvested_to`, `total_ml` 🔒 — หน้า `/lot/[code]` (จาก QR บนขวด) แสดงแค่รหัส ช่วงวันที่เก็บ และรหัสรัง
 - **lot_sources**: `lot_id`, `event_id` (การเก็บน้ำหวานหนึ่งครั้งอยู่ในล็อตเดียว)
 - **bottlings**: `lot_id`, `variant_id`, `qty`, `bottled_on`, `unit_cost` 🔒 (เพิ่มสต็อกขวด ไม่เกินปริมาณในล็อต)
+- **แก้ข้อมูลที่บันทึกผิด**: ลบแล้วบันทึกใหม่ (ค่าเดิมเก็บใน audit_logs) — การเก็บน้ำหวานลบได้เมื่อยังไม่อยู่ในล็อต · ล็อตลบได้เมื่อยังไม่บรรจุ · การบรรจุลบได้เมื่อขวดชุดนั้นยังไม่ถูกขาย · เจ้าของ/แอดมินลบได้ทุกรายการ พนักงานเฉพาะของตัวเองภายใน 24 ชม.
 
 ### ระบบ
 

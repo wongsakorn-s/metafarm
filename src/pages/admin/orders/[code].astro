@@ -8,6 +8,7 @@ import { channelLabel, fulfillOrderSchema, NEXT, orderStatusClass, orderStatusLa
 import { fieldErrors, todayBangkok } from '../../../lib/validation.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { baht } from '../../../lib/labels.ts';
+import { lotsLabel } from '../../../lib/lots.ts';
 import { telHref } from '../../../lib/settings.ts';
 import { site } from '../../../config/site.ts';
 import { PAY_METHODS } from '../../../db/schema.ts';
@@ -50,7 +51,7 @@ if (!got) return new Response('ไม่พบออเดอร์', { status: 
 const { order: o, items, customer } = got;
 const settings = await getSettings(db);
 const total = orderTotal(items, o.shipFee);
-const summary = orderSummaryText(o, items.map((i) => ({ ...i, label: i.lotCode ? `${i.label} (ล็อต ${i.lotCode})` : i.label })), site.name, settings.paymentInfo);
+const summary = orderSummaryText(o, items.map((i) => ({ ...i, label: i.lots.length ? `${i.label} (${lotsLabel(i.lots)})` : i.label })), site.name, settings.paymentInfo);
 const saved = Astro.url.searchParams.get('saved');
 const savedText: Record<string, string> = {
   created: 'บันทึกออเดอร์แล้ว — กด "คัดลอกข้อความสรุป" เพื่อส่งให้ลูกค้าทาง LINE',
@@ -80,7 +81,7 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
           <tbody class="divide-y divide-line" data-num>
             {items.map((i) => (
               <tr>
-                <td class="py-2 pr-2">{i.hiveCode ? <a class="font-medium text-palm-700 underline" href={`/admin/hives/${i.hiveCode}`}>{i.label}</a> : i.label}<span class="block text-xs text-muted">{baht(i.unitPrice)} / ชิ้น{i.lotCode && <> · ล็อต <a class="underline" href={`/admin/lots/${i.lotCode}`}>{i.lotCode}</a></>}</span></td>
+                <td class="py-2 pr-2">{i.hiveCode ? <a class="font-medium text-palm-700 underline" href={`/admin/hives/${i.hiveCode}`}>{i.label}</a> : i.label}<span class="block text-xs text-muted">{baht(i.unitPrice)} / ชิ้น{i.lots.length > 0 && <> · ล็อต {i.lots.map((l, n) => <>{n > 0 && ', '}<a class="underline" href={`/admin/lots/${l.code}`}>{l.code}</a>{i.lots.length > 1 && ` ×${l.qty}`}</>)}</>}</span></td>
                 <td class="text-right">{i.qty}</td>
                 <td class="text-right">{baht(i.qty * i.unitPrice)}</td>
               </tr>

@@ -4,14 +4,14 @@
 import { and, asc, desc, eq, inArray, like, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import type { z } from 'zod';
-import { auditLogs, customers, hiveHolds, hives, honeyLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
+import { auditLogs, customers, hiveHolds, hives, honeyLots, orderItemLots, orderItems, orders, productVariants, products } from '../db/schema.ts';
 import { canMove, nextSeq, orderCode, orderStatusLabel, type OrderStatus, type customerSchema, type fulfillOrderSchema, type newOrderSchema, type payOrderSchema } from '../lib/orders.ts';
 import type { SessionUser } from './auth.ts';
 import { isOnceConflict, once } from './versioned.ts';
 import type { Db } from './db.ts';
 import { byCode, statusStatements } from './hives.ts';
 import { statusLabel } from '../lib/labels.ts';
-import { lotForSale } from './lots.ts';
+import { allocateLots } from './lots.ts';
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 type Order = typeof orders.$inferSelect;
@@ -57,11 +57,16 @@ export async function orderCounts(db: Db) {
 export async function getOrder(db: Db, code: string) {
   const o = await db.query.orders.findFirst({ where: eq(orders.code, code) });
   if (!o) return null;
-  const [items, customer] = await Promise.all([
-    db.select({ item: orderItems, hiveCode: hives.code, lotCode: honeyLots.code }).from(orderItems).leftJoin(hives, eq(hives.id, orderItems.hiveId)).leftJoin(honeyLots, eq(honeyLots.id, orderItems.lotId)).where(eq(orderItems.orderId, o.id)).orderBy(asc(orderItems.id)),
+  const [items, lots, customer] = await Promise.all([
+    db.select({ item: orderItems, hiveCode: hives.code }).from(orderItems).leftJoin(hives, eq(hives.id, orderItems.hiveId)).where(eq(orderItems.orderId, o.id)).orderBy(asc(orderItems.id)),
+    // ขวดของแต่ละบรรทัดมาจากล็อตไหนกี่ขวด (เก่าก่อน)
+    db.select({ itemId: orderItemLots.orderItemId, code: honeyLots.code, qty: orderItemLots.qty }).from(orderItemLots)
+      .innerJoin(orderItems, eq(orderItems.id, orderItemLots.orderItemId)).innerJoin(honeyLots, eq(honeyLots.id, orderItemLots.lotId))
+      .where(eq(orderItems.orderId, o.id)).orderBy(asc(honeyLots.harvestedTo), asc(honeyLots.id)),
     o.customerId ? db.query.customers.findFirst({ where: eq(customers.id, o.customerId) }) : Promise.resolve(undefined),
   ]);
-  return { order: o, items: items.map((r) => ({ ...r.item, hiveCode: r.hiveCode, lotCode: r.lotCode })), customer: customer ?? null };
+  const lotsOf = (id: number) => lots.filter((l) => l.itemId === id).map(({ code, qty }) => ({ code, qty }));
+  return { order: o, items: items.map((r) => ({ ...r.item, hiveCode: r.hiveCode, lots: lotsOf(r.item.id) })), customer: customer ?? null };
 }
 
 /** ตัวเลือกในฟอร์มออเดอร์ใหม่: ลูกค้า (ล่าสุดก่อน), สินค้า, รังที่ขายได้ (ยังอยู่ และไม่ได้อยู่ในออเดอร์ค้าง) */
@@ -185,9 +190,10 @@ async function stockStatements(db: Db, user: SessionUser, o: Order, items: Item[
   for (const i of items) {
     if (i.kind === 'variant' && i.variantId) {
       // จดจำนวนที่ตัดได้จริงก่อน (คำสั่งใน batch ทำตามลำดับ) แล้วค่อยตัด — สต็อกไม่ติดลบ และยกเลิกแล้วคืนเท่าที่ตัดไป
-      // ล็อตน้ำผึ้ง: ล็อตเก่าก่อน ที่ยังมีขวดขนาดนี้เหลือ (ไม่มีล็อต = สต็อกที่ใส่มือ ไม่ผูกล็อต)
-      const lotId = i.lotId ?? (await lotForSale(db, i.variantId));
-      out.push(db.update(orderItems).set({ stockTaken: sql`min(${i.qty}, (select stock_qty from product_variants where id = ${i.variantId}))`, lotId }).where(eq(orderItems.id, i.id)));
+      out.push(db.update(orderItems).set({ stockTaken: sql`min(${i.qty}, (select stock_qty from product_variants where id = ${i.variantId}))` }).where(eq(orderItems.id, i.id)));
+      // ล็อตน้ำผึ้ง: แบ่งขวดให้ล็อตเก่าก่อน ล็อตละไม่เกินที่เหลือ (คำนวณใน batch นี้ — ล็อตไม่พอ = สต็อกที่ใส่มือ ไม่ผูกล็อต)
+      // เดิมทั้งบรรทัดได้ล็อตเดียว: ขาย 5 ขวดตอนล็อตเก่าเหลือ 2 → ล็อตเก่า "ขายเกินที่บรรจุ" และต้นทุน/ล็อตในข้อความผิด
+      out.push(allocateLots(db, i.id, i.variantId, i.qty));
       out.push(db.update(productVariants).set({ stockQty: sql`max(${productVariants.stockQty} - ${i.qty}, 0)`, ...touch }).where(eq(productVariants.id, i.variantId)));
     } else if (i.kind === 'hive' && i.hiveId) {
       const hive = (await db.query.hives.findFirst({ where: eq(hives.id, i.hiveId) }))!;
@@ -261,6 +267,8 @@ export async function cancelOrder(db: Db, user: SessionUser, code: string, today
     once(db, onceKey(o)),
     db.update(orders).set({ status: 'cancelled', stockApplied: false, ...touch }).where(eq(orders.id, o.id)),
     db.delete(hiveHolds).where(eq(hiveHolds.orderId, o.id)),
+    // ขวดที่ผูกล็อตไว้ตอนชำระ กลับเป็นขวดคงเหลือของล็อตนั้น
+    ...(items.length ? [db.delete(orderItemLots).where(inArray(orderItemLots.orderItemId, items.map((i) => i.id)))] : []),
   ];
   for (const i of items) {
     if (i.kind === 'variant' && i.variantId && o.stockApplied) {

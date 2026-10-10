@@ -1,9 +1,9 @@
 import { alias } from 'drizzle-orm/sqlite-core';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { and, asc, desc, eq, like, or, sql, type SQL } from 'drizzle-orm';
-import { auditLogs, hiveEvents, hiveHolds, hiveMedia, hives, orders, species, suppliers, users } from '../db/schema.ts';
+import { auditLogs, hiveEvents, hiveHolds, hiveMedia, hives, honeyLots, lotSources, orders, species, suppliers, users } from '../db/schema.ts';
 import { holdBlocks } from '../lib/orders.ts';
-import { canManageFarm, statusTargets } from '../lib/permissions.ts';
+import { canDeleteRecord, canManageFarm, DELETE_DENIED, statusTargets } from '../lib/permissions.ts';
 import { suggestNextCode } from '../lib/hive-code.ts';
 import { CONFLICT_ERROR } from '../lib/concurrency.ts';
 import { auditIfChanged, type Saved } from './versioned.ts';
@@ -127,10 +127,13 @@ export async function getHiveDetail(db: Db, code: string) {
       .where(eq(hives.id, hive.id))
       .then((r) => r[0]!),
     db
-      .select({ e: hiveEvents, targetCode: target.code, by: users.name })
+      .select({ e: hiveEvents, targetCode: target.code, by: users.name, lotCode: honeyLots.code })
       .from(hiveEvents)
       .leftJoin(target, eq(target.id, hiveEvents.targetHiveId))
       .leftJoin(users, eq(users.id, hiveEvents.createdBy))
+      // การเก็บน้ำหวานที่รวมเข้าล็อตแล้ว (ลบไม่ได้จนกว่าจะลบล็อต)
+      .leftJoin(lotSources, eq(lotSources.eventId, hiveEvents.id))
+      .leftJoin(honeyLots, eq(honeyLots.id, lotSources.lotId))
       .where(eq(hiveEvents.hiveId, hive.id))
       .orderBy(desc(hiveEvents.occurredOn), desc(hiveEvents.id)),
     db.select().from(hiveMedia).where(eq(hiveMedia.hiveId, hive.id)).orderBy(asc(hiveMedia.kind), asc(hiveMedia.sortOrder), asc(hiveMedia.id)),
@@ -250,6 +253,28 @@ export async function addNote(db: Db, user: SessionUser, hive: Hive, d: z.output
     audit(db, user, 'event.note', hive.id),
   ]);
   return { ok: true };
+}
+
+/** เหตุการณ์ที่ลบได้ — การเปลี่ยนสถานะลบไม่ได้ (สถานะรัง/การขายอ้างถึง) ให้เปลี่ยนสถานะใหม่แทน */
+export const deletableEvent = (e: { type: string }) => e.type !== 'status_change';
+
+/**
+ * ลบเหตุการณ์ที่บันทึกผิด (เช่นพิมพ์ 2500 แทน 250 มล.) แล้วบันทึกใหม่ — เก็บค่าเดิมไว้ใน audit
+ * การเก็บน้ำหวานที่อยู่ในล็อตแล้วลบไม่ได้ (ตรวจในคำสั่งลบเอง กันสร้างล็อตพร้อมกัน) → ลบล็อตก่อน (ได้เมื่อยังไม่บรรจุขวด)
+ */
+export async function deleteEvent(db: Db, user: SessionUser, hive: Hive, eventId: number): Promise<Result> {
+  if (!Number.isSafeInteger(eventId) || eventId <= 0) return { ok: false, error: 'ไม่พบบันทึกนี้ — โหลดหน้าใหม่แล้วลองอีกครั้ง' };
+  const e = await db.query.hiveEvents.findFirst({ where: and(eq(hiveEvents.id, eventId), eq(hiveEvents.hiveId, hive.id)) });
+  if (!e) return { ok: true }; // ลบไปแล้ว (กดซ้ำ)
+  if (!deletableEvent(e)) return { ok: false, error: 'การเปลี่ยนสถานะลบไม่ได้ — ถ้าบันทึกผิด ให้เปลี่ยนสถานะใหม่' };
+  if (!canDeleteRecord(user, e)) return { ok: false, error: DELETE_DENIED };
+  await db.batch([
+    db.delete(hiveEvents).where(and(eq(hiveEvents.id, e.id), sql`not exists (select 1 from lot_sources s where s.event_id = hive_events.id)`)),
+    auditIfChanged(db, user.id, 'event.delete', 'hive', hive.id, { type: e.type, occurredOn: e.occurredOn, honeyMl: e.honeyMl, propolisG: e.propolisG, pollenG: e.pollenG, queenCells: e.queenCells, targetHiveId: e.targetHiveId, note: e.note, createdBy: e.createdBy }),
+  ]);
+  if (!(await db.query.hiveEvents.findFirst({ where: eq(hiveEvents.id, e.id), columns: { id: true } }))) return { ok: true };
+  const [lot] = await db.select({ code: honeyLots.code }).from(lotSources).innerJoin(honeyLots, eq(honeyLots.id, lotSources.lotId)).where(eq(lotSources.eventId, e.id));
+  return { ok: false, error: `การเก็บน้ำหวานนี้อยู่ในล็อต ${lot?.code ?? ''} แล้ว — ลบล็อตนั้นก่อน (ลบได้เมื่อยังไม่บรรจุขวด)` };
 }
 
 /** คำสั่งเปลี่ยนสถานะ (บันทึกเหตุการณ์ + อัปเดตรัง + audit) — แยกออกมาให้ fillMissing รวมเป็น batch เดียวได้ */

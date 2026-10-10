@@ -2,13 +2,13 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
 import { getDb } from '../../../server/db.ts';
-import { addBottling, getLot, honeyVariants } from '../../../server/lots.ts';
+import { addBottling, deleteBottling, deleteLot, getLot, honeyVariants } from '../../../server/lots.ts';
 import { bottlingSchema, isLotCode, maxBottles } from '../../../lib/lots.ts';
 import { fieldErrors, todayBangkok } from '../../../lib/validation.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { fmt } from '../../../lib/chart.ts';
 import { baht } from '../../../lib/labels.ts';
-import { canManageFarm } from '../../../lib/permissions.ts';
+import { canDeleteRecord, canManageFarm } from '../../../lib/permissions.ts';
 
 export const prerender = false;
 const db = getDb();
@@ -16,18 +16,31 @@ const code = Astro.params.code ?? '';
 if (!isLotCode(code)) return new Response('ไม่พบล็อต', { status: 404 });
 const today = todayBangkok();
 // ต้นทุนบรรจุ = เจ้าของเท่านั้น (เซิร์ฟเวอร์ไม่รับต้นทุนจากพนักงาน)
-const owner = canManageFarm(Astro.locals.user);
+const user = Astro.locals.user!;
+const owner = canManageFarm(user);
 let errors: Record<string, string> = {};
 let values: Record<string, string> = {};
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
-  values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
-  const p = bottlingSchema.safeParse(values);
-  if (!p.success) errors = fieldErrors(p.error);
-  else {
-    const r = await addBottling(db, Astro.locals.user!, code, p.data);
-    if (r.ok) return Astro.redirect(`/admin/lots/${code}?saved=bottled`, 303);
+  const intent = String(form.get('intent') ?? 'bottle');
+  if (intent === 'delete-bottling') {
+    // บรรจุผิด → ลบแล้วบรรจุใหม่ (หักสต็อกคืน — ได้เมื่อขวดชุดนี้ยังไม่ถูกขาย)
+    const r = await deleteBottling(db, user, code, Number(form.get('bottlingId')));
+    if (r.ok) return Astro.redirect(`/admin/lots/${code}?saved=unbottled`, 303);
     errors._ = r.error;
+  } else if (intent === 'delete-lot') {
+    const r = await deleteLot(db, user, code);
+    if (r.ok) return Astro.redirect('/admin/lots?saved=deleted', 303);
+    errors._ = r.error;
+  } else {
+    values = Object.fromEntries([...form].filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+    const p = bottlingSchema.safeParse(values);
+    if (!p.success) errors = fieldErrors(p.error);
+    else {
+      const r = await addBottling(db, user, code, p.data);
+      if (r.ok) return Astro.redirect(`/admin/lots/${code}?saved=bottled`, 303);
+      errors._ = r.error;
+    }
   }
 }
 const got = await getLot(db, code);
@@ -44,6 +57,7 @@ const byVariant = [...bottled.reduce((m, b) => m.set(b.variantId, { label: `${b.
 <AdminLayout back={{ href: '/admin/lots', label: 'ล็อตน้ำผึ้ง' }} title={`ล็อต ${lot.code}`} active="lots">
   {saved === 'created' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">สร้างล็อตแล้ว — บันทึกการบรรจุขวดด้านล่าง แล้วพิมพ์ฉลาก</p>}
   {saved === 'bottled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">บันทึกการบรรจุแล้ว — สต็อกในหน้าสินค้าเพิ่มให้แล้ว</p>}
+  {saved === 'unbottled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ลบการบรรจุแล้ว — หักสต็อกคืนให้แล้ว</p>}
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
 
   <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
@@ -68,13 +82,32 @@ const byVariant = [...bottled.reduce((m, b) => m.set(b.variantId, { label: `${b.
         <h2 id="bt-h" class="mb-1 font-semibold">การบรรจุขวด</h2>
         {bottled.length === 0 ? <p class="text-sm text-muted">ยังไม่ได้บรรจุ</p> : (
           <table class="w-full text-sm">
-            <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">วันที่ / ขนาด</th><th scope="col" class="text-right">ขวด</th>{owner && <th scope="col" class="text-right">ต้นทุน/ขวด</th>}</tr></thead>
+            <thead class="border-b border-line text-xs text-muted"><tr><th scope="col" class="py-1 text-left">วันที่ / ขนาด</th><th scope="col" class="text-right">ขวด</th>{owner && <th scope="col" class="text-right">ต้นทุน/ขวด</th>}<th scope="col"><span class="sr-only">ลบ</span></th></tr></thead>
             <tbody class="divide-y divide-line" data-num>
-              {bottled.map((b) => <tr><td class="py-2">{formatThaiDate(b.bottledOn)} · {b.label}{b.sizeMl ? ` ${b.sizeMl} มล.` : ''}</td><td class="text-right">{b.qty}</td>{owner && <td class="text-right">{b.unitCost != null ? baht(b.unitCost) : '–'}</td>}</tr>)}
+              {bottled.map((b) => (
+                <tr>
+                  <td class="py-2">{formatThaiDate(b.bottledOn)} · {b.label}{b.sizeMl ? ` ${b.sizeMl} มล.` : ''}</td><td class="text-right">{b.qty}</td>{owner && <td class="text-right">{b.unitCost != null ? baht(b.unitCost) : '–'}</td>}
+                  <td class="text-right">{canDeleteRecord(user, b) && (
+                    <form method="post" data-confirm={`ลบการบรรจุ ${b.label} ${b.qty} ขวด (${formatThaiDate(b.bottledOn)}) และหักสต็อกคืน ใช่ไหม?`}>
+                      <input type="hidden" name="intent" value="delete-bottling" /><input type="hidden" name="bottlingId" value={b.id} />
+                      <button class="inline-flex min-h-11 items-center pl-2 text-danger underline" type="submit" aria-label={`ลบการบรรจุ ${b.label} ${b.qty} ขวด`}>ลบ</button>
+                    </form>
+                  )}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {/* ล็อตที่สร้างผิด (เลือกการเก็บผิด/ค่าผิด) → ลบแล้วสร้างใหม่ — ได้เมื่อยังไม่บรรจุขวด */}
+      {bottled.length === 0 && canDeleteRecord(user, lot) && (
+        <form method="post" class="card flex flex-wrap items-center justify-between gap-3" data-confirm={`ลบล็อต ${lot.code} ใช่ไหม? การเก็บน้ำหวาน ${sources.length} รายการจะกลับไปเป็น "ยังไม่อยู่ในล็อต"`}>
+          <input type="hidden" name="intent" value="delete-lot" />
+          <p class="text-sm text-muted">สร้างล็อตผิด? ลบได้ตราบที่ยังไม่บรรจุขวด</p>
+          <button class="btn-ghost text-danger" type="submit">ลบล็อตนี้</button>
+        </form>
+      )}
     </div>
 
     <div class="space-y-5 lg:sticky lg:top-6">

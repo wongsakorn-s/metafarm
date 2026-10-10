@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  primaryKey,
   real,
   sqliteTable,
   text,
@@ -343,7 +344,7 @@ export const orderItems = sqliteTable(
     prevForSale: integer('prev_for_sale', { mode: 'boolean' }),
     /** จำนวนที่ตัดสต็อกจริงตอนชำระ (สินค้าทำตามสั่งที่สต็อก 0 ตัดได้ 0) — ยกเลิกแล้วคืนเท่านี้ ไม่สร้างสต็อกเกินจริง */
     stockTaken: integer('stock_taken').notNull().default(0),
-    /** ล็อตน้ำผึ้งของขวดที่ขาย (เลือกล็อตเก่าก่อนตอนชำระ) — ว่างได้ */
+    /** เลิกใช้แล้ว (0014): บรรทัดเดียวอาจได้ขวดจากหลายล็อต → ดู order_item_lots · คงคอลัมน์ไว้ (migration เพิ่มอย่างเดียว) */
     lotId: integer('lot_id').references((): AnySQLiteColumn => honeyLots.id),
   },
   (t) => [
@@ -412,4 +413,18 @@ export const bottlings = sqliteTable(
     ...timestamps,
   },
   (t) => [index('bottlings_lot_idx').on(t.lotId, t.variantId), uniqueIndex('bottlings_create_key_uq').on(t.createKey), check('bottlings_qty_pos', sql`${t.qty} > 0 and coalesce(${t.unitCost}, 0) >= 0`)],
+);
+
+/**
+ * ขวดที่ออเดอร์ (ชำระแล้ว) ได้จากแต่ละล็อต — บรรทัดเดียวแบ่งได้หลายล็อต (ล็อตเก่าก่อน) · สร้างใน batch ชำระ ลบเมื่อยกเลิก
+ * ขวดที่ไม่มีแถวในนี้ = สต็อกที่ใส่มือ ไม่ผูกล็อต
+ */
+export const orderItemLots = sqliteTable(
+  'order_item_lots',
+  {
+    orderItemId: integer('order_item_id').notNull().references(() => orderItems.id),
+    lotId: integer('lot_id').notNull().references(() => honeyLots.id),
+    qty: integer('qty').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.orderItemId, t.lotId] }), index('order_item_lots_lot_idx').on(t.lotId), check('order_item_lots_qty_pos', sql`${t.qty} > 0`)],
 );

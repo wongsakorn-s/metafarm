@@ -22,12 +22,13 @@ export function remainingMl(totalMl: number, bottled: { qty: number; sizeMl: num
 export const maxBottles = (remaining: number, sizeMl: number) => (sizeMl > 0 ? Math.max(0, Math.floor(remaining / sizeMl)) : 0);
 
 /**
- * เลือกล็อตให้ขวดที่ขาย: ล็อตเก่าก่อน (เก็บเร็วที่สุด) ที่ยังมีขวดขนาดนี้เหลือ (บรรจุ − ขายไปแล้ว)
- * คืน null ถ้าไม่มีล็อตไหนเหลือ (เช่นสต็อกที่ใส่มือก่อนเริ่มใช้ระบบล็อต)
+ * ล็อตของขวดในบรรทัดออเดอร์ (แบ่งตอนชำระ เก่าก่อน — src/server/lots.ts allocateLots)
+ * ล็อตเดียว: "ล็อต H2569-10-1" · หลายล็อต: "ล็อต H2569-08-1 ×2, H2569-10-1 ×3" · ไม่มี: ""
  */
-export function pickLot(lots: { id: number; harvestedTo: string; bottled: number; sold: number }[]): number | null {
-  const ok = lots.filter((l) => l.bottled - l.sold > 0).sort((a, b) => a.harvestedTo.localeCompare(b.harvestedTo) || a.id - b.id);
-  return ok[0]?.id ?? null;
+export function lotsLabel(lots: { code: string; qty: number }[]): string {
+  if (!lots.length) return '';
+  if (lots.length === 1) return `ล็อต ${lots[0]!.code}`;
+  return `ล็อต ${lots.map((l) => `${l.code} ×${l.qty}`).join(', ')}`;
 }
 
 // ---------- ฉลาก ----------
