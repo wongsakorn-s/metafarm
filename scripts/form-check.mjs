@@ -44,7 +44,7 @@ const post = (url, fields, headers = {}) =>
   }, { url, fields, headers });
 
 // หารังที่ยังอยู่ (active) มาใช้ทดสอบ
-await page.goto(BASE + '/admin/hives?status=active');
+await page.goto(BASE + '/admin/hives?status=active&q=A');
 const [HIVE, HIVE2] = await page.$$eval('a[href^="/admin/hives/A"]', (as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))].filter((c) => /^A\d+$/.test(c)).slice(0, 2));
 const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 
@@ -844,20 +844,36 @@ console.log('\n19) รูปหัวหน้าแรก: เจ้าขอ�
 {
   await page.goto(BASE + '/admin/settings');
   const before = await page.inputValue('#heroHive');
-  // รังที่มีรูปสมุดพก: เอาจากหน้าสมุดพกสาธารณะของรังแรกที่มีรูป
-  await page.goto(BASE + '/admin/hives?status=active');
-  const withPhoto = await page.$$eval('tr a[href^="/admin/hives/A"]', (as) => as.map((a) => a.getAttribute('href').split('/')[3]));
-  let code = '';
-  for (const c of withPhoto.slice(8, 40)) {
-    const r = await page.evaluate(async (c) => (await fetch('/passport/' + c)).text(), c);
-    if (r.includes('/img/hives/')) { code = c; break; }
-  }
   const home = async () => page.evaluate(async () => (await fetch('/?t=' + Date.now(), { credentials: 'omit' })).text());
+  const setHero = (c) => page.evaluate(async (c) => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', c); return (await fetch('/admin/settings', { method: 'POST', body: fd })).text(); }, c);
+  // รังที่ยังไม่มีรูปสมุดพก (คิวถ่ายรูป) → อัปโหลดรูปใหญ่ 1200 px ให้ แล้วใช้เป็นรูปหน้าแรก
+  // (รูปจาก Excel กว้าง ~200 px ระบบไม่ยอมให้เป็นรูปหน้าแรก — ตรวจข้อนี้แยกด้านล่าง)
+  await page.goto(BASE + '/admin/photos');
+  const code = (await page.locator('#queue > li').first().getAttribute('data-code').catch(() => '')) ?? '';
+  const li = page.locator(`#queue > li[data-code="${code}"]`);
+  await li.locator('input[type=file]:not([capture])').evaluate(async (el) => {
+    const cv = document.createElement('canvas'); cv.width = 1200; cv.height = 900;
+    const g = cv.getContext('2d'); g.fillStyle = '#5c8a3a'; g.fillRect(0, 0, 1200, 900); g.fillStyle = '#e0a800'; g.fillRect(300, 200, 600, 500);
+    const f = new File([await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9))], 'hero.jpg', { type: 'image/jpeg' });
+    const dt = new DataTransfer(); dt.items.add(f); el.files = dt.files;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await li.locator('[data-state]').filter({ hasText: 'เพิ่มแล้ว' }).waitFor({ timeout: 30000 }).catch(() => {});
   const r1 = await post('/admin/settings', { intent: 'hero', heroHive: code.toLowerCase() });
   const h1 = await home();
-  const r2 = await page.evaluate(async () => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', 'A99999'); return (await fetch('/admin/settings', { method: 'POST', body: fd })).text(); });
+  const r2 = await setHero('A99999');
   check(code && h1.includes('alt="รังชันโรงขนเงิน ' + code) && h1.includes('/passport/' + code) && r2.includes('ยังไม่มีรูปสมุดพก'),
     'เลือกรัง ' + code + ' (พิมพ์ตัวเล็ก) → หน้าแรกใช้รูปสมุดพกรังนั้น · รังที่ไม่มีรูป → ปฏิเสธ', 'รูปหน้าแรกไม่ถูก (' + code + ', ' + r1.status + ')');
+  // รังที่มีแต่รูปเล็กจาก Excel → ปฏิเสธ (ขยายเต็มจอมือถือแล้วเบลอ)
+  await page.goto(BASE + '/admin/hives?status=active&q=A');
+  const listed = await page.$$eval('a[href^="/admin/hives/A"]', (as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))]);
+  let small = '';
+  for (const c of listed.slice(8, 40)) {
+    const r = await page.evaluate(async (c) => (await fetch('/passport/' + c)).text(), c);
+    if (r.includes('/img/hives/')) { small = c; break; }
+  }
+  const r3 = small ? await setHero(small) : '';
+  check(small && r3.includes('เล็กเกินไป'), `รัง ${small} มีแต่รูปเล็กจาก Excel → ไม่ยอมให้เป็นรูปหน้าแรก`, `ไม่ปฏิเสธรูปเล็ก (${small})`);
   await post('/admin/settings', { intent: 'hero', heroHive: '' });
   const h2 = await home();
   check(h2.includes('/brand/logo-round.webp') && !h2.includes('alt="รังชันโรงขนเงิน'), 'เว้นว่าง → หน้าแรกกลับไปใช้โลโก้', 'เว้นว่างแล้วยังใช้รูปรัง');

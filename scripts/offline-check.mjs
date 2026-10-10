@@ -36,7 +36,7 @@ const login = async () => {
   await Promise.all([page.waitForURL(/\/admin(\?|$)/), page.press('#password', 'Enter')]);
 };
 await login();
-await page.goto(BASE + '/admin/hives?status=active');
+await page.goto(BASE + '/admin/hives?status=active&q=A');
 const codes = await page.locator('a[href^="/admin/hives/A"]').evaluateAll((as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))]);
 const HIVE = codes[0];
 const HIVE2 = codes.find((c) => c !== HIVE);

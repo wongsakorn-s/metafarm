@@ -3,6 +3,9 @@ import Article from '../components/Article.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { getPage } from '../lib/content.ts';
+import CreditPhoto from '../components/CreditPhoto.astro';
+import { learnPhotos as P } from '../lib/learn-photos.ts';
+import { site } from '../config/site.ts';
 
 export const prerender = false;
 
@@ -14,7 +17,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 <PublicLayout title={fm.title} description={fm.description} active="stingless-bee" lineMessage="สนใจรังชันโรงขนเงิน">
   <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
   <p class="mt-1 italic text-muted">Tetragonula pagdeni Schwarz</p>
+  <CreditPhoto photo={P.beePagdeni} priority class="mt-5 max-w-3xl" />
   <Article headings={page.getHeadings()}><Content /></Article>
+  <section class="mt-10" aria-labelledby="pics-h">
+    <h2 id="pics-h" class="text-2xl font-bold">ภาพชันโรงและรัง</h2>
+    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <CreditPhoto crop photo={P.beeGuards} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
+      <CreditPhoto crop photo={P.beeNest} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
+      <CreditPhoto crop photo={P.beeEntrance} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
+    </div>
+    <p class="mt-3 text-sm text-muted">ภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย — ไม่ใช่ภาพจากฟาร์ม {site.name} (รูปจากฟาร์มจะทยอยเพิ่ม)</p>
+  </section>
   <div class="mt-10 flex flex-wrap gap-3">
     <a class="btn-primary" href="/products/hives"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูรังสมบูรณ์ที่เปิดขาย</a>
     <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง</a>
