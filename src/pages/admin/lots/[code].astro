@@ -90,7 +90,7 @@ const byVariant = [...bottled.reduce((m, b) => m.set(b.variantId, { label: `${b.
                   <td class="text-right">{canDeleteRecord(user, b) && (
                     <form method="post" data-confirm={`ลบการบรรจุ ${b.label} ${b.qty} ขวด (${formatThaiDate(b.bottledOn)}) และหักสต็อกคืน ใช่ไหม?`}>
                       <input type="hidden" name="intent" value="delete-bottling" /><input type="hidden" name="bottlingId" value={b.id} />
-                      <button class="inline-flex min-h-11 items-center pl-2 text-danger underline" type="submit" aria-label={`ลบการบรรจุ ${b.label} ${b.qty} ขวด`}>ลบ</button>
+                      <button class="inline-flex min-h-11 min-w-11 items-center justify-center pl-2 text-danger underline" type="submit" aria-label={`ลบการบรรจุ ${b.label} ${b.qty} ขวด`}>ลบ</button>
                     </form>
                   )}</td>
                 </tr>

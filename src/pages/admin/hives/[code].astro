@@ -216,7 +216,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
                 {deletableEvent(e) && !lotCode && canDeleteRecord(user, e) && (
                   <form method="post" data-confirm={`ลบบันทึก "${eventLabel[e.type]}" วันที่ ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)} ใช่ไหม?`}>
                     <input type="hidden" name="intent" value="delete-event" /><input type="hidden" name="eventId" value={e.id} />
-                    <button class="inline-flex min-h-11 items-center px-1 text-sm text-danger underline" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}>ลบ</button>
+                    <button class="inline-flex min-h-11 min-w-11 items-center justify-center px-1 text-sm text-danger underline" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}>ลบ</button>
                   </form>
                 )}
               </div>
