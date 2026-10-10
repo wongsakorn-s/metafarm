@@ -21,11 +21,6 @@ const from = (prices: number[]) => (prices.length ? `เริ่ม ${formatPri
 const askMessage = 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง';
 // รังที่เปิดขาย: มีรังเดียว → ลิงก์ไปหน้ารังนั้นเลย (ไม่ต้องผ่านหน้ารายการ 1 รัง)
 const hivesHref = saleHives.length === 1 ? `/products/hives/${saleHives[0]!.code}` : '/products/hives';
-/** แถบราคาในจอแรกของมือถือ: ลูกค้าจาก Facebook ตัดสินใจภายในจอแรก (เดิมราคาแรกอยู่ลงไป ~1.5 จอ) */
-const priceRows = [
-  ...(saleHives.length ? [{ name: 'รังสมบูรณ์ (พร้อมเลี้ยง)', price: from(saleHives.map((h) => h.priceThb)), href: hivesHref, sample: false }] : []),
-  ...products.map((p) => ({ name: p.name, price: from(p.variants.map((v) => v.priceThb)), href: `/products/${p.slug}`, sample: p.variants.some((v) => v.priceIsSample) })),
-];
 Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 
 const highlights = [
@@ -55,19 +50,6 @@ const highlights = [
         {/* มือถือมีแถบติดต่อด้านล่างอยู่แล้ว */}
         <ContactButtons class="hidden md:flex" show="primary" message={askMessage} />
       </div>
-      {priceRows.length > 0 && (
-        <nav aria-label="ราคาสินค้า" class="mt-5 overflow-hidden rounded-2xl border border-line bg-surface text-left md:hidden">
-          <ul class="divide-y divide-line">
-            {priceRows.map((r) => (
-              <li><a href={r.href} class="flex min-h-14 items-center gap-3 px-4 active:bg-palm-50">
-                <span class="min-w-0 flex-1 font-medium">{r.name}<span class="block text-sm font-normal text-muted">{r.sample ? `ราคาตัวอย่าง · ${SHIPPING_NOTE}` : SHIPPING_NOTE}</span></span>
-                <span data-num class="shrink-0 font-bold text-palm-700">{r.price}</span>
-                <Icon name="chevron" class="size-5 shrink-0 text-muted" />
-              </a></li>
-            ))}
-          </ul>
-        </nav>
-      )}
     </div>
     {/* รูปจริงจากสวน (เจ้าของเลือกในตั้งค่า) แทนโลโก้ — มือถือก็เห็น (ใต้ข้อความ) · ยังไม่เลือกรูป = โลโก้กลม (มือถือ: เล็กข้างหัวข้อ ด้านบน) */}
     {hero ? (

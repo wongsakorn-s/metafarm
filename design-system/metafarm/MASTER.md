@@ -151,7 +151,7 @@ Components:
 ## 8b. Public-page patterns (round 2)
 
 - **Page heading** (2026-10-10): every menu page except home uses `PageHeader` — h1 `text-3xl md:text-4xl font-bold text-palm-900`, optional italic `sub`, lead `text-lg text-muted leading-relaxed max-w-2xl` (passport: `center`). Same size and colour on every page.
-- **Home hero on mobile** mirrors desktop (owner, 2026-10-10): text left-aligned, round logo small at the right of the tagline/h1 (desktop: right column), then lead, buttons, mobile price rows, stats.
+- **Home hero on mobile** mirrors desktop (owner, 2026-10-10): text left-aligned, round logo small at the right of the tagline/h1 (desktop: right column), then lead, buttons, stats (the mobile-only price rows were removed at the owner's request 2026-10-10; prices show in "สินค้าจากฟาร์ม").
 - **Home page** follows the Trust & Authority pattern: hero → real numbers from the hive register → story → highlights → learn/buy cards → passport CTA.
 - **Card lists on mobile:** icon on the left, text on the right, with a `>` arrow if clickable. On desktop (`md:`), switch to columns with the icon on top.
 - **Detail pages with photos** (passport, for-sale hive): photos on the left (main photo + thumbnails), details on the right on desktop. Stacked on mobile.
