@@ -6,7 +6,6 @@ import PublicLayout from '../layouts/PublicLayout.astro';
 import SampleBadge from '../components/SampleBadge.astro';
 import { getPage } from '../lib/content.ts';
 import { learnPhotos as P } from '../lib/learn-photos.ts';
-import { site } from '../config/site.ts';
 import { getDb } from '../server/db.ts';
 import { getPublicProducts } from '../server/public.ts';
 import { formatPrice, SHIPPING_NOTE, variantName } from '../lib/products.ts';
@@ -32,7 +31,6 @@ const gallery = [P.honeyBox, P.honeyHarvest];
 
   <section class="mt-14" aria-labelledby="pics-h">
     <h2 id="pics-h" class="text-2xl font-bold text-palm-900">การเก็บน้ำผึ้งชันโรง</h2>
-    <p class="mt-1 text-sm text-muted">ภาพประกอบจาก Wikimedia Commons ใช้ตามสัญญาอนุญาตของผู้ถ่าย (เครดิตใต้ภาพ) ไม่ใช่ภาพจากฟาร์ม {site.name} — รูปจากฟาร์มจะทยอยเพิ่ม</p>
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
       {gallery.map((ph) => <CreditPhoto crop photo={ph} sizes="(min-width: 1024px) 500px, (min-width: 640px) 50vw, 100vw" />)}
     </div>
