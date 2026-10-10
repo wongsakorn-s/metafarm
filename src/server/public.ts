@@ -319,29 +319,27 @@ export async function getHeroPhoto(db: Db, code: string): Promise<{ key: string;
 }
 
 /**
- * รังตัวอย่างให้กดดูสมุดพกได้โดยไม่ต้องรู้รหัส (หน้า /passport) — รังที่ยังอยู่และมีรูปสมุดพก รังละ 1 รูป
- * รูปที่ถ่ายจากหลังบ้าน (คีย์ …/passport-<uuid>-n.webp ย่อไว้ใหญ่พอ) มาก่อน ใหม่สุดก่อน
- * รูปเก่าจาก Excel (…/A1-1.jpeg กว้าง ~200 px) ใช้เติมเมื่อรูปใหม่ยังไม่พอเท่านั้น
+ * รังตัวอย่างให้กดดูสมุดพกได้โดยไม่ต้องรู้รหัส (หน้า /passport) — สุ่มทุกครั้งที่โหลด (เจ้าของขอ 2026-10-10)
+ * เฉพาะรังที่ "รูปและข้อมูลครบ": ยังอยู่ · มีรูปสมุดพก · รู้ที่มา วันที่ได้รัง และวันเกิดนางพญา · ไม่มีหัวข้อ ??? ค้าง
+ * (ตรงกับรายการ "ข้อมูลที่ยังไม่ครบ" ในหลังบ้าน — เติมครบแล้วรังจะขึ้นที่นี่เอง)
+ * รูปของแต่ละรัง: รูปที่ถ่ายจากหลังบ้าน (…/passport-<uuid>-n.webp) ก่อน ใหม่สุดก่อน · รูปเล็กจาก Excel ใช้เมื่อไม่มีรูปใหม่
+ * อ้างแถวรังด้านนอกด้วย "hives.id" ตรง ๆ — ดู sql-correlation.test.ts
  */
-export async function getPhotoHives(db: Db, limit = 8): Promise<{ code: string; key: string }[]> {
-  const uploaded = sql<number>`${hiveMedia.r2Key} like '%/passport-%'`;
-  // รังหนึ่งมีรูปสมุดพกได้ไม่เกิน 6 รูป → ดึง limit × 6 แถวพอให้ได้ครบ limit รังเสมอ (ถ้ามี)
+export async function getSampleHives(db: Db, limit = 8): Promise<{ code: string; key: string }[]> {
+  const photo = sql<string>`(select m.r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null
+    order by (m.r2_key like '%/passport-%') desc, m.id desc limit 1)`;
   const rows = await db
-    .select({ code: hives.code, key: hiveMedia.r2Key })
-    .from(hiveMedia)
-    .innerJoin(hives, eq(hives.id, hiveMedia.hiveId))
-    .where(and(eq(hiveMedia.kind, 'passport'), eq(hives.status, 'active'), sql`${hiveMedia.r2Key} is not null`))
-    .orderBy(desc(uploaded), desc(hiveMedia.id))
-    .limit(limit * 6);
-  const seen = new Set<string>();
-  const out: { code: string; key: string }[] = [];
-  for (const r of rows) {
-    if (seen.has(r.code) || !r.key) continue;
-    seen.add(r.code);
-    out.push({ code: r.code, key: r.key });
-    if (out.length === limit) break;
-  }
-  return out;
+    .select({ code: hives.code, key: photo })
+    .from(hives)
+    .where(and(
+      eq(hives.status, 'active'),
+      sql`hives.origin != 'unknown' and hives.acquired_on is not null and hives.queen_born_on is not null`,
+      sql`(hives.notes is null or hives.notes not like '%???%')`,
+      sql`exists (select 1 from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null)`,
+    ))
+    .orderBy(sql`random()`)
+    .limit(limit);
+  return rows.filter((r): r is { code: string; key: string } => !!r.key);
 }
 
 /**

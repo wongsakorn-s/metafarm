@@ -1,13 +1,21 @@
-// รังตัวอย่างในหน้าสมุดพก: รูปที่ถ่ายใหม่มาก่อนรูปเล็กจาก Excel · รังละรูปเดียว · ไม่เอารังที่ขาย/ล่มแล้ว
+// รังตัวอย่างในหน้าสมุดพก: สุ่มเฉพาะรังที่รูปและข้อมูลครบ · รังละรูปเดียว (รูปถ่ายใหม่ก่อนรูปเล็กจาก Excel)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getPhotoHives } from './public.ts';
+import { getSampleHives } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
 beforeAll(async () => {
   t = await testDb();
+  const full = `'purchased', '2025-01-10', '2025-03-01'`; // origin, acquired_on, queen_born_on
   await t.d1.batch([
-    t.d1.prepare(`INSERT INTO hives (id, code, species_id, status) VALUES (1, 'A1', 1, 'active'), (2, 'A2', 1, 'active'), (3, 'A3', 1, 'sold'), (4, 'A4', 1, 'active'), (5, 'A5', 1, 'active')`),
+    t.d1.prepare(`INSERT INTO hives (id, code, species_id, status, origin, acquired_on, queen_born_on, notes) VALUES
+      (1, 'A1', 1, 'active', ${full}, NULL),
+      (2, 'A2', 1, 'active', ${full}, 'หมายเหตุทั่วไป'),
+      (3, 'A3', 1, 'sold', ${full}, NULL),
+      (4, 'A4', 1, 'active', ${full}, NULL),
+      (5, 'A5', 1, 'active', 'unknown', '2025-01-10', '2025-03-01', NULL),
+      (6, 'A6', 1, 'active', 'purchased', '2025-01-10', NULL, NULL),
+      (7, 'A7', 1, 'active', ${full}, '??? วันเกิดนางพญา')`),
     t.d1.prepare(`INSERT INTO hive_media (hive_id, kind, r2_key) VALUES
       (1, 'passport', 'hives/A1/A1-1.jpeg'),
       (2, 'passport', 'hives/A2/A2-1.jpeg'),
@@ -15,20 +23,25 @@ beforeAll(async () => {
       (2, 'passport', 'hives/A2/passport-bbb-0.webp'),
       (3, 'passport', 'hives/A3/passport-ccc-0.webp'),
       (4, 'sale', 'hives/A4/sale-ddd-0.webp'),
-      (5, 'passport', 'hives/A5/passport-eee-0.webp')`),
+      (5, 'passport', 'hives/A5/passport-eee-0.webp'),
+      (6, 'passport', 'hives/A6/passport-fff-0.webp'),
+      (7, 'passport', 'hives/A7/passport-ggg-0.webp')`),
   ]);
 }, 60_000);
 afterAll(() => t?.close());
 
-describe('getPhotoHives', () => {
-  it('รูปถ่ายใหม่ (ใหม่สุดก่อน) มาก่อนรูป Excel · รังละ 1 รูป · เฉพาะรังที่ยังอยู่และรูปสมุดพก', async () => {
-    expect(await getPhotoHives(t.db)).toEqual([
-      { code: 'A5', key: 'hives/A5/passport-eee-0.webp' },
-      { code: 'A2', key: 'hives/A2/passport-bbb-0.webp' },
+describe('getSampleHives', () => {
+  it('เฉพาะรังที่ยังอยู่ มีรูปสมุดพก รู้ที่มา/วันที่ได้รัง/วันเกิดนางพญา และไม่มี ??? · รังละ 1 รูป (รูปถ่ายใหม่สุดก่อน)', async () => {
+    const got = await getSampleHives(t.db);
+    expect([...got].sort((a, b) => a.code.localeCompare(b.code))).toEqual([
       { code: 'A1', key: 'hives/A1/A1-1.jpeg' },
+      { code: 'A2', key: 'hives/A2/passport-bbb-0.webp' },
     ]);
   });
-  it('จำกัดจำนวนรัง', async () => {
-    expect((await getPhotoHives(t.db, 1)).map((h) => h.code)).toEqual(['A5']);
+  it('สุ่มลำดับ และจำกัดจำนวน', async () => {
+    expect(await getSampleHives(t.db, 1)).toHaveLength(1);
+    const firsts = new Set<string>();
+    for (let i = 0; i < 30; i++) firsts.add((await getSampleHives(t.db))[0]!.code);
+    expect(firsts).toEqual(new Set(['A1', 'A2']));
   });
 });

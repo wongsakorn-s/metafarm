@@ -1,10 +1,9 @@
 ---
 import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
-import FarmStats from '../../components/FarmStats.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { getFarmStats, getPhotoHives, searchHiveCodes } from '../../server/public.ts';
+import { getSampleHives, searchHiveCodes } from '../../server/public.ts';
 import { photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import { normalizeHiveCode } from '../../lib/hive-code.ts';
@@ -22,8 +21,10 @@ if (normalized) {
   if (matches.includes(normalized)) return Astro.redirect(`/passport/${normalized}`, 302);
   if (/^\d+$/.test(normalized) && matches.length === 1) return Astro.redirect(`/passport/${matches[0]}`, 302);
 }
-const [stats, photoHives] = await Promise.all([getFarmStats(db), getPhotoHives(db, 8)]);
-Astro.response.headers.set('Cache-Control', 'public, max-age=60');
+// รังที่รูปและข้อมูลครบ สุ่มใหม่ทุกครั้ง (ไม่มีรังที่ครบ = ไม่แสดงส่วนนี้)
+const photoHives = await getSampleHives(db, 8);
+// ไม่ cache: รังตัวอย่างสุ่มใหม่ทุกครั้งที่เปิดหน้า
+Astro.response.headers.set('Cache-Control', 'no-cache');
 ---
 
 <PublicLayout title="สมุดพกชันโรง" description={`ตรวจสอบประวัติรังชันโรงขนเงินของ ${site.name} ด้วยรหัสรัง: ที่มา สายพันธุ์รังแม่ และประวัติการดูแล`} active="passport">
@@ -70,5 +71,4 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
     </section>
   )}
 
-  <FarmStats stats={stats} class="mx-auto mt-10 max-w-xl" />
 </PublicLayout>
