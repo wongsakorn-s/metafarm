@@ -37,10 +37,16 @@ const highlights = [
 
 <PublicLayout title={site.name} active="home" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
   <section class="grid items-center gap-6 md:grid-cols-[1.2fr_1fr] md:gap-8">
-    <div class:list={[!hero && 'text-center md:text-left']}>
-      <p class="font-medium text-palm-700">{site.tagline}</p>
-      <h1 class="mt-1 text-[2rem] font-bold leading-tight sm:text-4xl md:text-5xl">ชันโรงขนเงิน<br />เลี้ยงในสวนปาล์ม จ.ระยอง</h1>
-      <p class="mx-auto mt-4 max-w-xl text-lg text-muted md:mx-0">
+    {/* มือถือวางแบบเดียวกับคอม (เจ้าของขอ 2026-10-10): ข้อความชิดซ้าย · โลโก้อยู่ขวาของหัวข้อ (คอม: คอลัมน์ขวา) */}
+    <div>
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-medium text-palm-700">{site.tagline}</p>
+          <h1 class="mt-1 text-[2rem] font-bold leading-tight sm:text-4xl md:text-5xl">ชันโรงขนเงิน<br />เลี้ยงในสวนปาล์ม จ.ระยอง</h1>
+        </div>
+        {!hero && <img src="/brand/logo-round.webp" alt="" width="360" height="334" fetchpriority="high" class="mt-1 w-24 shrink-0 sm:w-28 md:hidden" />}
+      </div>
+      <p class="mt-4 max-w-xl text-lg text-muted">
         {site.name} เป็นสวนปาล์มน้ำมัน 50 ไร่ ที่ {site.address} เริ่มเลี้ยงผึ้งชันโรงตั้งแต่ปี พ.ศ. {site.foundedYearBE}
       </p>
       <div class="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
@@ -63,7 +69,7 @@ const highlights = [
         </nav>
       )}
     </div>
-    {/* รูปจริงจากสวน (เจ้าของเลือกในตั้งค่า) แทนโลโก้ — มือถือก็เห็น · ยังไม่เลือกรูป = โลโก้กลม (มือถือ: อยู่บนสุดเหนือหัวข้อ ขนาดเล็ก) */}
+    {/* รูปจริงจากสวน (เจ้าของเลือกในตั้งค่า) แทนโลโก้ — มือถือก็เห็น (ใต้ข้อความ) · ยังไม่เลือกรูป = โลโก้กลม (มือถือ: เล็กข้างหัวข้อ ด้านบน) */}
     {hero ? (
       <figure class="relative">
         <img src={`/img/${hero.key}`} srcset={photoSrcset(`/img/${hero.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="675" fetchpriority="high"
@@ -73,7 +79,7 @@ const highlights = [
         </figcaption>
       </figure>
     ) : (
-      <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="order-first mx-auto w-32 md:order-none md:w-full md:max-w-sm" />
+      <img src="/brand/logo-round.webp" alt={`โลโก้ ${site.name} ${site.tagline}`} width="360" height="334" class="hidden md:block md:w-full md:max-w-sm md:justify-self-center" />
     )}
   </section>
 
