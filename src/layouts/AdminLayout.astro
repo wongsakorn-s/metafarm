@@ -4,7 +4,7 @@ import { site } from '../config/site.ts';
 import Icon from '../components/Icon.astro';
 import { canManageFarm, canManageUsers, roleLabel } from '../lib/permissions.ts';
 
-type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users';
+type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users' | 'gallery';
 interface Props {
   title: string;
   active?: Key;
@@ -17,7 +17,7 @@ const { title, active, back, column } = Astro.props;
 const user = Astro.locals.user;
 const owner = canManageFarm(user);
 // พนักงานไม่มีหมวดขาย/ตั้งค่าเว็บ (middleware กันไว้แล้ว ที่นี่แค่ไม่แสดงลิงก์ที่เข้าไม่ได้)
-const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings']);
+const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings', 'gallery']);
 // จัดการผู้ใช้: เจ้าของเท่านั้น (แอดมินไม่เห็นเมนูนี้)
 const allowed = (k: string) => (k === 'users' ? canManageUsers(user) : owner || !OWNER_KEYS.has(k));
 
@@ -32,7 +32,7 @@ const tabs = [
   { key: 'more', href: '/admin/more', icon: 'menu', label: 'เมนู' },
 ] as const;
 // หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
-const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo', 'users'];
+const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'account', 'photos', 'todo', 'users', 'gallery'];
 const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products' || active === 'lots' || active === 'reports')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
 
 // แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
@@ -58,6 +58,7 @@ const sideGroups = [
   { title: 'เว็บไซต์และบัญชี', items: [
     { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
     { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ตั้งค่า' },
+    { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี' },
     { key: 'users', href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์' },
   ] },
 ] as const;

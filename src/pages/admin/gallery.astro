@@ -58,7 +58,7 @@ const sections = GALLERY_CATEGORIES.map((c) => ({ key: c, ...galleryCategory[c],
 const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปหน้าแกลเลอรี" active="more">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปหน้าแกลเลอรี" active="gallery">
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
