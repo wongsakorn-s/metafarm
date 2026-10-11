@@ -13,6 +13,7 @@ export const ICONS = {
   up: 'arrow-up',
   down: 'arrow-down',
   top: 'arrow-up-to-line',
+  grip: 'grip',
   close: 'x',
   home: 'house',
   search: 'search',

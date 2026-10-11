@@ -1,7 +1,7 @@
 // Gallery บน D1 + R2 ชั่วคราว: อัปโหลดลบ GPS · ส่งซ้ำไม่บันทึกซ้ำ · ลบแล้วรูปหายจากเว็บและ R2 · หน้าสาธารณะเห็นเฉพาะคอลัมน์ที่อนุญาต
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GALLERY_MAX_PER_CATEGORY } from '../lib/gallery.ts';
-import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
+import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, reorderGalleryPhotos, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
 import { getGallery, isPublicMediaKey } from './public.ts';
 import { testDb } from './test-d1.ts';
 
@@ -104,5 +104,49 @@ describe('เรียงลำดับรูป', () => {
     const after = (await listGalleryAdmin(t.db)).filter((x) => x.category === 'woodshop');
     expect(new Set(after.map((x) => x.id)).size).toBe(rows.length);
     expect(after.length).toBe(rows.length);
+  });
+});
+
+describe('ลากวางเรียงทั้งหมวด (reorderGalleryPhotos)', () => {
+  const cat = 'honey_delivery' as const;
+  const capOrder = async () => (await listGalleryAdmin(t.db)).filter((x) => x.category === cat).map((x) => x.caption);
+  const idOf = async (cap: string) => (await listGalleryAdmin(t.db)).find((x) => x.category === cat && x.caption === cap)!.id;
+  const add = async (c: string) => { await uploadGalleryPhotos(t.db, t.media, t.owner, cat, [photo()], { caption: c }); };
+
+  it('ลำดับใหม่ที่ส่งมาถูกใช้ทั้งหมวด · หน้าสาธารณะเรียงตามเดียวกัน', async () => {
+    for (const c of ['P', 'Q', 'R', 'S']) await add(c); // บนสุด: S R Q P
+    expect(await capOrder()).toEqual(['S', 'R', 'Q', 'P']);
+    const ids = [await idOf('P'), await idOf('R'), await idOf('S'), await idOf('Q')];
+    expect((await reorderGalleryPhotos(t.db, t.owner, cat, ids)).ok).toBe(true);
+    expect(await capOrder()).toEqual(['P', 'R', 'S', 'Q']);
+    expect((await getGallery(t.db)).filter((x) => x.category === cat).map((x) => x.caption)).toEqual(['P', 'R', 'S', 'Q']);
+  });
+
+  it('รูปที่ไม่อยู่ในรายการ (อัปโหลดเข้ามาระหว่างจัด) ขึ้นบนสุด · id หมวดอื่น/ที่ไม่มีอยู่ถูกข้าม', async () => {
+    const ids = (await listGalleryAdmin(t.db)).filter((x) => x.category === cat).map((x) => x.id).reverse(); // ลำดับกลับด้าน: Q S R P
+    const foreign = (await listGalleryAdmin(t.db)).find((x) => x.category !== cat)!.id;
+    await add('NEW'); // เข้ามาหลังจากหน้าเว็บโหลดรายการไปแล้ว
+    expect((await reorderGalleryPhotos(t.db, t.owner, cat, [foreign, 999999, ...ids])).ok).toBe(true);
+    expect(await capOrder()).toEqual(['NEW', 'Q', 'S', 'R', 'P']);
+    // หมวดอื่นไม่ถูกแตะ
+    expect((await listGalleryAdmin(t.db)).find((x) => x.id === foreign)!.category).not.toBe(cat);
+  });
+
+  it('รายการว่าง/ไม่มีรูปในหมวดเลย = error · ส่งซ้ำลำดับเดิม = สำเร็จโดยไม่เขียนอะไร', async () => {
+    expect(await reorderGalleryPhotos(t.db, t.owner, cat, [])).toMatchObject({ ok: false });
+    expect(await reorderGalleryPhotos(t.db, t.owner, cat, [999999])).toMatchObject({ ok: false });
+    const same = (await listGalleryAdmin(t.db)).filter((x) => x.category === cat).map((x) => x.id);
+    const audits = async () => (await t.d1.prepare(`SELECT count(*) n FROM audit_logs WHERE action = 'gallery.reorder'`).first<{ n: number }>())!.n;
+    const before = await audits();
+    expect((await reorderGalleryPhotos(t.db, t.owner, cat, same)).ok).toBe(true);
+    expect(await audits()).toBe(before);
+  });
+
+  it('จัดลำดับพร้อมกัน 2 เครื่อง → ได้ลำดับสมบูรณ์ ไม่มีเลขซ้ำ', async () => {
+    const ids = (await listGalleryAdmin(t.db)).filter((x) => x.category === cat).map((x) => x.id);
+    await Promise.all([reorderGalleryPhotos(t.db, t.owner, cat, [...ids].reverse()), reorderGalleryPhotos(t.db, t.owner, cat, [...ids].sort(() => 0.5 - Math.random()))]);
+    const rows = (await listGalleryAdmin(t.db)).filter((x) => x.category === cat);
+    expect(new Set(rows.map((x) => x.sortOrder)).size).toBe(rows.length);
+    expect(rows.map((x) => x.sortOrder).sort((a, b) => b - a)).toEqual(rows.map((_, i) => rows.length - i));
   });
 });

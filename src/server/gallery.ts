@@ -71,28 +71,54 @@ export async function uploadGalleryPhotos(
 
 export type MoveDir = 'up' | 'down' | 'top';
 
+type OrderRow = { id: number; sortOrder: number };
+
+/** รูปทั้งหมวดตามลำดับที่แสดง (บนสุดก่อน) */
+const categoryRows = (db: Db, category: GalleryCategory): Promise<OrderRow[]> =>
+  db.select({ id: galleryPhotos.id, sortOrder: galleryPhotos.sortOrder }).from(galleryPhotos)
+    .where(eq(galleryPhotos.category, category)).orderBy(desc(galleryPhotos.sortOrder), desc(galleryPhotos.id));
+
 /**
- * เลื่อนรูปในหมวดเดียวกัน — ลำดับที่เห็นในหน้าหลังบ้าน = ลำดับบนเว็บ (รูปบนสุดแสดงก่อน)
- * up/down = ขยับทีละตำแหน่ง · top = ไปบนสุด · เรียงเลขใหม่ทั้งหมวด (บนสุด = เลขมากสุด) ในรอบเดียว
- * รูปที่อัปโหลดใหม่ได้เลขมากสุดของหมวด จึงขึ้นบนสุดเสมอ
+ * เรียงเลขใหม่ทั้งหมวดตามลำดับ order (บนสุด = เลขมากสุด) ในรอบเดียว — เขียนเฉพาะรูปที่เลขเปลี่ยน
+ * เรียงทั้งหมวดทุกครั้ง จึงไม่มีเลขซ้ำ/หาย แม้สองเครื่องจัดลำดับพร้อมกัน (คนหลังชนะ แต่ลำดับยังสมบูรณ์)
  */
+async function applyOrder(db: Db, user: SessionUser, category: GalleryCategory, rows: OrderRow[], order: number[], action: string, diff: unknown) {
+  const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
+  const byId = new Map(rows.map((r) => [r.id, r.sortOrder]));
+  const changed = order.map((photoId, i) => ({ photoId, n: order.length - i })).filter((x) => byId.get(x.photoId) !== x.n);
+  if (!changed.length) return;
+  const stmts = [
+    ...changed.map((x) => db.update(galleryPhotos).set({ sortOrder: x.n, updatedAt: now }).where(eq(galleryPhotos.id, x.photoId))),
+    audit(db, user, action, null, { category, ...(diff as object) }),
+  ];
+  await db.batch(stmts as unknown as [(typeof stmts)[0], ...(typeof stmts)[number][]]);
+}
+
+/**
+ * ลากวางเรียงรูปทั้งหมวด: ids = ลำดับใหม่ที่หน้าเว็บส่งมา (บนสุดก่อน)
+ * รูปที่ไม่อยู่ในรายการ (อัปโหลดเข้ามาระหว่างที่จัดลำดับอยู่) ขึ้นไว้บนสุด · id ของหมวดอื่น/ที่ถูกลบแล้วถูกข้าม
+ */
+export async function reorderGalleryPhotos(db: Db, user: SessionUser, category: GalleryCategory, ids: number[]): Promise<{ ok: boolean; error?: string }> {
+  const rows = await categoryRows(db, category);
+  const known = new Set(rows.map((r) => r.id));
+  const wanted = [...new Set(ids)].filter((id) => known.has(id));
+  if (!wanted.length) return { ok: false, error: 'ไม่พบรูปในรายการ — โหลดหน้าใหม่แล้วลองอีกครั้ง' };
+  const rest = rows.map((r) => r.id).filter((id) => !wanted.includes(id));
+  await applyOrder(db, user, category, rows, [...rest, ...wanted], 'gallery.reorder', { count: wanted.length });
+  return { ok: true };
+}
+
+/** เลื่อนทีละตำแหน่ง/ไปบนสุด — ใช้เมื่อไม่มี JavaScript (ปุ่มใน noscript) */
 export async function moveGalleryPhoto(db: Db, user: SessionUser, id: number, dir: MoveDir): Promise<{ ok: boolean; error?: string }> {
   const row = await db.query.galleryPhotos.findFirst({ where: eq(galleryPhotos.id, id), columns: { id: true, category: true } });
   if (!row) return { ok: false, error: 'ไม่พบรูปนี้ (อาจถูกลบไปแล้ว)' };
-  const rows = await db.select({ id: galleryPhotos.id, sortOrder: galleryPhotos.sortOrder }).from(galleryPhotos)
-    .where(eq(galleryPhotos.category, row.category)).orderBy(desc(galleryPhotos.sortOrder), desc(galleryPhotos.id));
+  const rows = await categoryRows(db, row.category);
   const from = rows.findIndex((r) => r.id === id);
   const to = dir === 'top' ? 0 : dir === 'up' ? from - 1 : from + 1;
   if (to < 0 || to >= rows.length || to === from) return { ok: true }; // อยู่ปลายทางแล้ว (กดซ้ำ/อีกเครื่องเลื่อนไปก่อน)
   const order = rows.map((r) => r.id);
   order.splice(to, 0, order.splice(from, 1)[0]!);
-  const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
-  const changed = order.map((photoId, i) => ({ photoId, n: order.length - i })).filter((x) => rows.find((r) => r.id === x.photoId)!.sortOrder !== x.n);
-  const stmts = [
-    ...changed.map((x) => db.update(galleryPhotos).set({ sortOrder: x.n, updatedAt: now }).where(eq(galleryPhotos.id, x.photoId))),
-    audit(db, user, 'gallery.move', id, { category: row.category, dir, from: from + 1, to: to + 1 }),
-  ];
-  await db.batch(stmts as unknown as [(typeof stmts)[0], ...(typeof stmts)[number][]]);
+  await applyOrder(db, user, row.category, rows, order, 'gallery.move', { id, dir, from: from + 1, to: to + 1 });
   return { ok: true };
 }
 

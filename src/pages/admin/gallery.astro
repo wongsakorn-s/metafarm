@@ -2,7 +2,7 @@
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../server/db.ts';
-import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, updateGalleryCaption, uploadGalleryPhotos } from '../../server/gallery.ts';
+import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, reorderGalleryPhotos, updateGalleryCaption, uploadGalleryPhotos } from '../../server/gallery.ts';
 import { captionSchema, GALLERY_CATEGORIES, GALLERY_MAX_PER_CATEGORY, galleryCategory, isGalleryCategory } from '../../lib/gallery.ts';
 import { MAX_FILES_PER_REQUEST, thumbUrl, uploadSummary } from '../../lib/media.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
@@ -46,6 +46,13 @@ if (Astro.request.method === 'POST') {
       if (r.ok) return back('บันทึกคำบรรยายแล้ว', String(form.get('category') ?? ''));
       error = r.error ?? 'บันทึกไม่สำเร็จ';
     }
+  } else if (intent === 'reorder') {
+    const category = form.get('category');
+    const ids = String(form.get('order') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    const r = isGalleryCategory(category) && ids.length ? await reorderGalleryPhotos(db, user, category, ids) : { ok: false, error: 'ข้อมูลลำดับไม่ถูกต้อง' };
+    if (wantsJson(Astro.request)) return jsonResult({ ok: r.ok, message: r.ok ? 'บันทึกลำดับแล้ว' : (r.error ?? 'บันทึกไม่สำเร็จ') });
+    if (r.ok) return back('บันทึกลำดับแล้ว', String(category));
+    error = r.error ?? 'บันทึกไม่สำเร็จ';
   } else if (intent === 'move') {
     const dir = String(form.get('dir') ?? '');
     if (dir !== 'up' && dir !== 'down' && dir !== 'top') error = 'คำสั่งไม่ถูกต้อง';
@@ -68,6 +75,8 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
 
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปหน้าแกลเลอรี" active="gallery">
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
+  <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
+  <p id="sort-live" class="sr-only" aria-live="polite"></p>
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
   <div class="grid gap-5 lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start">
@@ -106,16 +115,21 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
           <h2 id={`h-${s.key}`} class="flex items-center gap-2 text-lg font-semibold"><Icon name={s.icon} class="size-5 text-palm-700" />{s.label} <span class="text-sm font-normal text-muted">({s.photos.length})</span></h2>
           {s.photos.length === 0 ? <p class="mt-2 text-muted">ยังไม่มีรูป — หน้าเว็บแสดงกรอบรูปชั่วคราวไว้ก่อน</p> : (
             <>
-            {s.photos.length > 1 && <p class="hint mt-1">ลำดับในหน้านี้ = ลำดับบนเว็บ (รูปที่ 1 แสดงก่อน) · รูปที่อัปโหลดใหม่ขึ้นบนสุดเสมอ · กดลูกศรเพื่อเลื่อน</p>}
-            <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group>
+            {s.photos.length > 1 && <p class="hint mt-1">ลำดับในหน้านี้ = ลำดับบนเว็บ (รูปที่ 1 แสดงก่อน) · <strong>กดค้างที่จุดจับ <Icon name="grip" class="inline-block size-4 align-[-0.2em]" /> มุมรูปแล้วลากไปวางตำแหน่งที่ต้องการ</strong> · รูปที่อัปโหลดใหม่ขึ้นบนสุดเสมอ</p>}
+            <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={s.key}>
               {s.photos.map((p, i) => (
-                <li class="space-y-2">
+                <li class="space-y-2" data-photo-id={p.id}>
+                  <div class="relative">
                   <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="relative block" target="_blank" rel="noopener">
-                    <span aria-hidden="true" data-num class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                    <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
                     <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
                   </a>
-                  {/* ลำดับ: บนสุดแสดงก่อนบนเว็บ — ปุ่มกดได้ง่ายบนมือถือ (ไม่ต้องลากวาง) */}
-                  <div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${s.photos.length}`}>
+                  {/* จุดจับลาก: touch-none กันหน้าเลื่อนตอนลากด้วยนิ้ว · ใช้คีย์บอร์ดได้ (Space หยิบ → ลูกศร → Space วาง) */}
+                  <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${s.photos.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`} title="ลากเพื่อเรียงลำดับ"
+                    class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
+                  </div>
+                  {/* ไม่มี JavaScript: ปุ่มเลื่อนขึ้น/ลงแบบเดิม */}
+                  <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${s.photos.length}`}>
                     {(['up', 'down', 'top'] as const).map((d) => {
                       const off = d === 'down' ? i === s.photos.length - 1 : i === 0;
                       const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
@@ -126,7 +140,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
                         </form>
                       );
                     })}
-                  </div>
+                  </div></noscript>
                   <form method="post" class="space-y-1">
                     <input type="hidden" name="intent" value="caption" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
                     <label class="sr-only" for={`cap-${p.id}`}>คำบรรยายรูป</label>
@@ -149,6 +163,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
 </AdminLayout>
 
 <script>
+  import '../../scripts/gallery-sort';
   import { appendPrepared, resizeAll } from '../../scripts/resize-image';
   import { describeUploadError, newBatchId } from '../../scripts/upload';
   import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../scripts/outbox';
