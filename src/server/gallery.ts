@@ -69,6 +69,33 @@ export async function uploadGalleryPhotos(
   return { added, skipped };
 }
 
+export type MoveDir = 'up' | 'down' | 'top';
+
+/**
+ * เลื่อนรูปในหมวดเดียวกัน — ลำดับที่เห็นในหน้าหลังบ้าน = ลำดับบนเว็บ (รูปบนสุดแสดงก่อน)
+ * up/down = ขยับทีละตำแหน่ง · top = ไปบนสุด · เรียงเลขใหม่ทั้งหมวด (บนสุด = เลขมากสุด) ในรอบเดียว
+ * รูปที่อัปโหลดใหม่ได้เลขมากสุดของหมวด จึงขึ้นบนสุดเสมอ
+ */
+export async function moveGalleryPhoto(db: Db, user: SessionUser, id: number, dir: MoveDir): Promise<{ ok: boolean; error?: string }> {
+  const row = await db.query.galleryPhotos.findFirst({ where: eq(galleryPhotos.id, id), columns: { id: true, category: true } });
+  if (!row) return { ok: false, error: 'ไม่พบรูปนี้ (อาจถูกลบไปแล้ว)' };
+  const rows = await db.select({ id: galleryPhotos.id, sortOrder: galleryPhotos.sortOrder }).from(galleryPhotos)
+    .where(eq(galleryPhotos.category, row.category)).orderBy(desc(galleryPhotos.sortOrder), desc(galleryPhotos.id));
+  const from = rows.findIndex((r) => r.id === id);
+  const to = dir === 'top' ? 0 : dir === 'up' ? from - 1 : from + 1;
+  if (to < 0 || to >= rows.length || to === from) return { ok: true }; // อยู่ปลายทางแล้ว (กดซ้ำ/อีกเครื่องเลื่อนไปก่อน)
+  const order = rows.map((r) => r.id);
+  order.splice(to, 0, order.splice(from, 1)[0]!);
+  const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
+  const changed = order.map((photoId, i) => ({ photoId, n: order.length - i })).filter((x) => rows.find((r) => r.id === x.photoId)!.sortOrder !== x.n);
+  const stmts = [
+    ...changed.map((x) => db.update(galleryPhotos).set({ sortOrder: x.n, updatedAt: now }).where(eq(galleryPhotos.id, x.photoId))),
+    audit(db, user, 'gallery.move', id, { category: row.category, dir, from: from + 1, to: to + 1 }),
+  ];
+  await db.batch(stmts as unknown as [(typeof stmts)[0], ...(typeof stmts)[number][]]);
+  return { ok: true };
+}
+
 export async function updateGalleryCaption(db: Db, user: SessionUser, id: number, caption: string | undefined): Promise<{ ok: boolean; error?: string }> {
   const row = await db.query.galleryPhotos.findFirst({ where: eq(galleryPhotos.id, id), columns: { id: true } });
   if (!row) return { ok: false, error: 'ไม่พบรูปนี้' };

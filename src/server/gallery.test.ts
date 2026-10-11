@@ -1,7 +1,7 @@
 // Gallery บน D1 + R2 ชั่วคราว: อัปโหลดลบ GPS · ส่งซ้ำไม่บันทึกซ้ำ · ลบแล้วรูปหายจากเว็บและ R2 · หน้าสาธารณะเห็นเฉพาะคอลัมน์ที่อนุญาต
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GALLERY_MAX_PER_CATEGORY } from '../lib/gallery.ts';
-import { deleteGalleryPhoto, listGalleryAdmin, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
+import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
 import { getGallery, isPublicMediaKey } from './public.ts';
 import { testDb } from './test-d1.ts';
 
@@ -66,5 +66,43 @@ describe('หน้าสาธารณะ + แก้/ลบ', () => {
     expect(await t.media.get(row.r2Key)).toBeNull();
     expect(await t.media.get(`thumb/${row.r2Key}`)).toBeNull();
     expect((await deleteGalleryPhoto(t.db, t.media, t.owner, row.id)).ok).toBe(true);
+  });
+});
+
+describe('เรียงลำดับรูป', () => {
+  const order = async (cat: string) => (await listGalleryAdmin(t.db)).filter((x) => x.category === cat && x.caption).map((x) => x.caption);
+  const idOf = async (cat: string, cap: string) => (await listGalleryAdmin(t.db)).find((x) => x.category === cat && x.caption === cap)!.id;
+  const addAll = async (cat: 'woodshop', caps: string[]) => { for (const c of caps) await uploadGalleryPhotos(t.db, t.media, t.owner, cat, [photo()], { caption: c }); };
+
+  it('รูปใหม่ขึ้นบนสุด · เลื่อนขึ้น/ลง/ไปบนสุดได้ · หน้าสาธารณะเรียงตามเดียวกัน', async () => {
+    await addAll('woodshop', ['A', 'B', 'C', 'D']);
+    expect(await order('woodshop')).toEqual(['D', 'C', 'B', 'A']);
+    expect((await moveGalleryPhoto(t.db, t.owner, await idOf('woodshop', 'B'), 'up')).ok).toBe(true);
+    expect(await order('woodshop')).toEqual(['D', 'B', 'C', 'A']);
+    await moveGalleryPhoto(t.db, t.owner, await idOf('woodshop', 'D'), 'down');
+    expect(await order('woodshop')).toEqual(['B', 'D', 'C', 'A']);
+    await moveGalleryPhoto(t.db, t.owner, await idOf('woodshop', 'A'), 'top');
+    expect(await order('woodshop')).toEqual(['A', 'B', 'D', 'C']);
+    expect((await getGallery(t.db)).filter((x) => x.category === 'woodshop' && x.caption).map((x) => x.caption)).toEqual(['A', 'B', 'D', 'C']);
+    // อัปโหลดใหม่หลังจัดลำดับ ก็ยังขึ้นบนสุด
+    await addAll('woodshop', ['E']);
+    expect((await order('woodshop'))[0]).toBe('E');
+  });
+
+  it('ปลายทางแล้วกดซ้ำ = ไม่เปลี่ยน ไม่ error · ไม่ข้ามหมวด · ไม่มีรูป = error', async () => {
+    const top = (await listGalleryAdmin(t.db)).filter((x) => x.category === 'woodshop')[0]!;
+    const before = await order('woodshop');
+    expect((await moveGalleryPhoto(t.db, t.owner, top.id, 'up')).ok).toBe(true);
+    expect((await moveGalleryPhoto(t.db, t.owner, top.id, 'top')).ok).toBe(true);
+    expect(await order('woodshop')).toEqual(before);
+    expect(await moveGalleryPhoto(t.db, t.owner, 999999, 'up')).toMatchObject({ ok: false });
+  });
+
+  it('เลื่อนพร้อมกัน 2 เครื่อง → ได้ลำดับที่สมบูรณ์เสมอ (ไม่มีเลขซ้ำ/หาย)', async () => {
+    const rows = (await listGalleryAdmin(t.db)).filter((x) => x.category === 'woodshop');
+    await Promise.all([moveGalleryPhoto(t.db, t.owner, rows[3]!.id, 'top'), moveGalleryPhoto(t.db, t.owner, rows[4]!.id, 'top')]);
+    const after = (await listGalleryAdmin(t.db)).filter((x) => x.category === 'woodshop');
+    expect(new Set(after.map((x) => x.id)).size).toBe(rows.length);
+    expect(after.length).toBe(rows.length);
   });
 });

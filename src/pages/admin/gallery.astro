@@ -2,7 +2,7 @@
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../server/db.ts';
-import { deleteGalleryPhoto, listGalleryAdmin, updateGalleryCaption, uploadGalleryPhotos } from '../../server/gallery.ts';
+import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, updateGalleryCaption, uploadGalleryPhotos } from '../../server/gallery.ts';
 import { captionSchema, GALLERY_CATEGORIES, GALLERY_MAX_PER_CATEGORY, galleryCategory, isGalleryCategory } from '../../lib/gallery.ts';
 import { MAX_FILES_PER_REQUEST, thumbUrl, uploadSummary } from '../../lib/media.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
@@ -45,6 +45,14 @@ if (Astro.request.method === 'POST') {
       const r = await updateGalleryCaption(db, user, Number(form.get('photoId')), caption.data);
       if (r.ok) return back('บันทึกคำบรรยายแล้ว', String(form.get('category') ?? ''));
       error = r.error ?? 'บันทึกไม่สำเร็จ';
+    }
+  } else if (intent === 'move') {
+    const dir = String(form.get('dir') ?? '');
+    if (dir !== 'up' && dir !== 'down' && dir !== 'top') error = 'คำสั่งไม่ถูกต้อง';
+    else {
+      const r = await moveGalleryPhoto(db, user, Number(form.get('photoId')), dir);
+      if (r.ok) return back('ย้ายรูปแล้ว', String(form.get('category') ?? ''));
+      error = r.error ?? 'ย้ายไม่สำเร็จ';
     }
   } else if (intent === 'delete') {
     const r = await deleteGalleryPhoto(db, getMedia(), user, Number(form.get('photoId')));
@@ -97,12 +105,28 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
         <section id={s.key} class="card scroll-mt-20" aria-labelledby={`h-${s.key}`}>
           <h2 id={`h-${s.key}`} class="flex items-center gap-2 text-lg font-semibold"><Icon name={s.icon} class="size-5 text-palm-700" />{s.label} <span class="text-sm font-normal text-muted">({s.photos.length})</span></h2>
           {s.photos.length === 0 ? <p class="mt-2 text-muted">ยังไม่มีรูป — หน้าเว็บแสดงกรอบรูปชั่วคราวไว้ก่อน</p> : (
+            <>
+            {s.photos.length > 1 && <p class="hint mt-1">ลำดับในหน้านี้ = ลำดับบนเว็บ (รูปที่ 1 แสดงก่อน) · รูปที่อัปโหลดใหม่ขึ้นบนสุดเสมอ · กดลูกศรเพื่อเลื่อน</p>}
             <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group>
-              {s.photos.map((p) => (
+              {s.photos.map((p, i) => (
                 <li class="space-y-2">
-                  <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="block" target="_blank" rel="noopener">
+                  <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="relative block" target="_blank" rel="noopener">
+                    <span aria-hidden="true" data-num class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
                     <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
                   </a>
+                  {/* ลำดับ: บนสุดแสดงก่อนบนเว็บ — ปุ่มกดได้ง่ายบนมือถือ (ไม่ต้องลากวาง) */}
+                  <div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${s.photos.length}`}>
+                    {(['up', 'down', 'top'] as const).map((d) => {
+                      const off = d === 'down' ? i === s.photos.length - 1 : i === 0;
+                      const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
+                      return (
+                        <form method="post" class="flex-1">
+                          <input type="hidden" name="intent" value="move" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} /><input type="hidden" name="dir" value={d} />
+                          <button class="btn-ghost !px-0 w-full min-w-11" type="submit" disabled={off} aria-label={`${label} (รูปที่ ${i + 1})`} title={label}><Icon name={d} class="size-5" /></button>
+                        </form>
+                      );
+                    })}
+                  </div>
                   <form method="post" class="space-y-1">
                     <input type="hidden" name="intent" value="caption" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
                     <label class="sr-only" for={`cap-${p.id}`}>คำบรรยายรูป</label>
@@ -116,6 +140,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
                 </li>
               ))}
             </ul>
+            </>
           )}
         </section>
       ))}

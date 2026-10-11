@@ -5,7 +5,7 @@ import { ICONS, type IconName } from '../lib/icons.ts';
 
 // โหลดเฉพาะไฟล์ที่ระบุ (รายชื่อต้องตรงกับค่าในตาราง ICONS) — ไม่ดึงไอคอนทั้ง 2,000 ตัวเข้ามา
 const files = import.meta.glob<string>(
-  '/node_modules/lucide-static/icons/{layout-dashboard,hexagon,plus,shopping-cart,menu,chevron-left,chevron-right,x,house,search,search-x,log-out,globe,droplets,crown,egg,sticky-note,refresh-cw,notebook-tabs,book-open,graduation-cap,trees,sprout,camera,image,video,square-pen,pencil,tag,trash-2,rotate-ccw,settings,key-round,lock,list-checks,message-circle,phone,map-pin,map,thumbs-up,circle-check,triangle-alert,circle-alert,circle-help,info,circle-dashed,party-popper,cloud-rain,thermometer,chart-column,receipt,users,copy,wallet,truck,ban,trending-up,download,messages-square}.svg',
+  '/node_modules/lucide-static/icons/{layout-dashboard,hexagon,plus,shopping-cart,menu,chevron-left,chevron-right,arrow-up,arrow-down,arrow-up-to-line,x,house,search,search-x,log-out,globe,droplets,crown,egg,sticky-note,refresh-cw,notebook-tabs,book-open,graduation-cap,trees,sprout,camera,image,video,square-pen,pencil,tag,trash-2,rotate-ccw,settings,key-round,lock,list-checks,message-circle,phone,map-pin,map,thumbs-up,circle-check,triangle-alert,circle-alert,circle-help,info,circle-dashed,party-popper,cloud-rain,thermometer,chart-column,receipt,users,copy,wallet,truck,ban,trending-up,download,messages-square}.svg',
   { query: '?raw', import: 'default', eager: true },
 );
 

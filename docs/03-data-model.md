@@ -125,4 +125,4 @@ users ─< sessions · audit_logs
 
 ## แกลเลอรี (0016)
 
-- **gallery_photos**: `category` (`farm` ชันโรงของ MetaFarm | `hive_delivery` ส่งมอบรังชันโรง | `honey_delivery` ส่งมอบน้ำผึ้ง | `woodshop` ห้องงานไม้), `r2_key` (unique, `gallery/<หมวด>/…`), `caption`, `sort_order` (มากก่อน = แสดงก่อน), `created_by` — หน้าสาธารณะอ่านแค่หมวด คีย์ และคำบรรยาย (`getGallery`) · หมวดละไม่เกิน 60 รูป
+- **gallery_photos**: `category` (`farm` ชันโรงของ MetaFarm | `hive_delivery` ส่งมอบรังชันโรง | `honey_delivery` ส่งมอบน้ำผึ้ง | `woodshop` ห้องงานไม้), `r2_key` (unique, `gallery/<หมวด>/…`), `caption`, `sort_order` (มากก่อน = แสดงก่อน · หลังบ้านเลื่อนรูปด้วยปุ่ม ระบบเรียงเลขใหม่ทั้งหมวด), `created_by` — หน้าสาธารณะอ่านแค่หมวด คีย์ และคำบรรยาย (`getGallery`) · หมวดละไม่เกิน 60 รูป
