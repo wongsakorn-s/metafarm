@@ -44,7 +44,7 @@ const groups = [
 
 <AdminLayout title="เมนู" active="more">
   <p class="mb-4 text-muted">เข้าสู่ระบบเป็น <strong class="text-ink">{user.name}</strong> ({roleLabel[user.role]})</p>
-  <div class="space-y-5">
+  <div class="space-y-5 md:grid md:grid-cols-2 md:items-start md:gap-5 md:space-y-0 2xl:grid-cols-3">
     {groups.map((g) => (
       <section aria-labelledby={`g-${g.title}`}>
         <h2 id={`g-${g.title}`} class="mb-2 px-1 text-sm font-semibold text-muted">{g.title}</h2>
@@ -61,7 +61,7 @@ const groups = [
         </ul>
       </section>
     ))}
-    <section id="install" class="rounded-2xl border border-line bg-surface p-4" aria-labelledby="install-h">
+    <section id="install" class="rounded-2xl border border-line bg-surface p-4 md:hidden" aria-labelledby="install-h">
       <h2 id="install-h" class="font-semibold">ติดตั้งเป็นแอปบนหน้าจอโฮม</h2>
       <p class="hint mb-2">เปิดได้เร็วจากไอคอน และรายการที่บันทึกตอนสัญญาณไม่ดีจะเก็บในเครื่องได้นานขึ้น (สำคัญกับ iPhone)</p>
       <ul class="space-y-1 text-sm">
@@ -69,7 +69,7 @@ const groups = [
         <li><strong>Android (Chrome):</strong> กดเมนู ⋮ มุมขวาบน → "เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</li>
       </ul>
     </section>
-    <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?">
+    <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?" class="md:hidden">
       <button class="flex min-h-14 w-full items-center justify-center rounded-2xl border border-line bg-surface font-semibold text-danger active:bg-red-50" type="submit">ออกจากระบบ</button>
     </form>
   </div>

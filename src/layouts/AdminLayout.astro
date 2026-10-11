@@ -58,7 +58,6 @@ const sideGroups = [
   { title: 'เว็บไซต์และบัญชี', items: [
     { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
     { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ตั้งค่า' },
-    { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี' },
     { key: 'users', href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์' },
   ] },
 ] as const;
@@ -100,6 +99,13 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
             </div>
           </div>
         ))}
+        {/* หน้า "เมนู" เดียวกับแท็บ "เมนู" บนมือถือ — รวมทุกหน้ารอง (รูปแกลเลอรี คิวถ่ายรูป ข้อมูลไม่ครบ ตั้งค่า บัญชี ฯลฯ) */}
+        <div class="border-t border-line pt-3">
+          <a href="/admin/more" aria-current={tabActive('more') ? 'page' : undefined}
+            class:list={['flex min-h-9 items-center gap-3 rounded-xl px-3 font-medium', tabActive('more') ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
+            <Icon name="menu" class="size-5 text-palm-700" />เมนู<span class="ml-auto text-xs font-normal text-muted">รวมทุกหน้า</span>
+          </a>
+        </div>
       </nav>
       <form method="post" action="/admin/logout" class="border-t border-line p-4" data-confirm="ออกจากระบบใช่ไหม?">
         <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 flex min-h-10 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
