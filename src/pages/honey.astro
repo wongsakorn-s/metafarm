@@ -1,11 +1,9 @@
 ---
 import PageHeader from '../components/PageHeader.astro';
 import Article from '../components/Article.astro';
-import CreditPhoto from '../components/CreditPhoto.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { getPage } from '../lib/content.ts';
-import { learnPhotos as P } from '../lib/learn-photos.ts';
 
 export const prerender = false;
 
@@ -18,7 +16,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=120');
   <Article headings={page.getHeadings()}>
     <Fragment slot="header">
       <PageHeader title={fm.title} lead={fm.lead} />
-      <CreditPhoto photo={P.honeyPots} priority sizes="(min-width: 1024px) 740px, 100vw" class="mt-6" />
+      {/* รูปจริงของฟาร์ม (เจ้าของส่งมา 2026-10-11) แทนรูป Wikimedia — ไม่ต้องมีเครดิต */}
+      <img src="/photos/farm/honey-hive.webp" srcset="/photos/farm/honey-hive-700.webp 700w, /photos/farm/honey-hive.webp 1400w" sizes="(min-width: 1024px) 740px, 100vw" width="1400" height="1045"
+        alt="น้ำผึ้งชันโรงในขวดหมีสามขวด วางข้างถ้วยน้ำหวานในรังไม้ของ MetaFarm" fetchpriority="high" decoding="async" class="mt-6 aspect-[4/3] w-full rounded-3xl border border-line bg-palm-50 object-cover" />
     </Fragment>
     <Content />
   </Article>

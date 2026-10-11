@@ -30,11 +30,4 @@ export const learnPhotos = {
     author: 'Peterwchen', license: 'CC BY-SA 4.0',
     sourceUrl: 'https://commons.wikimedia.org/wiki/File:Nelumbo_nucifera-Tetragonula_pagdeni.jpg',
   },
-  honeyPots: {
-    id: 'honey-pots', w: 1200, h: 800,
-    alt: 'ถ้วยเก็บน้ำผึ้งและเกสรสีน้ำตาลภายในรังชันโรง',
-    caption: 'ถ้วยเก็บน้ำผึ้งในรังชันโรง — เก็บในถ้วยเล็ก ๆ ไม่ใช่รวงหกเหลี่ยมแบบผึ้งทั่วไป',
-    author: 'Nelynnnnn', license: 'CC0',
-    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Gombizau_Honey_Bee_Farm_(20).jpg',
-  },
 } satisfies Record<string, LearnPhoto>;
