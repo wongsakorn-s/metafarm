@@ -137,7 +137,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
     <h2 class="text-lg font-semibold">รูปหัวหน้าแรกของเว็บ</h2>
     <p class="hint">ใส่รหัสรังที่รูปสมุดพกสวยที่สุด (รูปเก่าจาก Excel เล็กเกินไป ต้องถ่ายใหม่) · เว้นว่าง = ใช้โลโก้</p>
     <div class="flex flex-wrap items-end gap-3">
-      {hero && <img src={thumbUrl(`/img/${hero.key}`)} alt={`รูปรัง ${hero.code} ที่ใช้อยู่`} width="96" height="72" class="h-[72px] w-24 rounded-xl bg-palm-50 object-cover" />}
+      {hero && <a href={`/img/${hero.key}`} data-zoom data-caption={`รูปหน้าแรก: รัง ${hero.code}`} aria-label={`ดูรูปรัง ${hero.code} ขยาย`} target="_blank" rel="noopener"><img src={thumbUrl(`/img/${hero.key}`)} alt={`รูปรัง ${hero.code} ที่ใช้อยู่`} width="96" height="72" class="h-[72px] w-24 rounded-xl bg-palm-50 object-cover" /></a>}
       <div class="min-w-40 flex-1">
         <label class="label" for="heroHive">รหัสรัง</label>
         <input class="field" id="heroHive" name="heroHive" autocomplete="off" placeholder="เช่น A25" value={errorWhere === 'hero' ? (values.heroHive ?? '') : settings.heroHive} />

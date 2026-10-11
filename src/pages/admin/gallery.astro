@@ -97,10 +97,12 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
         <section id={s.key} class="card scroll-mt-20" aria-labelledby={`h-${s.key}`}>
           <h2 id={`h-${s.key}`} class="flex items-center gap-2 text-lg font-semibold"><Icon name={s.icon} class="size-5 text-palm-700" />{s.label} <span class="text-sm font-normal text-muted">({s.photos.length})</span></h2>
           {s.photos.length === 0 ? <p class="mt-2 text-muted">ยังไม่มีรูป — หน้าเว็บแสดงกรอบรูปชั่วคราวไว้ก่อน</p> : (
-            <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group>
               {s.photos.map((p) => (
                 <li class="space-y-2">
-                  <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
+                  <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="block" target="_blank" rel="noopener">
+                    <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
+                  </a>
                   <form method="post" class="space-y-1">
                     <input type="hidden" name="intent" value="caption" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
                     <label class="sr-only" for={`cap-${p.id}`}>คำบรรยายรูป</label>

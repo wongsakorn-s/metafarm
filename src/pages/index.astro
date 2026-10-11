@@ -54,8 +54,10 @@ const highlights = [
     {/* รูปจริงจากสวน (เจ้าของเลือกในตั้งค่า) แทนโลโก้ — มือถือก็เห็น (ใต้ข้อความ) · ยังไม่เลือกรูป = โลโก้กลม (มือถือ: เล็กข้างหัวข้อ ด้านบน) */}
     {hero ? (
       <figure class="relative">
-        <img src={`/img/${hero.key}`} srcset={photoSrcset(`/img/${hero.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="675" fetchpriority="high"
-          alt={`รังชันโรงขนเงิน ${hero.code} ที่ ${site.name}`} class="aspect-[4/3] w-full rounded-3xl bg-palm-50 object-cover shadow-card" />
+        <a href={`/img/${hero.key}`} data-zoom data-caption={`รังชันโรงขนเงิน ${hero.code}`} aria-label={`ดูรูปขยาย: รังชันโรงขนเงิน ${hero.code}`} class="block">
+          <img src={`/img/${hero.key}`} srcset={photoSrcset(`/img/${hero.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="675" fetchpriority="high"
+            alt={`รังชันโรงขนเงิน ${hero.code} ที่ ${site.name}`} class="aspect-[4/3] w-full rounded-3xl bg-palm-50 object-cover shadow-card" />
+        </a>
         <figcaption class="absolute bottom-3 left-3">
           <a class="inline-flex min-h-11 items-center gap-1 rounded-full bg-surface/90 px-4 text-sm font-medium text-palm-700 backdrop-blur" href={`/passport/${hero.code}`}><Icon name="passport" class="size-4" />รัง {hero.code} · ดูสมุดพก</a>
         </figcaption>

@@ -17,9 +17,11 @@ const src = (w: number) => `/photos/learn/${p.id}-${w}.webp`;
 ---
 
 <figure class:list={['flex flex-col overflow-hidden rounded-3xl border border-line bg-surface', cls]}>
-  <img src={src(1200)} srcset={`${src(640)} 640w, ${src(1200)} 1200w`} sizes={sizes} width={p.w} height={p.h} alt={p.alt}
-    loading={priority ? 'eager' : 'lazy'} fetchpriority={priority ? 'high' : undefined} decoding="async"
-    class:list={['w-full bg-palm-50 object-cover', p.h > p.w && !crop ? 'aspect-[4/5]' : 'aspect-[4/3]']} />
+  <a href={src(1200)} data-zoom data-caption={p.caption} data-credit={`ภาพประกอบ: ${p.author} · ${p.license} · Wikimedia Commons`} data-credit-href={p.sourceUrl} aria-label={`ดูรูปขยาย: ${p.caption}`} class="block">
+    <img src={src(1200)} srcset={`${src(640)} 640w, ${src(1200)} 1200w`} sizes={sizes} width={p.w} height={p.h} alt={p.alt}
+      loading={priority ? 'eager' : 'lazy'} fetchpriority={priority ? 'high' : undefined} decoding="async"
+      class:list={['w-full bg-palm-50 object-cover', p.h > p.w && !crop ? 'aspect-[4/5]' : 'aspect-[4/3]']} />
+  </a>
   <figcaption class="flex-1 space-y-1 p-3 text-sm">
     <span class="block">{p.caption}</span>
     <span class="block text-[0.8125rem] text-muted">ภาพประกอบ: <a class="underline" href={p.sourceUrl} rel="noopener" target="_blank">{p.author}</a> · <a class="underline" href={LICENSE_URL[p.license]} rel="noopener license" target="_blank">{p.license}</a> · Wikimedia Commons</span>

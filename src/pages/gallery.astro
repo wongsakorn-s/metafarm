@@ -33,11 +33,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
     <section id={s.key} class="mt-10 scroll-mt-20" aria-labelledby={`${s.key}-h`}>
       <h2 id={`${s.key}-h`} class="flex items-center gap-2 text-2xl font-bold"><Icon name={s.icon} class="size-6 text-palm-700" />{s.label}</h2>
       <p class="mt-1 text-muted">{s.hint}</p>
-      <ul class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+      <ul class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4" data-zoom-group>
         {s.photos.length > 0 ? s.photos.map((p, i) => (
           <li>
             <figure>
-              <a href={`/img/${p.key}`} class="block overflow-hidden rounded-2xl" aria-label={`ดูรูปขนาดเต็ม: ${p.caption ?? s.label}`}>
+              <a href={`/img/${p.key}`} data-zoom data-caption={p.caption ?? ''} class="block overflow-hidden rounded-2xl" aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`}>
                 <img src={thumbUrl(`/img/${p.key}`)} srcset={photoSrcset(`/img/${p.key}`)} sizes="(min-width: 768px) 33vw, 50vw" width="800" height="600"
                   loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-fast) hover:scale-[1.02]" />
               </a>

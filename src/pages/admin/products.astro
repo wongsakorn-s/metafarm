@@ -129,7 +129,11 @@ const savedText: Record<string, string> = { product_text: 'บันทึกค
         </div>
 
         <div class="mt-4 flex flex-wrap items-start gap-4">
-          <img src={p.imageKey ? `/media/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt={p.imageKey ? `รูปสินค้า ${p.name}` : 'รูปชั่วคราว'} width="160" height="120" class="h-[120px] w-40 rounded-xl bg-palm-50 object-cover" />
+          {p.imageKey ? (
+            <a href={`/media/${p.imageKey}`} data-zoom data-caption={p.name} aria-label={`ดูรูปสินค้า ${p.name} ขยาย`} target="_blank" rel="noopener"><img src={`/media/${p.imageKey}`} alt={`รูปสินค้า ${p.name}`} width="160" height="120" class="h-[120px] w-40 rounded-xl bg-palm-50 object-cover" /></a>
+          ) : (
+            <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="รูปชั่วคราว" width="160" height="120" class="h-[120px] w-40 rounded-xl bg-palm-50 object-cover" />
+          )}
           <div class="min-w-0 flex-1 basis-60 space-y-2">
             <p class="text-sm font-medium">{p.imageKey ? 'รูปสินค้า (รูปจริง)' : 'ยังใช้รูปชั่วคราวอยู่ — อัปโหลดรูปจริงได้เลย (เปลี่ยนได้ทุกเมื่อ)'}</p>
             <form method="post" enctype="multipart/form-data" data-resize class="flex flex-wrap items-center gap-2">

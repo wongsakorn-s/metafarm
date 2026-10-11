@@ -43,7 +43,11 @@ const jsonLd = product
   <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
     <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
-      <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+      {product.imageKey ? (
+        <a href={image} data-zoom data-caption={product.name} aria-label={`ดูรูปสินค้า ${product.name} ขยาย`} class="block"><img src={image} alt={product.name} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" /></a>
+      ) : (
+        <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+      )}
       <section>
         <h1 class="text-3xl font-bold">{product.name}</h1>
         {product.description && <p class="mt-2 text-lg text-muted">{product.description}</p>}
