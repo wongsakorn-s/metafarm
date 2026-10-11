@@ -234,6 +234,8 @@
   .prose-mf blockquote > * + * { margin-top: 0.5rem; }
   .prose-mf hr { border: 0; border-top: 1px solid var(--color-line); margin: 2rem 0; }
   .prose-mf strong { font-weight: 600; }
+  /* รูปจริงของฟาร์มในบทความ (Markdown ![alt](/photos/farm/…)) */
+  .prose-mf img { display: block; width: 100%; height: auto; border-radius: 1rem; box-shadow: var(--shadow-card); background: var(--color-palm-50); }
 }
 /* แถวที่เลื่อนแนวนอนได้ (ตัวกรอง/ชิป): ขอบขวาจางลง บอกว่ายังมีต่อ */
 @utility scroll-fade {
