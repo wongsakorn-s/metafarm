@@ -4,13 +4,13 @@ import type { PublicVideo } from '../server/public.ts';
 import { posterKeyOf } from '../lib/video.ts';
 
 /** ambient = เล่นเองแบบไม่มีเสียง วนซ้ำ ไม่มีแถบควบคุม มีปุ่มเปิด/ปิดเสียงปุ่มเดียว (ใช้กับวิดีโอแนะนำหน้าแรก; YouTube ใช้แบบปกติ) */
-interface Props { video: PublicVideo; title: string; class?: string; ambient?: boolean }
-const { video, title, class: cls = '', ambient = false } = Astro.props;
+interface Props { video: PublicVideo; title: string; class?: string; ambient?: boolean; fill?: boolean }
+const { video, title, class: cls = '', ambient = false, fill = false } = Astro.props;
 ---
 
 {video.key && ambient ? (
-  <div class="relative" data-ambient>
-    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', cls].join(' ')} muted loop autoplay playsinline preload="auto" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
+  <div class:list={['relative', fill && 'lg:absolute lg:inset-0']} data-ambient>
+    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', fill && 'lg:size-full lg:max-h-none lg:object-contain', cls].filter(Boolean).join(' ')} muted loop autoplay playsinline preload="auto" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
       <source src={`/video/${video.key}`} type="video/mp4" />
     </video>
     <button type="button" data-sound aria-pressed="false" aria-label="เปิดเสียงวิดีโอ" class="absolute bottom-3 right-3 grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">

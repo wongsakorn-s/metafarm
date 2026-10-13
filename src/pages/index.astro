@@ -29,7 +29,8 @@ const highlights = [
   { icon: 'queen' as const, title: 'พัฒนาสายพันธุ์ขนเงิน', text: 'ให้เหมาะกับภูมิอากาศของภาคตะวันออกโดยเฉพาะ' },
   { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'จดบันทึกที่มาของนางพญา วันเกิด และกิจกรรมต่าง ๆ ของแต่ละรัง' },
 ];
-const homeSecs = Astro.locals.settings!.homeVideo?.seconds;
+const homeVideo = Astro.locals.settings!.homeVideo;
+const homeSecs = homeVideo?.seconds;
 const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `${Math.round(homeSecs / 60)} นาที`) : '';
 ---
 
@@ -109,24 +110,45 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
     </section>
   )}
 
-  {/* เรื่องราว (ซ้าย) + จุดเด่น 3 ข้อ (ขวา) บนคอม — เดิมข้อความยาวชิดซ้าย เหลือที่ว่างครึ่งจอ แล้วการ์ดจุดเด่นแยกอีกแถว */}
-  <section class="mt-12 grid gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-start" aria-labelledby="story-h">
-    <div>
+  {/* เรื่องราว + จุดเด่น 3 ข้อ (ซ้าย) · วิดีโอแนะนำฟาร์ม (ขวา สูงเท่าฝั่งซ้าย) บนคอม · มือถือ: เรื่องราว → วิดีโอ → จุดเด่น · ยังไม่มีวิดีโอ = เรื่องราว (ซ้าย) + จุดเด่น (ขวา) */}
+  {homeVideo ? (
+    <section class="mt-12 grid gap-8 lg:grid-cols-2 lg:items-stretch" aria-labelledby="story-h">
+      <div class="contents lg:block">
+        <div class="order-1">
+        <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>
+        <div class="mt-3 space-y-3 text-lg">
+          <p>เราเริ่มจากการทดลองเลี้ยงชันโรงหลายสายพันธุ์ ทั้งขนเงิน ถ้วยดำ จิ่วดุ ปากแตร อิตาม่า และบิงฮามี่</p>
+          <p>แต่ภูมิอากาศที่ จ.ระยอง ค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
+          <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
+        </div>
+        </div>
+        <ul class="order-3 grid gap-3 lg:mt-6" aria-label="จุดเด่น">
+        {highlights.map((h) => (
+        <li class="card flex gap-4">
+          <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
+          <div><h3 class="text-lg font-semibold">{h.title}</h3>
+          <p class="mt-1 text-muted">{h.text}</p></div>
+        </li>
+      ))}
+        </ul>
+      </div>
+      {/* วิดีโอ: มือถือสูงตามสัดส่วนคลิป · คอมเต็มความสูงของฝั่งซ้าย (ไม่ครอป ขอบที่เหลือเป็นสีดำ) */}
+      <div class="order-2 flex flex-col">
+        <h3 class="mb-2 flex items-center gap-2 text-lg font-semibold"><Icon name="video" class="size-5 text-palm-700" />ชมวิดีโอแนะนำฟาร์ม{homeSec && <span class="text-sm font-normal text-muted">({homeSec})</span>}</h3>
+        <div class="relative lg:min-h-0 lg:flex-1"><VideoPlayer video={homeVideo} title="วิดีโอแนะนำฟาร์ม" ambient fill /></div>
+      </div>
+    </section>
+  ) : (
+    <section class="mt-12 grid gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-start" aria-labelledby="story-h">
+      <div>
       <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>
       <div class="mt-3 space-y-3 text-lg">
         <p>เราเริ่มจากการทดลองเลี้ยงชันโรงหลายสายพันธุ์ ทั้งขนเงิน ถ้วยดำ จิ่วดุ ปากแตร อิตาม่า และบิงฮามี่</p>
         <p>แต่ภูมิอากาศที่ จ.ระยอง ค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
         <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
       </div>
-      {/* วิดีโอแนะนำฟาร์ม (เจ้าของอัปโหลดที่ /admin/settings) — แตะเพื่อเล่น ไม่เล่นเอง */}
-      {Astro.locals.settings!.homeVideo && (
-        <div class="mt-6">
-          <h3 class="mb-2 flex items-center gap-2 text-lg font-semibold"><Icon name="video" class="size-5 text-palm-700" />ชมวิดีโอแนะนำฟาร์ม{homeSec && <span class="text-sm font-normal text-muted">({homeSec})</span>}</h3>
-          <VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" ambient />
-        </div>
-      )}
-    </div>
-    <ul class="grid gap-3" aria-label="จุดเด่น">
+      </div>
+      <ul class="grid gap-3" aria-label="จุดเด่น">
       {highlights.map((h) => (
         <li class="card flex gap-4">
           <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
@@ -134,8 +156,9 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
           <p class="mt-1 text-muted">{h.text}</p></div>
         </li>
       ))}
-    </ul>
-  </section>
+      </ul>
+    </section>
+  )}
 
   <section class="mt-12" aria-labelledby="learn-h">
     <h2 id="learn-h" class="text-2xl font-bold">เรียนรู้และเลือกซื้อ</h2>
