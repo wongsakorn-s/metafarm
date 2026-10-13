@@ -66,7 +66,7 @@ users ─< sessions · audit_logs
 ### species · suppliers
 
 - **species**: `name_th`, `name_sci` (ตอนนี้มีแถวเดียว: ชันโรงขนเงิน *Tetragonula pagdeni* Schwarz)
-- **suppliers** 🔒: `name`, `phone`, `area`, `notes`
+- **suppliers** 🔒: `name`, `phone`, `area`, `notes` — แก้ได้ในหน้า `/admin/hives/:code/edit` (เจ้าของ/แอดมินเท่านั้น): เลือก/เปลี่ยน/เอาออก/เพิ่มรายใหม่ และแก้ชื่อ-เบอร์-พื้นที่-หมายเหตุของรายที่เปิดมากับรังนี้ (เช็กเวอร์ชัน `updated_at` กันชน · แก้แล้วเปลี่ยนทุกรังที่ใช้รายนี้) · ข้อความในชื่อ เช่น "(ขี้โกง)" เป็นข้อมูลภายใน ไม่ขึ้นหน้าสาธารณะ
 
 ### สินค้าและการขาย (Phase 4 — รายละเอียดใน [11-phase4-plan.md](11-phase4-plan.md))
 

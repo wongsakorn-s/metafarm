@@ -116,6 +116,10 @@ export async function getHiveDetail(db: Db, code: string) {
         species: species.nameTh,
         supplierName: suppliers.name,
         supplierPhone: suppliers.phone,
+        supplierId: suppliers.id,
+        supplierArea: suppliers.area,
+        supplierNotes: suppliers.notes,
+        supplierUpdatedAt: suppliers.updatedAt,
         queenSource: queenSrc.code,
         broodSource: broodSrc.code,
       })
@@ -382,6 +386,62 @@ export async function updateHive(db: Db, user: SessionUser, hive: Hive, d: z.out
     auditIfChanged(db, user.id, 'hive.update', 'hive', hive.id, { fields: changed, ...diff }),
   ]);
   if (updated.length === 0) return { ok: false, error: CONFLICT_ERROR, conflict: true };
+  return { ok: true };
+}
+
+/** รายชื่อคู่ค้าสำหรับเลือกในฟอร์มแก้ไขรัง + จำนวนรังที่ใช้แต่ละราย (เจ้าของ/แอดมินเท่านั้น) */
+export async function listSuppliers(db: Db) {
+  return db
+    .select({ id: suppliers.id, name: suppliers.name, uses: sql<number>`(select count(*) from hives h where h.supplier_id = suppliers.id)` })
+    .from(suppliers)
+    .orderBy(asc(suppliers.name));
+}
+
+/**
+ * แก้ข้อมูลคู่ค้าจากหน้าแก้ไขรัง (ข้อมูลภายใน — เจ้าของ/แอดมินเท่านั้น)
+ * 1) แก้ช่องของคู่ค้าที่ฟอร์มแสดงตอนเปิด (supplierEditId) ด้วยการเช็กเวอร์ชัน — ชน = conflict ไม่เขียนอะไร
+ * 2) ตั้ง/เปลี่ยน/เอาออกคู่ค้าของรังนี้ตามตัวเลือก (หรือเพิ่มรายใหม่)
+ */
+export async function updateHiveSupplier(db: Db, user: SessionUser, hive: Hive, d: z.output<typeof editHiveSchema>): Promise<Saved> {
+  if (!canManageFarm(user)) return { ok: true }; // พนักงานไม่เห็น/ไม่แก้ — เซิร์ฟเวอร์ไม่รับค่านี้
+  if (d.supplierChoice === undefined && d.supplierEditId === undefined && !d.newSupplierName) return { ok: true }; // ฟอร์มไม่มีส่วนคู่ค้า
+
+  if (d.supplierEditId != null) {
+    if (!d.supplierName) return { ok: false, error: 'คู่ค้า: กรอกชื่อ' };
+    const row = await db.query.suppliers.findFirst({ where: eq(suppliers.id, d.supplierEditId) });
+    if (!row) return { ok: false, error: 'ไม่พบคู่ค้านี้ (อาจถูกลบไปแล้ว)' };
+    const next = { name: d.supplierName, phone: d.supplierPhone ?? null, area: d.supplierArea ?? null, notes: d.supplierNotes ?? null };
+    const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== row[k]);
+    if (changed.length) {
+      const [u] = await db.batch([
+        db.update(suppliers).set({ ...next, ...touch }).where(and(eq(suppliers.id, row.id), d.supplierVersion ? eq(suppliers.updatedAt, d.supplierVersion) : undefined)).returning({ id: suppliers.id }),
+        auditIfChanged(db, user.id, 'supplier.update', 'supplier', row.id, { fields: changed }),
+      ]);
+      if (u.length === 0) return { ok: false, error: CONFLICT_ERROR, conflict: true };
+    }
+  }
+
+  let target: number | null | undefined;
+  if (d.supplierChoice === 'new') {
+    if (!d.newSupplierName) return { ok: false, error: 'คู่ค้ารายใหม่: กรอกชื่อ' };
+    const [made] = await db.batch([
+      db.insert(suppliers).values({ name: d.newSupplierName, phone: d.newSupplierPhone ?? null, area: d.newSupplierArea ?? null }).returning({ id: suppliers.id }),
+    ]);
+    target = made[0]!.id;
+    await db.insert(auditLogs).values({ userId: user.id, action: 'supplier.create', entity: 'supplier', entityId: target, diff: { hiveCode: hive.code } });
+  } else if (d.supplierChoice === 'none') {
+    target = null;
+  } else if (d.supplierChoice !== undefined) {
+    target = Number(d.supplierChoice);
+    if (!(await db.query.suppliers.findFirst({ where: eq(suppliers.id, target), columns: { id: true } }))) return { ok: false, error: 'ไม่พบคู่ค้าที่เลือก' };
+  }
+  if (target !== undefined && target !== hive.supplierId) {
+    await db.batch([
+      // ไม่แตะ updated_at: ไม่ให้เวอร์ชันของฟอร์มแก้ไขรังเปลี่ยนก่อน updateHive
+      db.update(hives).set({ supplierId: target }).where(eq(hives.id, hive.id)),
+      audit(db, user, 'hive.supplier', hive.id, { from: hive.supplierId, to: target }),
+    ]);
+  }
   return { ok: true };
 }
 

@@ -148,6 +148,18 @@ export const editHiveSchema = z.object({
   notes: opt(z.string().max(2000, 'ยาวเกิน 2,000 ตัวอักษร')),
   /** updated_at ที่ฟอร์มเห็นตอนเปิด (กันเขียนทับกัน — ดู src/lib/concurrency.ts) */
   version: opt(z.string().max(40)),
+  /** คู่ค้า (เจ้าของ/แอดมินเท่านั้น): none = ไม่ระบุ · เลข = เลือกคู่ค้า · new = เพิ่มใหม่ */
+  supplierChoice: opt(z.string().regex(/^(new|none|\d{1,9})$/)),
+  /** คู่ค้าที่ฟอร์มแสดงตอนเปิด + เวอร์ชัน (updated_at) — ช่องแก้ไขด้านล่างใช้กับรายนี้เสมอ แม้เปลี่ยนตัวเลือกแล้ว */
+  supplierEditId: opt(int(999_999_999)),
+  supplierVersion: opt(z.string().max(40)),
+  supplierName: opt(z.string().max(100)),
+  supplierPhone: opt(z.string().max(40)),
+  supplierArea: opt(z.string().max(100)),
+  supplierNotes: opt(z.string().max(500, 'ยาวเกิน 500 ตัวอักษร')),
+  newSupplierName: opt(z.string().max(100)),
+  newSupplierPhone: opt(z.string().max(40)),
+  newSupplierArea: opt(z.string().max(100)),
 });
 
 export type FieldErrors = Record<string, string>;

@@ -2,8 +2,10 @@
 import { expandCodeFields, isHiveCode, normalizeHiveCode, splitHiveCode } from '../../../../lib/hive-code.ts';
 import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { eq } from 'drizzle-orm';
+import { suppliers } from '../../../../db/schema.ts';
 import { getDb } from '../../../../server/db.ts';
-import { getHiveDetail, updateHive } from '../../../../server/hives.ts';
+import { getHiveDetail, listSuppliers, updateHive, updateHiveSupplier } from '../../../../server/hives.ts';
 import { boxLabel, originLabel } from '../../../../lib/labels.ts';
 import { unknownTopics } from '../../../../lib/unknown-notes.ts';
 import { editHiveSchema, parseForm, todayBangkok, type FieldErrors } from '../../../../lib/validation.ts';
@@ -37,7 +39,9 @@ if (Astro.request.method === 'POST') {
   const p = parseForm(editHiveSchema, form);
   if (!p.ok) errors = p.errors;
   else {
-    const r = await updateHive(db, Astro.locals.user!, hive, p.data);
+    // คู่ค้า (ข้อมูลภายใน) บันทึกก่อน: ชนกับคนอื่น = หยุดทั้งหมดแล้วแสดงค่าล่าสุด
+    const sup = await updateHiveSupplier(db, Astro.locals.user!, hive, p.data);
+    const r = sup.ok ? await updateHive(db, Astro.locals.user!, hive, p.data) : sup;
     if (r.ok) return Astro.redirect(`/admin/hives/${code}?saved=edited`, 303);
     if (r.conflict) {
       // มีคนบันทึกไปก่อน: โหลดค่าล่าสุด เก็บค่าที่กรอกไว้ในฟอร์ม และเลื่อนเวอร์ชันเป็นล่าสุด (กดบันทึกอีกครั้ง = ยืนยันใช้ค่าของคุณ)
@@ -46,8 +50,16 @@ if (Astro.request.method === 'POST') {
       conflict = { diffs: [], by: await editedBy(db, 'hive', hive.id, values.version ?? ''), at: shortStamp(hive.updatedAt) };
       values.version = hive.updatedAt;
     } else errors = { _: r.error };
+    if (!sup.ok && sup.conflict) {
+      // คู่ค้าถูกแก้ไปก่อน: เก็บค่าที่พิมพ์ไว้ในฟอร์ม แล้วใช้เวอร์ชันล่าสุดของรายนั้นในการบันทึกรอบหน้า
+      const fresh = values.supplierEditId ? await db.query.suppliers.findFirst({ where: eq(suppliers.id, Number(values.supplierEditId)), columns: { updatedAt: true } }) : null;
+      values.supplierVersion = fresh?.updatedAt ?? '';
+    }
   }
 }
+const manager = canManageFarm(Astro.locals.user);
+const supplierList = manager ? await listSuppliers(db) : [];
+const supplierUses = supplierList.find((x) => x.id === detail.supplierId)?.uses ?? 0;
 
 // ค่าเริ่มต้นของฟอร์ม: ค่าที่ส่งมาเมื่อมี error ไม่งั้นค่าปัจจุบันของรัง
 const cur: Record<string, string> = {
@@ -62,6 +74,13 @@ const cur: Record<string, string> = {
   collapseReason: hive.collapseReason ?? '',
   publicNote: hive.publicNote ?? '',
   notes: hive.notes ?? '',
+  supplierChoice: detail.supplierId ? String(detail.supplierId) : 'none',
+  supplierEditId: detail.supplierId ? String(detail.supplierId) : '',
+  supplierVersion: detail.supplierUpdatedAt ?? '',
+  supplierName: detail.supplierName ?? '',
+  supplierPhone: detail.supplierPhone ?? '',
+  supplierArea: detail.supplierArea ?? '',
+  supplierNotes: detail.supplierNotes ?? '',
 };
 const v = (k: string) => (values ? (values[k] ?? '') : cur[k]!);
 // เทียบเป็นข้อความที่คนอ่านเข้าใจ (ที่มา/กล่องรังเป็นป้ายชื่อ ไม่ใช่รหัส)
@@ -166,6 +185,37 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <p class="hint">ลูกค้าเห็นข้อความนี้ใต้ราคาในหน้ารังที่ขาย และในสมุดพกของรัง (เช่น ชนิดรัง ขนาด เงื่อนไขการรับ-ส่ง)</p>
     </div>
 
+    {manager && (
+      <fieldset class="rounded-xl border border-line p-3 lg:col-span-2" data-supplier>
+        <legend class="px-1 font-semibold">คู่ค้า (ข้อมูลภายใน) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></legend>
+        <p class="hint">เห็นเฉพาะเจ้าของ/แอดมิน — ไม่แสดงต่อลูกค้าและพนักงาน (ชื่อมีหมายเหตุภายในได้ เช่น ข้อสังเกตเกี่ยวกับผู้ขาย)</p>
+        <div class="mt-2">
+          <label class="label" for="sup-choice">คู่ค้าของรังนี้</label>
+          <select class="field" id="sup-choice" name="supplierChoice">
+            <option value="none" selected={v('supplierChoice') === 'none'}>ไม่ระบุ</option>
+            {supplierList.map((x) => <option value={String(x.id)} selected={v('supplierChoice') === String(x.id)}>{x.name} ({x.uses} รัง)</option>)}
+            <option value="new" selected={v('supplierChoice') === 'new'}>+ เพิ่มคู่ค้ารายใหม่…</option>
+          </select>
+        </div>
+        {(v('supplierEditId') !== '') && (
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <input type="hidden" name="supplierEditId" value={v('supplierEditId')} />
+            <input type="hidden" name="supplierVersion" value={v('supplierVersion')} />
+            <p class="hint sm:col-span-2">แก้ข้อมูลของ <b>{detail.supplierName ?? 'คู่ค้าเดิม'}</b> (คู่ค้าที่เปิดมากับรังนี้){supplierUses > 1 && <> — ใช้กับ {supplierUses} รัง แก้แล้วเปลี่ยนทุกรัง</>}</p>
+            <div><label class="label" for="sup-name">ชื่อ</label><input class="field" id="sup-name" name="supplierName" maxlength="100" required value={v('supplierName')} /></div>
+            <div><label class="label" for="sup-phone">โทรศัพท์</label><input class="field" id="sup-phone" name="supplierPhone" maxlength="40" inputmode="tel" value={v('supplierPhone')} /></div>
+            <div><label class="label" for="sup-area">พื้นที่/จังหวัด</label><input class="field" id="sup-area" name="supplierArea" maxlength="100" value={v('supplierArea')} /></div>
+            <div><label class="label" for="sup-notes">หมายเหตุ</label><input class="field" id="sup-notes" name="supplierNotes" maxlength="500" value={v('supplierNotes')} /></div>
+          </div>
+        )}
+        <div class="mt-3 grid gap-3 sm:grid-cols-3" id="sup-new" hidden={v('supplierChoice') !== 'new'}>
+          <div><label class="label" for="nsup-name">ชื่อคู่ค้าใหม่</label><input class="field" id="nsup-name" name="newSupplierName" maxlength="100" value={v('newSupplierName')} /></div>
+          <div><label class="label" for="nsup-phone">โทรศัพท์</label><input class="field" id="nsup-phone" name="newSupplierPhone" maxlength="40" inputmode="tel" value={v('newSupplierPhone')} /></div>
+          <div><label class="label" for="nsup-area">พื้นที่/จังหวัด</label><input class="field" id="nsup-area" name="newSupplierArea" maxlength="100" value={v('newSupplierArea')} /></div>
+        </div>
+      </fieldset>
+    )}
+
     <div class="lg:col-span-2">
       <label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label>
       <textarea class="field" id="notes" name="notes" data-internal-notes rows="5" maxlength="2000">{v('notes')}</textarea>
@@ -180,3 +230,10 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     </div>
   </form>
 </AdminLayout>
+
+<script>
+  // เลือก "เพิ่มคู่ค้ารายใหม่" แล้วค่อยแสดงช่องกรอก
+  const pick = document.getElementById('sup-choice') as HTMLSelectElement | null;
+  const box = document.getElementById('sup-new');
+  pick?.addEventListener('change', () => { if (box) box.hidden = pick.value !== 'new'; });
+</script>
