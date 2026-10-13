@@ -122,7 +122,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
       {Astro.locals.settings!.homeVideo && (
         <div class="mt-6">
           <h3 class="mb-2 flex items-center gap-2 text-lg font-semibold"><Icon name="video" class="size-5 text-palm-700" />ชมวิดีโอแนะนำฟาร์ม{homeSec && <span class="text-sm font-normal text-muted">({homeSec})</span>}</h3>
-          <VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" />
+          <VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" ambient />
         </div>
       )}
     </div>
