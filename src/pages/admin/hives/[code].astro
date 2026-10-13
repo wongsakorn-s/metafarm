@@ -226,7 +226,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
       )}
     </section>
     </div>
-    <div class="contents xl:sticky xl:top-6 xl:block xl:max-h-[calc(100dvh-3rem)] xl:space-y-5 xl:overflow-y-auto xl:pb-2 xl:[&>section]:mb-0">
+    <div class="contents xl:sticky xl:top-6 xl:flex xl:max-h-[calc(100dvh-3rem)] xl:flex-col xl:gap-5 xl:overflow-y-auto xl:pb-2 xl:[&>section]:mb-0 xl:[&>section]:shrink-0">
     {/* ปุ่มบันทึกเร็ว */}
     <section aria-labelledby="act-h" class="order-2 xl:order-none mb-5 space-y-3" data-hive-active={hive.status === 'active' ? '1' : undefined}>
       <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
