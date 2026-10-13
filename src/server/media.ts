@@ -14,6 +14,7 @@ import {
   stripMetadata,
   type ImageKind,
 } from '../lib/media.ts';
+import { posterKeyOf } from '../lib/video.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -102,7 +103,7 @@ export async function deleteMedia(db: Db, bucket: R2Bucket, user: SessionUser, h
     db.delete(hiveMedia).where(eq(hiveMedia.id, row.id)),
     audit(db, user, 'media.delete', hive.id, { kind: row.kind, key: row.r2Key, youtubeId: row.youtubeId }),
   ]);
-  if (row.r2Key) await bucket.delete([row.r2Key, thumbKeyOf(row.r2Key)]).catch(() => {});
+  if (row.r2Key) await bucket.delete([row.r2Key, thumbKeyOf(row.r2Key), posterKeyOf(row.r2Key)]).catch(() => {});
   return { ok: true };
 }
 
@@ -119,7 +120,7 @@ export async function setVideo(db: Db, bucket: R2Bucket, user: SessionUser, hive
   ];
   await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
   const stale = old.map((o) => o.key).filter((k): k is string => !!k);
-  if (stale.length) await bucket.delete(stale).catch(() => {});
+  if (stale.length) await bucket.delete(stale.flatMap((k) => [k, posterKeyOf(k)])).catch(() => {});
   return { ok: true };
 }
 

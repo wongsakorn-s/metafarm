@@ -12,11 +12,36 @@ async function prepare(file: File, moov: { offset: number; size: number }): Prom
   return new Blob([file.slice(0, moov.offset), patched, file.slice(moov.offset + moov.size)], { type: VIDEO_MIME });
 }
 
-function put(url: string, body: Blob, onProgress: (done: number, total: number) => void): Promise<{ status: number; json: { ok?: boolean; message?: string; redirect?: string } | null }> {
+/** ภาพปก: ดึงเฟรมที่ ~1 วินาทีจากไฟล์ในเครื่อง (ไม่ได้ = ข้าม ไม่กระทบการอัปโหลด) */
+async function posterOf(file: File): Promise<Blob | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    const v = document.createElement('video');
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    v.src = url;
+    await new Promise<void>((ok, bad) => { v.onloadeddata = () => ok(); v.onerror = () => bad(new Error('load')); setTimeout(() => bad(new Error('timeout')), 15000); });
+    v.currentTime = Math.min(1, (v.duration || 2) / 2);
+    await new Promise<void>((ok, bad) => { v.onseeked = () => ok(); setTimeout(() => bad(new Error('timeout')), 15000); });
+    const scale = Math.min(1, 1280 / Math.max(v.videoWidth, 1));
+    const c = document.createElement('canvas');
+    c.width = Math.round(v.videoWidth * scale);
+    c.height = Math.round(v.videoHeight * scale);
+    c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height);
+    return await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', 0.8));
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function put(url: string, body: Blob, onProgress: (done: number, total: number) => void): Promise<{ status: number; json: { ok?: boolean; message?: string; redirect?: string; key?: string } | null }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Type', VIDEO_MIME);
+    xhr.setRequestHeader('Content-Type', body.type || VIDEO_MIME);
     xhr.setRequestHeader('Accept', 'application/json');
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded, e.total);
     xhr.onerror = () => reject(new Error('network'));
@@ -76,7 +101,16 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
         bar.value = Math.round((done / total) * 100);
         say(`กำลังอัปโหลด ${bar.value}% (${mb(done)} / ${mb(total)}) — อย่าปิดหน้านี้`);
       });
-      if (res.json?.ok && res.json.redirect) { location.href = res.json.redirect; return; }
+      if (res.json?.ok && res.json.redirect) {
+        // ภาพปกส่งตามหลัง (พลาดก็ไม่เป็นไร วิดีโอบันทึกแล้ว)
+        const poster = res.json.key ? await posterOf(ready.file) : null;
+        if (poster && poster.size <= 600 * 1024) {
+          say('กำลังบันทึกภาพปก…');
+          await put(`${root.dataset.action}?poster=${encodeURIComponent(res.json.key!)}`, poster, () => {}).catch(() => {});
+        }
+        location.href = res.json.redirect;
+        return;
+      }
       say(res.json?.message ?? (res.status === 413 ? `ไฟล์ใหญ่เกิน ${mb(MAX_VIDEO_BYTES)}` : `อัปโหลดไม่สำเร็จ (${res.status})`), true);
     } catch {
       say('สัญญาณหลุดระหว่างอัปโหลด — ไม่ได้บันทึก ลองกดอัปโหลดอีกครั้ง (ที่ที่มีสัญญาณดีกว่า/ใช้ Wi-Fi)', true);

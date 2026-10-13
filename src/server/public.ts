@@ -405,7 +405,8 @@ export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
 }
 
 /** วิดีโอไฟล์ที่เปิดสาธารณะได้: วิดีโอของรัง (แสดงในสมุดพก) หรือวิดีโอแนะนำฟาร์มที่ตั้งไว้ในหน้าแรก */
-export async function isPublicVideoKey(db: Db, key: string): Promise<boolean> {
+export async function isPublicVideoKey(db: Db, rawKey: string): Promise<boolean> {
+  const key = rawKey.replace(/\.jpg$/, '.mp4'); // ภาพปกเปิดได้เมื่อวิดีโอของมันเปิดได้
   const hive = await db.select({ one: sql<number>`1` }).from(hiveMedia).where(and(eq(hiveMedia.r2Key, key), eq(hiveMedia.kind, 'video'))).limit(1);
   if (hive.length > 0) return true;
   const home = await db.select({ one: sql<number>`1` }).from(settings).where(and(eq(settings.key, 'home.videoKey'), eq(settings.value, key))).limit(1);

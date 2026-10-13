@@ -10,6 +10,9 @@ const MAX_MOOV_BYTES = 8 * 1024 * 1024;
 export type Reader = (offset: number, length: number) => Promise<Uint8Array>;
 
 export const VIDEO_MIME = 'video/mp4';
+/** ภาพปกของวิดีโอ: ไฟล์ .jpg ชื่อเดียวกับวิดีโอ (ดึงเฟรมในเบราว์เซอร์ตอนอัปโหลด) */
+export const posterKeyOf = (videoKey: string) => videoKey.replace(/\.mp4$/, '.jpg');
+export const MAX_POSTER_BYTES = 600 * 1024;
 /** codec ภาพที่เล่นได้เกือบทุกเครื่อง/เบราว์เซอร์ (H.264) — HEVC ของ iPhone ค่าเริ่มต้นเล่นไม่ได้บน Chrome/Android หลายรุ่น */
 const OK_VIDEO = new Set(['avc1', 'avc3']);
 const HEVC = new Set(['hvc1', 'hev1', 'dvh1', 'dvhe']);

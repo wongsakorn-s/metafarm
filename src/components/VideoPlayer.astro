@@ -1,6 +1,7 @@
 ---
 // วิดีโอบนหน้าสาธารณะ: ไฟล์ของฟาร์ม (/video/*) เล่นในหน้าเลย (แตะเพื่อเล่น ไม่เล่นเอง ไม่โหลดทั้งไฟล์ล่วงหน้า) หรือฝัง YouTube (โหมดความเป็นส่วนตัว)
 import type { PublicVideo } from '../server/public.ts';
+import { posterKeyOf } from '../lib/video.ts';
 
 interface Props { video: PublicVideo; title: string; class?: string }
 const { video, title, class: cls = '' } = Astro.props;
@@ -8,7 +9,7 @@ const { video, title, class: cls = '' } = Astro.props;
 
 {video.key ? (
   // วิดีโอไฟล์: คงสัดส่วนจริงของคลิป (แนวตั้ง/จัตุรัสไม่โดนบีบหรือมีแถบดำใหญ่) แต่ไม่สูงเกินจอ
-  <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', cls].join(' ')} controls playsinline preload="metadata" aria-label={title}>
+  <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', cls].join(' ')} controls playsinline preload="metadata" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
     <source src={`/video/${video.key}`} type="video/mp4" />
     เบราว์เซอร์นี้เล่นวิดีโอไม่ได้
   </video>

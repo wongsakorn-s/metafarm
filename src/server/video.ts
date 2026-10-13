@@ -3,8 +3,8 @@
 import { and, eq, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { auditLogs, hiveMedia, settings } from '../db/schema.ts';
-import { checkVideo, hasLocation, MAX_VIDEO_BYTES, VIDEO_MIME, type Reader } from '../lib/video.ts';
-import { parseYoutubeId } from '../lib/media.ts';
+import { checkVideo, hasLocation, MAX_POSTER_BYTES, MAX_VIDEO_BYTES, posterKeyOf, VIDEO_MIME, type Reader } from '../lib/video.ts';
+import { detectImageType, parseYoutubeId, stripMetadata } from '../lib/media.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 
@@ -59,6 +59,18 @@ export async function receiveVideo(bucket: R2Bucket, request: Request, target: s
   return { ok: true, key, bytes: head.size, durationSec: check.durationSec };
 }
 
+/** ภาพปกวิดีโอ (JPEG ที่เบราว์เซอร์ดึงเฟรมมา) — เก็บคู่กับวิดีโอที่ผูกไว้แล้วเท่านั้น (`owns` = วิดีโอนี้เป็นของรัง/หน้าแรกที่กำลังแก้) */
+export async function receivePoster(bucket: R2Bucket, request: Request, videoKey: string, owns: boolean): Promise<{ ok: boolean; error?: string }> {
+  if (!owns || !videoKey.endsWith('.mp4')) return { ok: false, error: 'ไม่พบวิดีโอนี้' };
+  const length = Number(request.headers.get('content-length'));
+  if (!Number.isFinite(length) || length <= 0 || length > MAX_POSTER_BYTES) return { ok: false, error: 'ภาพปกใหญ่เกินไป' };
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const type = detectImageType(bytes);
+  if (type?.mime !== 'image/jpeg') return { ok: false, error: 'ภาพปกต้องเป็น JPEG' };
+  await bucket.put(posterKeyOf(videoKey), stripMetadata(bytes), { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=86400' } });
+  return { ok: true };
+}
+
 const audit = (db: Db, user: SessionUser, action: string, entity: string, entityId: number | null, diff: unknown) =>
   db.insert(auditLogs).values({ userId: user.id, action, entity, entityId, diff });
 
@@ -76,7 +88,7 @@ export async function attachHiveVideo(db: Db, bucket: R2Bucket, user: SessionUse
     throw e;
   }
   const stale = old.map((o) => o.key).filter((k): k is string => !!k && k !== key);
-  if (stale.length) await bucket.delete(stale).catch(() => {});
+  if (stale.length) await bucket.delete(stale.flatMap((k) => [k, posterKeyOf(k)])).catch(() => {});
 }
 
 // ---------- วิดีโอแนะนำฟาร์ม (หน้าแรก) ----------
@@ -107,6 +119,7 @@ export async function setHomeVideo(
   const stmts: BatchItem<'sqlite'>[] = [
     upsert(db, 'home.videoKey', key),
     upsert(db, 'home.videoYoutube', youtube),
+    upsert(db, 'home.videoSec', key && 'key' in v && v.durationSec ? String(Math.round(v.durationSec)) : ''),
     audit(db, user, key ? 'settings.homeVideo.upload' : youtube ? 'settings.homeVideo.youtube' : 'settings.homeVideo.remove', 'settings', null, { key: key || null, youtubeId: youtube || null, durationSec: 'key' in v ? (v.durationSec ?? null) : null }),
   ];
   try {
@@ -115,6 +128,6 @@ export async function setHomeVideo(
     if (key) await bucket.delete(key).catch(() => {});
     throw e;
   }
-  if (old && old !== key) await bucket.delete(old).catch(() => {});
+  if (old && old !== key) await bucket.delete([old, posterKeyOf(old)]).catch(() => {});
   return { ok: true };
 }

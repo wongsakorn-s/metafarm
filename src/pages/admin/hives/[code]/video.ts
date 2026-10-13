@@ -3,7 +3,9 @@ import { normalizeHiveCode } from '../../../../lib/hive-code.ts';
 import { jsonResult, sameOrigin } from '../../../../lib/http.ts';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
-import { attachHiveVideo, receiveVideo } from '../../../../server/video.ts';
+import { and, eq } from 'drizzle-orm';
+import { hiveMedia } from '../../../../db/schema.ts';
+import { attachHiveVideo, receivePoster, receiveVideo } from '../../../../server/video.ts';
 
 export const prerender = false;
 
@@ -15,9 +17,16 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   const detail = code ? await getHiveDetail(db, code) : null;
   if (!detail) return jsonResult({ ok: false, message: 'ไม่พบรังนี้' });
 
+  const posterFor = new URL(request.url).searchParams.get('poster');
+  if (posterFor) {
+    const own = await db.select({ id: hiveMedia.id }).from(hiveMedia).where(and(eq(hiveMedia.hiveId, detail.hive.id), eq(hiveMedia.kind, 'video'), eq(hiveMedia.r2Key, posterFor))).limit(1);
+    const p = await receivePoster(getMedia(), request, posterFor, own.length > 0);
+    return jsonResult({ ok: p.ok, message: p.error ?? 'ok' });
+  }
+
   const r = await receiveVideo(getMedia(), request, `hive-${detail.hive.code}`);
   if (!r.ok) return jsonResult({ ok: false, message: r.error });
   await attachHiveVideo(db, getMedia(), locals.user!, detail.hive, r.key, r.durationSec);
   const message = 'อัปโหลดวิดีโอแล้ว';
-  return jsonResult({ ok: true, message, redirect: `/admin/hives/${detail.hive.code}/media?msg=${encodeURIComponent(message)}` });
+  return jsonResult({ ok: true, message, key: r.key, redirect: `/admin/hives/${detail.hive.code}/media?msg=${encodeURIComponent(message)}` });
 };

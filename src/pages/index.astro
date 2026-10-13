@@ -29,6 +29,8 @@ const highlights = [
   { icon: 'queen' as const, title: 'พัฒนาสายพันธุ์ขนเงิน', text: 'ให้เหมาะกับภูมิอากาศของภาคตะวันออกโดยเฉพาะ' },
   { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'จดบันทึกที่มาของนางพญา วันเกิด และกิจกรรมต่าง ๆ ของแต่ละรัง' },
 ];
+const homeSecs = Astro.locals.settings!.homeVideo?.seconds;
+const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `${Math.round(homeSecs / 60)} นาที`) : '';
 ---
 
 <PublicLayout title={site.name} active="home" jsonLd={businessLd(site, Astro.locals.settings!.contact, Astro.url.origin)}>
@@ -117,7 +119,12 @@ const highlights = [
         <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
       </div>
       {/* วิดีโอแนะนำฟาร์ม (เจ้าของอัปโหลดที่ /admin/settings) — แตะเพื่อเล่น ไม่เล่นเอง */}
-      {Astro.locals.settings!.homeVideo && <div class="mt-6"><VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" /></div>}
+      {Astro.locals.settings!.homeVideo && (
+        <div class="mt-6">
+          <h3 class="mb-2 flex items-center gap-2 text-lg font-semibold"><Icon name="video" class="size-5 text-palm-700" />ชมวิดีโอแนะนำฟาร์ม{homeSec && <span class="text-sm font-normal text-muted">({homeSec})</span>}</h3>
+          <VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" />
+        </div>
+      )}
     </div>
     <ul class="grid gap-3" aria-label="จุดเด่น">
       {highlights.map((h) => (

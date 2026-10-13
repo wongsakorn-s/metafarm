@@ -1,7 +1,7 @@
 // เสิร์ฟวิดีโอจาก R2 พร้อม Range (เล่นข้ามช่วง/โหลดทีละส่วนบนมือถือ — Safari/iOS ต้องมี Range ไม่งั้นไม่เล่น)
 
-/** เฉพาะ videos/<target>/<uuid>.mp4 (กันคีย์แปลก ๆ) */
-export const isVideoKey = (key: string) => /^videos\/[A-Za-z0-9_-]{1,40}\/[0-9a-f-]{36}\.mp4$/.test(key);
+/** เฉพาะ videos/<target>/<uuid>.mp4 หรือภาพปก .jpg ชื่อเดียวกัน (กันคีย์แปลก ๆ) */
+export const isVideoKey = (key: string) => /^videos\/[A-Za-z0-9_-]{1,40}\/[0-9a-f-]{36}\.(mp4|jpg)$/.test(key);
 
 /** แปลง "bytes=a-b" / "bytes=a-" / "bytes=-n" เป็นช่วงที่แน่นอน · null = รูปแบบไม่ถูก/อยู่นอกไฟล์ */
 export function parseRange(header: string, size: number): { start: number; end: number } | null {
@@ -26,7 +26,7 @@ export async function serveVideo(bucket: R2Bucket, key: string, request: Request
   const head = await bucket.head(key);
   if (!head) return new Response('Not found', { status: 404 });
   const base: Record<string, string> = {
-    'Content-Type': 'video/mp4',
+    'Content-Type': key.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4',
     'Accept-Ranges': 'bytes',
     // ชื่อไฟล์มี UUID เนื้อไฟล์ไม่เปลี่ยน · ไม่นานเกินไปเพราะวิดีโอที่ถูกถอดต้องหายจากเว็บ
     'Cache-Control': 'public, max-age=86400',

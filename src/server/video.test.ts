@@ -5,7 +5,7 @@ import { getPublicHive, isPublicVideoKey } from './public.ts';
 import { getSettings } from './settings.ts';
 import { parseRange, serveVideo } from './serve-video.ts';
 import { setVideo } from './media.ts';
-import { attachHiveVideo, receiveVideo, setHomeVideo } from './video.ts';
+import { attachHiveVideo, receivePoster, receiveVideo, setHomeVideo } from './video.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -113,5 +113,25 @@ describe('เสิร์ฟแบบ Range', () => {
     expect((await get(undefined, 'HEAD')).headers.get('content-length')).toBe(String(total));
     expect((await serveVideo(t.media, '../etc/passwd', new Request('http://localhost/'))).status).toBe(404);
     await t.media.delete(r.key);
+  });
+});
+
+describe('ภาพปก', () => {
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0, 5, 1, 2, 3, 0xff, 0xd9]);
+  const putPoster = (b: Uint8Array) => new Request('http://localhost/x', { method: 'PUT', body: b as unknown as BodyInit, headers: { 'content-length': String(b.length) } });
+  it('เก็บคู่กับวิดีโอที่ผูกไว้ · เปิดสาธารณะตามวิดีโอ · เปลี่ยนวิดีโอแล้วหายไปด้วย · ไม่ใช่ JPEG/ไม่ใช่ของรังนี้ = ปฏิเสธ', async () => {
+    const r = await receiveVideo(t.media, put(mp4()), 'home');
+    if (!r.ok) throw new Error('upload');
+    await setHomeVideo(t.db, t.media, t.owner, { key: r.key, durationSec: 45.5 });
+    expect((await getSettings(t.db)).homeVideo).toEqual({ key: r.key, seconds: 46 });
+    const poster = r.key.replace(/\.mp4$/, '.jpg');
+    expect(await receivePoster(t.media, putPoster(jpg), r.key, false)).toMatchObject({ ok: false });
+    expect(await receivePoster(t.media, putPoster(new Uint8Array(20).fill(1)), r.key, true)).toMatchObject({ ok: false });
+    expect(await receivePoster(t.media, putPoster(jpg), r.key, true)).toEqual({ ok: true });
+    expect(await isPublicVideoKey(t.db, poster)).toBe(true);
+    expect(await isPublicVideoKey(t.db, 'videos/home/00000000-0000-0000-0000-000000000000.jpg')).toBe(false);
+    expect((await serveVideo(t.media, poster, new Request('http://localhost/'))).headers.get('content-type')).toBe('image/jpeg');
+    await setHomeVideo(t.db, t.media, t.owner, { youtube: '' });
+    expect(await t.media.head(poster)).toBeNull();
   });
 });
