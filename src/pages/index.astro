@@ -84,7 +84,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
       <ul class:list={['mt-4 grid gap-4 sm:grid-cols-2', (products.length + (saleHives.length ? 1 : 0)) >= 3 && 'lg:grid-cols-3']}>
         {saleHives.length > 0 && (
           <li>
-            <a href={hivesHref} class="card-link block overflow-hidden !p-0">
+            <a href={hivesHref} class="card-link flex h-full flex-col overflow-hidden !p-0">
               <img src={saleHives[0]!.coverKey ? `/img/${saleHives[0]!.coverKey}` : placeholder.hive} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
               <div class="p-4">
                 <h3 class="text-lg font-bold">รังสมบูรณ์ชันโรงขนเงิน</h3>
@@ -96,7 +96,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
         )}
         {products.map((p) => (
           <li>
-            <a href={`/products/${p.slug}`} class="card-link block overflow-hidden !p-0">
+            <a href={`/products/${p.slug}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
               <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" width="800" height="450" loading="lazy" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
               <div class="p-4">
                 <h3 class="text-lg font-bold">{p.name}</h3>

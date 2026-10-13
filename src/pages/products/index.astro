@@ -59,7 +59,7 @@ const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
     <ul class="mt-4 grid gap-4 sm:grid-cols-2">
       {products.map((p, i) => (
         <li>
-          <a href={`/products/${p.slug}`} class="card-link overflow-hidden !p-0">
+          <a href={`/products/${p.slug}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
             <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
             <div class="p-4">
               <h3 class="text-lg font-bold">{p.name}</h3>
