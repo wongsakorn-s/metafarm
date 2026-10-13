@@ -60,7 +60,7 @@ users ─< sessions · audit_logs
 | ฟิลด์ | หมายเหตุ |
 |---|---|
 | `hive_id`, `kind` | `passport` (สูงสุด 6 รูป แสดงในสมุดพก + หน้าขาย) · `sale` (สูงสุด 3 รูป เฉพาะหน้าขาย) · `video` (1 คลิป) |
-| `r2_key` หรือ `youtube_id` | รูปเก็บใน R2 ส่วนวิดีโอใช้ YouTube unlisted |
+| `r2_key` หรือ `youtube_id` | รูปเก็บใน R2 · วิดีโอ (`kind='video'`) เป็นไฟล์ MP4 ใน R2 (`r2_key` = `videos/hive-<รหัส>/<uuid>.mp4`) หรือลิงก์ YouTube unlisted (`youtube_id`) |
 | `sort_order`, `alt` | |
 
 ### species · suppliers
@@ -89,7 +89,7 @@ users ─< sessions · audit_logs
 - **sessions**: `user_id`, `token_hash`, `expires_at`
 - **login_attempts**: `key_hash`, `at` (จำกัดการเดารหัส 3 กุญแจ: อีเมล+IP, อีเมล, IP)
 - **once_keys**: `key` (การเปลี่ยนสถานะออเดอร์ที่ต้องเกิดครั้งเดียว)
-- **settings**: `key`, `value` (ช่องทางติดต่อ ราคาอบรม รังรูปหน้าแรก พิกัดฟาร์ม — แก้ที่ `/admin/settings`)
+- **settings**: `key`, `value` (ช่องทางติดต่อ ราคาอบรม รังรูปหน้าแรก พิกัดฟาร์ม วิดีโอแนะนำฟาร์ม `home.videoKey` (ไฟล์ใน R2) / `home.videoYoutube` — แก้ที่ `/admin/settings`)
 - **weather_daily**: `date`, `t_max`, `t_min`, `rain_mm`, `humidity`, `source` (NASA POWER — หน้าผลผลิต)
 - **audit_logs**: `user_id`, `action`, `entity`, `entity_id`, `diff`, `at`
 

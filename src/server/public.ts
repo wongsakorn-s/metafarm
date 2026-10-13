@@ -5,7 +5,7 @@
 // ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
-import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, species } from '../db/schema.ts';
+import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, settings, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
 import { byCode } from './hives.ts';
@@ -21,6 +21,11 @@ export interface PublicEvent {
   /** เฉพาะ type = 'note' ที่เจ้าของฟาร์มติ๊ก "แสดงในสมุดพก" */
   text: string | null;
 }
+
+/** วิดีโอที่แสดงสาธารณะ: ไฟล์ใน R2 (เสิร์ฟผ่าน /video/*) หรือ YouTube */
+export type PublicVideo = { key: string; youtubeId?: undefined } | { youtubeId: string; key?: undefined };
+const publicVideo = (m: { key: string | null; youtubeId: string | null } | undefined): PublicVideo | null =>
+  m?.key ? { key: m.key } : m?.youtubeId ? { youtubeId: m.youtubeId } : null;
 
 export interface PublicHive {
   code: string;
@@ -38,6 +43,7 @@ export interface PublicHive {
   publicNote: string | null;
   updatedAt: string;
   photos: { key: string; alt: string | null }[];
+  video: PublicVideo | null;
   children: { code: string; viaQueen: boolean; viaBrood: boolean }[];
   events: PublicEvent[];
 }
@@ -72,13 +78,19 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
   if (!row) return null;
 
   const target = alias(hives, 'target');
-  const [photos, children, events] = await Promise.all([
+  const [photos, video, children, events] = await Promise.all([
     db
       .select({ key: hiveMedia.r2Key, alt: hiveMedia.alt })
       .from(hiveMedia)
       .where(and(eq(hiveMedia.hiveId, row.id), eq(hiveMedia.kind, 'passport')))
       .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id))
       .limit(6), // สมุดพกแสดงรูปได้สูงสุด 6 (เท่ากับจำนวนที่อัปโหลดได้)
+    db
+      .select({ key: hiveMedia.r2Key, youtubeId: hiveMedia.youtubeId })
+      .from(hiveMedia)
+      .where(and(eq(hiveMedia.hiveId, row.id), eq(hiveMedia.kind, 'video')))
+      .limit(1)
+      .then((r) => r[0]),
     db
       .select({ code: hives.code, viaQueen: sql<boolean>`${hives.queenSourceHiveId} = ${row.id}`, viaBrood: sql<boolean>`${hives.broodSourceHiveId} = ${row.id}` })
       .from(hives)
@@ -113,6 +125,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
     publicNote: row.publicNote,
     updatedAt: row.updatedAt,
     photos: photos.filter((p): p is { key: string; alt: string | null } => !!p.key),
+    video: publicVideo(video),
     children,
     events: events as PublicEvent[],
   };
@@ -189,7 +202,7 @@ export interface SaleHiveCard {
 export interface SaleHiveDetail extends SaleHiveCard {
   salePhotos: { key: string; alt: string | null }[];
   passportPhotos: { key: string; alt: string | null }[];
-  videoId: string | null;
+  video: PublicVideo | null;
   queenSource: string | null;
   broodSource: string | null;
   publicNote: string | null;
@@ -273,7 +286,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
     coverKey: (salePhotos[0] ?? passportPhotos[0])?.key ?? null,
     salePhotos,
     passportPhotos,
-    videoId: media.find((m) => m.kind === 'video')?.youtubeId ?? null,
+    video: publicVideo(media.find((m) => m.kind === 'video')),
     queenSource: row.queenSource,
     broodSource: row.broodSource,
     publicNote: row.publicNote,
@@ -389,6 +402,14 @@ export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
     .where(and(eq(hiveMedia.r2Key, key), or(eq(hiveMedia.kind, 'passport'), and(eq(hiveMedia.kind, 'sale'), eq(hives.forSale, true), eq(hives.status, 'active')))))
     .limit(1);
   return row.length > 0;
+}
+
+/** วิดีโอไฟล์ที่เปิดสาธารณะได้: วิดีโอของรัง (แสดงในสมุดพก) หรือวิดีโอแนะนำฟาร์มที่ตั้งไว้ในหน้าแรก */
+export async function isPublicVideoKey(db: Db, key: string): Promise<boolean> {
+  const hive = await db.select({ one: sql<number>`1` }).from(hiveMedia).where(and(eq(hiveMedia.r2Key, key), eq(hiveMedia.kind, 'video'))).limit(1);
+  if (hive.length > 0) return true;
+  const home = await db.select({ one: sql<number>`1` }).from(settings).where(and(eq(settings.key, 'home.videoKey'), eq(settings.value, key))).limit(1);
+  return home.length > 0;
 }
 
 // ---------- ล็อตน้ำผึ้ง (หน้า /lot/[code] จาก QR บนขวด) ----------

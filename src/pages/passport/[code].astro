@@ -1,6 +1,7 @@
 ---
 import { isHiveCode, normalizeHiveCode } from '../../lib/hive-code.ts';
 import Icon from '../../components/Icon.astro';
+import VideoPlayer from '../../components/VideoPlayer.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicHive } from '../../server/public.ts';
@@ -80,6 +81,7 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
               <p class="hint">ยังไม่มีรูปของรังนี้</p>
             </div>
           )}
+          {hive.video && (<div class="mt-4"><h2 class="mb-2 font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> วิดีโอรัง</h2><VideoPlayer video={hive.video} title={`วิดีโอรัง ${hive.code}`} /></div>)}
         </section>
 
         <div class="grid gap-5">

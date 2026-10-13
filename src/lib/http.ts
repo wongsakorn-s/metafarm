@@ -15,3 +15,9 @@ export function wantsJson(request: Request): boolean {
 export function jsonResult(body: { ok: boolean; message: string; [k: string]: unknown }): Response {
   return new Response(JSON.stringify(body), { status: body.ok ? 200 : 422, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
+
+/** คำขอเขียนที่ไม่ใช่ฟอร์ม (เช่น PUT ไฟล์ใหญ่) ไม่ผ่านการตรวจ Origin ของ Astro — ตรวจเองว่ามาจากหน้าเว็บเราเอง (กัน CSRF) */
+export function sameOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  return !!origin && origin === new URL(request.url).origin;
+}

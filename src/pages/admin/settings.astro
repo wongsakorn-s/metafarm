@@ -5,6 +5,8 @@ import SampleBadge from '../../components/SampleBadge.astro';
 import { getDb, getMedia } from '../../server/db.ts';
 import { getSettings, saveContact, saveCourse, saveHero, saveLocation, savePayment, settingsVersion } from '../../server/settings.ts';
 import { getHeroPhoto } from '../../server/public.ts';
+import { setHomeVideo } from '../../server/video.ts';
+import VideoUploader from '../../components/VideoUploader.astro';
 import { imageWidth, MIN_HERO_WIDTH, thumbUrl } from '../../lib/media.ts';
 import { listTraining } from '../../lib/content.ts';
 import { contactSchema, courseSchema, effectiveCourse, heroSchema, lineChatUrl, locationSchema, paymentSchema, telHref } from '../../lib/settings.ts';
@@ -31,6 +33,7 @@ let errors: FieldErrors = {};
 let errorWhere = '';
 let values: Record<string, string> = {};
 const saved = Astro.url.searchParams.get('saved');
+const notice = Astro.url.searchParams.get('msg');
 /** มีคนบันทึกการตั้งค่าไปก่อน (เวอร์ชันไม่ตรง) — ค่าที่กรอกยังอยู่ในฟอร์ม กดบันทึกอีกครั้งเพื่อยืนยัน */
 let conflict = false;
 
@@ -61,6 +64,12 @@ if (Astro.request.method === 'POST') {
     else if (p.data.heroHive && (await heroTooSmall(p.data.heroHive))) { errors = { heroHive: heroSmallMsg }; errorWhere = 'hero'; }
     else if (await saveHero(db, user, p.data.heroHive, version)) return Astro.redirect('/admin/settings?saved=hero#hero', 303);
     else { conflict = true; errorWhere = 'hero'; }
+  } else if (intent === 'homeVideo') {
+    // ลิงก์ YouTube แทนไฟล์ · ว่าง = เอาวิดีโอออก (ไฟล์ที่อัปโหลดจะส่งผ่าน PUT /admin/settings/video แยกต่างหาก)
+    const r = await setHomeVideo(db, getMedia(), user, { youtube: String(form.get('youtube') ?? '') });
+    if (r.ok) return Astro.redirect(`/admin/settings?msg=${encodeURIComponent(String(form.get('youtube') ?? '').trim() ? 'ตั้งวิดีโอ YouTube หน้าแรกแล้ว' : 'เอาวิดีโอหน้าแรกออกแล้ว')}#home-video`, 303);
+    errors = { youtube: r.error };
+    errorWhere = 'homeVideo';
   } else if (intent === 'location') {
     const p = locationSchema.safeParse(values);
     if (p.success && (await saveLocation(db, user, p.data, version))) return Astro.redirect('/admin/settings?saved=location#location', 303);
@@ -87,6 +96,7 @@ const messengerMissing = !!c.facebookUrl && !messenger;
 
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ตั้งค่า" active="settings">
   {conflict && <p role="alert" class="mb-4 rounded-xl border-2 border-honey-400 bg-honey-50 p-3 font-medium">ยังไม่ได้บันทึก — มีคนบันทึกการตั้งค่าไปก่อนระหว่างที่คุณแก้อยู่ ตรวจค่าในฟอร์มอีกครั้ง แล้วกดบันทึกเพื่อยืนยัน</p>}
+  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — ลูกค้าบางคนอาจเห็นค่าเก่าอีกไม่เกิน 5 นาที</p>}
 
   <div class="grid gap-6 lg:grid-cols-2 lg:items-start">
@@ -146,6 +156,33 @@ const messengerMissing = !!c.facebookUrl && !messenger;
       <button class="btn-primary" type="submit">บันทึกรูปหน้าแรก</button>
     </div>
   </form>
+
+  <section class="card space-y-3 scroll-mt-20" id="home-video" aria-labelledby="home-video-h">
+    <h2 id="home-video-h" class="text-lg font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> วิดีโอแนะนำฟาร์ม (หน้าแรก)</h2>
+    <p class="hint">แสดงใต้ "เรื่องราวของฟาร์ม" บนหน้าแรก · ลูกค้าแตะเพื่อเล่น (ไม่เล่นเอง) · อัปโหลดอันใหม่จะแทนอันเดิม</p>
+    {settings.homeVideo?.key && <video class="block w-full max-h-[60svh] rounded-2xl bg-black" controls playsinline preload="metadata" src={`/video/${settings.homeVideo.key}`} aria-label="วิดีโอแนะนำฟาร์ม"></video>}
+    {settings.homeVideo?.youtubeId && <p>▶ <a class="text-palm-700 underline" href={`https://www.youtube.com/watch?v=${settings.homeVideo.youtubeId}`} target="_blank" rel="noopener noreferrer">https://www.youtube.com/watch?v={settings.homeVideo.youtubeId}</a></p>}
+    {!settings.homeVideo && <p class="text-muted">ยังไม่มีวิดีโอ — หน้าแรกจะไม่แสดงส่วนวิดีโอ</p>}
+    <VideoUploader id="home-video-file" action="/admin/settings/video" />
+    <details open={!!settings.homeVideo?.youtubeId || errorWhere === 'homeVideo'}>
+      <summary class="min-h-11 cursor-pointer py-2 font-medium">หรือวางลิงก์ YouTube แทน</summary>
+      <form method="post" class="mt-2 space-y-3">
+        <input type="hidden" name="intent" value="homeVideo" />
+        <div>
+          <label class="label" for="home-youtube">ลิงก์ YouTube</label>
+          <input class="field" id="home-youtube" name="youtube" inputmode="url" placeholder="https://youtu.be/…" value={errorWhere === 'homeVideo' ? (values.youtube ?? '') : settings.homeVideo?.youtubeId ? `https://www.youtube.com/watch?v=${settings.homeVideo.youtubeId}` : ''} />
+          {err('youtube', 'homeVideo') && <p class="error">{err('youtube', 'homeVideo')}</p>}
+        </div>
+        <button class="btn-primary w-full" type="submit">บันทึกลิงก์ YouTube</button>
+      </form>
+    </details>
+    {settings.homeVideo && (
+      <form method="post" data-confirm="เอาวิดีโอหน้าแรกออกหรือไม่?">
+        <input type="hidden" name="intent" value="homeVideo" /><input type="hidden" name="youtube" value="" />
+        <button class="btn-ghost w-full" type="submit">เอาวิดีโอออกจากหน้าแรก</button>
+      </form>
+    )}
+  </section>
 
   <form method="post" class="card space-y-3 scroll-mt-20" id="payment">
     <input type="hidden" name="intent" value="payment" /><input type="hidden" name="version" value={version} />

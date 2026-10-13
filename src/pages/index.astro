@@ -2,6 +2,7 @@
 import ContactButtons from '../components/ContactButtons.astro';
 import FarmStats from '../components/FarmStats.astro';
 import Icon from '../components/Icon.astro';
+import VideoPlayer from '../components/VideoPlayer.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
@@ -115,6 +116,8 @@ const highlights = [
         <p>แต่ภูมิอากาศที่ จ.ระยอง ค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
         <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
       </div>
+      {/* วิดีโอแนะนำฟาร์ม (เจ้าของอัปโหลดที่ /admin/settings) — แตะเพื่อเล่น ไม่เล่นเอง */}
+      {Astro.locals.settings!.homeVideo && <div class="mt-6"><VideoPlayer video={Astro.locals.settings!.homeVideo} title="วิดีโอแนะนำฟาร์ม" /></div>}
     </div>
     <ul class="grid gap-3" aria-label="จุดเด่น">
       {highlights.map((h) => (

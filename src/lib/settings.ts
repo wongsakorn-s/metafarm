@@ -30,6 +30,8 @@ export interface SiteSettings {
   paymentInfo: string;
   /** รังที่ใช้รูปสมุดพกเป็นรูปหัวหน้าแรก (ว่าง = ใช้โลโก้) — เจ้าของเลือกเองในหลังบ้าน */
   heroHive: string;
+  /** วิดีโอแนะนำฟาร์มบนหน้าแรก: ไฟล์ใน R2 (/video/*) หรือ YouTube · null = ยังไม่มี */
+  homeVideo: { key: string; youtubeId?: undefined } | { youtubeId: string; key?: undefined } | null;
 }
 
 /** ค่าเริ่มต้น (ตัวอย่าง) ใช้จนกว่าเจ้าของฟาร์มจะบันทึกค่าจริง */
@@ -73,6 +75,7 @@ export function parseSettingRows(rows: { key: string; value: string }[]): SiteSe
     courses,
     paymentInfo: map.get('payment.info') ?? '',
     heroHive: map.get('site.heroHive') ?? '',
+    homeVideo: map.get('home.videoKey') ? { key: map.get('home.videoKey')! } : map.get('home.videoYoutube') ? { youtubeId: map.get('home.videoYoutube')! } : null,
     farm: (() => {
       const lat = Number(map.get('farm.lat'));
       const lng = Number(map.get('farm.lng'));

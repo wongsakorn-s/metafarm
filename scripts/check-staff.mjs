@@ -68,11 +68,11 @@ for (const p of pages) {
 const denied = [
   ['GET', '/admin/orders'], ['GET', '/admin/orders/new'], ['GET', '/admin/customers'], ['GET', '/admin/products'], ['GET', '/admin/reports'],
   ['GET', '/admin/reports/export/customers.csv'], ['GET', '/admin/reports/export/orders.csv'], ['GET', '/admin/settings'], ['GET', '/admin/readiness'], ['GET', '/admin/users'],
-  ['POST', '/admin/products'], ['POST', '/admin/orders/new'], ['POST', '/admin/settings'], ['POST', '/admin/users'],
+  ['POST', '/admin/products'], ['POST', '/admin/orders/new'], ['POST', '/admin/settings'], ['POST', '/admin/users'], ['PUT', '/admin/settings/video'],
   ...(orders[0] ? [['GET', `/admin/orders/${orders[0].code}`], ['POST', `/admin/orders/${orders[0].code}`]] : []),
 ];
 for (const [m, p] of denied) {
-  const r = await get(p, m === 'POST' ? { method: 'POST', body: new URLSearchParams({ intent: 'x' }) } : {});
+  const r = await get(p, m === 'POST' ? { method: 'POST', body: new URLSearchParams({ intent: 'x' }) } : m === 'PUT' ? { method: 'PUT', body: new Uint8Array(16), headers: { 'content-type': 'video/mp4' } } : {});
   const t = await r.text();
   scanned++;
   if (r.status !== 403) report(`${m} ${p}`, `สถานะ ${r.status} (คาด 403)`);

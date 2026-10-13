@@ -27,7 +27,7 @@ let exitCode = 0;
 try {
   // 1) รายชื่อรูปทั้งหมดที่ฐานข้อมูลอ้างถึง
   const out = wrangler('d1', 'execute', 'metafarm-db', where, '--json', '--command',
-    "SELECT r2_key AS k FROM hive_media WHERE r2_key IS NOT NULL UNION SELECT image_key FROM products WHERE image_key IS NOT NULL UNION SELECT r2_key FROM gallery_photos");
+    "SELECT r2_key AS k FROM hive_media WHERE r2_key IS NOT NULL UNION SELECT image_key FROM products WHERE image_key IS NOT NULL UNION SELECT r2_key FROM gallery_photos UNION SELECT value FROM settings WHERE key = 'home.videoKey' AND value != ''");
   const keys = JSON.parse(out)[0].results.map((r) => r.k).filter((k) => typeof k === 'string' && !k.includes('..'));
 
   // 2) รายชื่อที่สำรองแล้ว (ครั้งแรกยังไม่มี)

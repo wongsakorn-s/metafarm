@@ -106,17 +106,20 @@ export async function deleteMedia(db: Db, bucket: R2Bucket, user: SessionUser, h
   return { ok: true };
 }
 
-/** ตั้ง/เปลี่ยน/ลบวิดีโอ YouTube (มีได้ 1 คลิป) — ส่งค่าว่างเพื่อลบ */
-export async function setVideo(db: Db, user: SessionUser, hive: Hive, urlOrId: string): Promise<{ ok: boolean; error?: string }> {
+/** ตั้ง/เปลี่ยน/ลบวิดีโอ YouTube (มีได้ 1 คลิป) — ส่งค่าว่างเพื่อลบ · ไฟล์วิดีโอเดิมใน R2 (ถ้ามี) ถูกลบด้วย */
+export async function setVideo(db: Db, bucket: R2Bucket, user: SessionUser, hive: Hive, urlOrId: string): Promise<{ ok: boolean; error?: string }> {
   const input = urlOrId.trim();
   const id = input ? parseYoutubeId(input) : null;
   if (input && !id) return { ok: false, error: 'ลิงก์ YouTube ไม่ถูกต้อง (วางลิงก์ youtube.com/watch?v=… หรือ youtu.be/…)' };
+  const old = await db.select({ key: hiveMedia.r2Key }).from(hiveMedia).where(and(eq(hiveMedia.hiveId, hive.id), eq(hiveMedia.kind, 'video')));
   const stmts: BatchItem<'sqlite'>[] = [
     db.delete(hiveMedia).where(and(eq(hiveMedia.hiveId, hive.id), eq(hiveMedia.kind, 'video'))),
     ...(id ? [db.insert(hiveMedia).values({ hiveId: hive.id, kind: 'video' as const, youtubeId: id, sortOrder: 0 })] : []),
     audit(db, user, id ? 'media.video.set' : 'media.video.remove', hive.id, { youtubeId: id }),
   ];
   await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]);
+  const stale = old.map((o) => o.key).filter((k): k is string => !!k);
+  if (stale.length) await bucket.delete(stale).catch(() => {});
   return { ok: true };
 }
 
