@@ -61,9 +61,10 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
         <section aria-label="รูปรัง" class="md:sticky md:top-24" data-zoom-group>
           {hive.photos.length ? (
             <>
-              <a href={`/img/${hive.photos[0]!.key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="block">
+              <a href={`/img/${hive.photos[0]!.key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="relative block">
                 <img src={`/img/${hive.photos[0]!.key}`} srcset={photoSrcset(`/img/${hive.photos[0]!.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="900" height="1200"
                   alt={hive.photos[0]!.alt ?? `รูปรัง ${hive.code}`} loading="eager" fetchpriority="high" class="aspect-[4/3] w-full rounded-3xl bg-palm-50 object-cover shadow-card md:aspect-[4/5]" />
+                <span aria-hidden="true" class="pointer-events-none absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-black/55 text-white"><Icon name="search" class="size-5" /></span>
               </a>
               {hive.photos.length > 1 && (
                 <ul class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">

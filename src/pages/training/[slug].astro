@@ -45,7 +45,7 @@ const jsonLd = course
       <dt class="text-muted">ค่าอบรม</dt><dd class="font-semibold text-palm-700">{formatPrice(eff.priceThb)} {eff.priceIsSample && <SampleBadge />}</dd>
       <dt class="text-muted">รอบอบรม</dt><dd>แจ้งทางแชตหรือโทรศัพท์</dd>
     </dl>
-    <ContactButtons class="mt-4" intent="training" message={`สนใจหลักสูตร${fm.title}`} phoneHint={` บอกชื่อหลักสูตร "${fm.title}"`} />
+    <ContactButtons class="mt-4" intent="training" message={`สนใจหลักสูตร${fm.title}`} phoneHint={`โทรแล้วบอกชื่อหลักสูตร "${fm.title}"`} />
 
     <Article headings={course.getHeadings()} class="mt-8"><course.Content /></Article>
   </PublicLayout>
