@@ -85,8 +85,11 @@ const categoryRows = (db: Db, category: GalleryCategory): Promise<OrderRow[]> =>
 async function applyOrder(db: Db, user: SessionUser, category: GalleryCategory, rows: OrderRow[], order: number[], action: string, diff: unknown) {
   const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
   const byId = new Map(rows.map((r) => [r.id, r.sortOrder]));
-  const changed = order.map((photoId, i) => ({ photoId, n: order.length - i })).filter((x) => byId.get(x.photoId) !== x.n);
-  if (!changed.length) return;
+  const target = order.map((photoId, i) => ({ photoId, n: order.length - i }));
+  if (target.every((x) => byId.get(x.photoId) === x.n)) return; // ลำดับเดิมอยู่แล้ว (ไม่เขียน/ไม่ลง audit)
+  // เขียนเลขของ "ทุกรูป" ในหมวดเสมอ (ไม่ข้ามรูปที่เลขตรงกับที่อ่านไว้): อีกเครื่องอาจเปลี่ยนเลขไปแล้วระหว่างนี้
+  // ชุดคำสั่งทำงานเป็นหนึ่งเดียว ผลสุดท้ายจึงเป็นลำดับเต็มของเครื่องที่ทำทีหลัง ไม่มีเลขซ้ำ
+  const changed = target;
   const stmts = [
     ...changed.map((x) => db.update(galleryPhotos).set({ sortOrder: x.n, updatedAt: now }).where(eq(galleryPhotos.id, x.photoId))),
     audit(db, user, action, null, { category, ...(diff as object) }),

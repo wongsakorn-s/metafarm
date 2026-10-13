@@ -160,10 +160,10 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     )}
 
     <div>
-      <label class="label" for="pub">ข้อความในสมุดพก (แสดงสาธารณะ)</label>
-      <input class="field" id="pub" name="publicNote" maxlength="500" value={v('publicNote')} />
+      <label class="label" for="pub">ข้อความเพิ่มเติมของรัง (แสดงสาธารณะ)</label>
+      <textarea class="field" id="pub" name="publicNote" rows="3" maxlength="500">{v('publicNote')}</textarea>
       {err('publicNote') && <p class="error">{err('publicNote')}</p>}
-      <p class="hint">ลูกค้าเห็นข้อความนี้</p>
+      <p class="hint">ลูกค้าเห็นข้อความนี้ใต้ราคาในหน้ารังที่ขาย และในสมุดพกของรัง (เช่น ชนิดรัง ขนาด เงื่อนไขการรับ-ส่ง)</p>
     </div>
 
     <div class="lg:col-span-2">

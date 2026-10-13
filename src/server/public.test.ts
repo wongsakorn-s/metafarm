@@ -1,6 +1,6 @@
 // รังตัวอย่างในหน้าสมุดพก: สุ่มเฉพาะรังที่รูปและข้อมูลครบ · รังละรูปเดียว (รูปถ่ายใหม่ก่อนรูปเล็กจาก Excel)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getSampleHives } from './public.ts';
+import { getPublicHive, getSaleHive, getSampleHives } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -43,5 +43,19 @@ describe('getSampleHives', () => {
     const firsts = new Set<string>();
     for (let i = 0; i < 30; i++) firsts.add((await getSampleHives(t.db))[0]!.code);
     expect(firsts).toEqual(new Set(['A1', 'A2']));
+  });
+});
+
+describe('จำนวนรูปสูงสุดบนหน้าสาธารณะ (เจ้าของขอ 2026-10-13)', () => {
+  it('สมุดพก 6 รูป · หน้ารังที่ขาย = รูปขาย 3 + รูปสมุดพก 3', async () => {
+    await t.d1.batch([
+      t.d1.prepare(`INSERT INTO hives (id, code, species_id, status, for_sale, sale_price) VALUES (20, 'A20', 1, 'active', 1, 1600)`),
+      ...Array.from({ length: 8 }, (_, i) => t.d1.prepare(`INSERT INTO hive_media (hive_id, kind, r2_key, sort_order) VALUES (20, 'passport', ?, ?)`).bind(`hives/A20/passport-p${i}-0.webp`, i)),
+      ...Array.from({ length: 4 }, (_, i) => t.d1.prepare(`INSERT INTO hive_media (hive_id, kind, r2_key, sort_order) VALUES (20, 'sale', ?, ?)`).bind(`hives/A20/sale-s${i}-0.webp`, i)),
+    ]);
+    expect((await getPublicHive(t.db, 'A20'))!.photos).toHaveLength(6);
+    const sale = (await getSaleHive(t.db, 'A20'))!;
+    expect(sale.salePhotos).toHaveLength(3);
+    expect(sale.passportPhotos).toHaveLength(3);
   });
 });

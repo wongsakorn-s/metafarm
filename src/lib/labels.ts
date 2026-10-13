@@ -16,6 +16,12 @@ export const originLabel = {
   unknown: 'ไม่ทราบที่มา',
 } as const;
 
+/** ชื่อสายพันธุ์บนหน้าสาธารณะ: ตัดคำว่า "ชันโรง" ออก ("ชันโรงขนเงิน" → "ขนเงิน") — เจ้าของขอ 2026-10-13 · หลังบ้านใช้ชื่อเต็ม */
+export const speciesLabel = (name: string) => name.replace(/^ชันโรง\s*/, '') || name;
+
+/** ป้ายวันที่เริ่มต้นของรัง: ซื้อมา = ได้มาเมื่อ · เพาะนางพญาเอง/แยกรัง = แยกขยายรัง · อื่น ๆ = เริ่มรังเมื่อ */
+export const acquiredLabel = (origin: string) => (origin === 'purchased' ? 'ได้มาเมื่อ' : origin === 'queen_bred' || origin === 'split' ? 'แยกขยายรัง' : 'เริ่มรังเมื่อ');
+
 export const boxLabel = { teak_2room: 'รังไม้สัก 2 ห้อง', log: 'ขอนไม้', other: 'อื่น ๆ', unknown: '???' } as const;
 
 export const eventLabel = {

@@ -78,7 +78,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
       .from(hiveMedia)
       .where(and(eq(hiveMedia.hiveId, row.id), eq(hiveMedia.kind, 'passport')))
       .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id))
-      .limit(4),
+      .limit(6), // สมุดพกแสดงรูปได้สูงสุด 6 (เท่ากับจำนวนที่อัปโหลดได้)
     db
       .select({ code: hives.code, viaQueen: sql<boolean>`${hives.queenSourceHiveId} = ${row.id}`, viaBrood: sql<boolean>`${hives.broodSourceHiveId} = ${row.id}` })
       .from(hives)
@@ -259,7 +259,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
     .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id));
   const photos = (kind: string) => media.filter((m) => m.kind === kind && m.key).map((m) => ({ key: m.key!, alt: m.alt }));
   const salePhotos = photos('sale').slice(0, 3);
-  const passportPhotos = photos('passport').slice(0, 2);
+  const passportPhotos = photos('passport').slice(0, 3); // รูปขาย 3 + รูปสมุดพก 3 = สูงสุด 6 รูปในหน้ารังที่ขาย
 
   return {
     code: row.code,
