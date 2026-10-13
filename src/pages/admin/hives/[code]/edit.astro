@@ -132,7 +132,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <div>
         <label class="label" for="box">กล่องรัง</label>
         <select class="field" id="box" name="boxType" required>
-          {(['teak_2room', 'log', 'other', 'unknown'] as const).map((b) => <option value={b} selected={v('boxType') === b}>{boxLabel[b]}</option>)}
+          {(['metafarm', 'teak_2room', 'log', 'other', 'unknown'] as const).map((b) => <option value={b} selected={v('boxType') === b}>{boxLabel[b]}</option>)}
         </select>
       </div>
     </div>

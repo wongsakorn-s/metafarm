@@ -123,44 +123,6 @@ export async function setVideo(db: Db, bucket: R2Bucket, user: SessionUser, hive
   if (stale.length) await bucket.delete(stale.flatMap((k) => [k, posterKeyOf(k)])).catch(() => {});
   return { ok: true };
 }
-
-/** ตั้ง/เปลี่ยนรูปสินค้า (1 รูปต่อสินค้า) — ตรวจชนิดจากไบต์จริงและขนาดเหมือนรูปรัง รูปเก่าถูกลบทิ้ง */
-export async function setProductImage(db: Db, bucket: R2Bucket, user: SessionUser, productId: number, file: File): Promise<{ ok: boolean; error?: string }> {
-  const p = await db.query.products.findFirst({ where: eq(products.id, productId), columns: { id: true, slug: true, imageKey: true } });
-  if (!p) return { ok: false, error: 'ไม่พบสินค้านี้' };
-  if (file.size === 0) return { ok: false, error: 'ไฟล์ว่าง' };
-  if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: `ไฟล์ใหญ่เกิน ${MAX_UPLOAD_BYTES / 1024 / 1024} MB` };
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const type = detectImageType(bytes);
-  if (!type) return { ok: false, error: 'ไม่ใช่รูป JPEG/PNG/WebP' };
-
-  const key = `products/${p.slug}/${crypto.randomUUID()}.${type.ext}`;
-  await bucket.put(key, stripMetadata(bytes), { httpMetadata: { contentType: type.mime } });
-  try {
-    await db.batch([
-      db.update(products).set({ imageKey: key }).where(eq(products.id, p.id)),
-      db.insert(auditLogs).values({ userId: user.id, action: 'product.image.set', entity: 'product', entityId: p.id, diff: { key } }),
-    ]);
-  } catch (e) {
-    await bucket.delete(key).catch(() => {});
-    throw e;
-  }
-  if (p.imageKey) await bucket.delete(p.imageKey).catch(() => {});
-  return { ok: true };
-}
-
-export async function removeProductImage(db: Db, bucket: R2Bucket, user: SessionUser, productId: number): Promise<{ ok: boolean; error?: string }> {
-  const p = await db.query.products.findFirst({ where: eq(products.id, productId), columns: { id: true, imageKey: true } });
-  if (!p) return { ok: false, error: 'ไม่พบสินค้านี้' };
-  if (!p.imageKey) return { ok: true };
-  await db.batch([
-    db.update(products).set({ imageKey: null }).where(eq(products.id, p.id)),
-    db.insert(auditLogs).values({ userId: user.id, action: 'product.image.remove', entity: 'product', entityId: p.id, diff: { key: p.imageKey } }),
-  ]);
-  await bucket.delete(p.imageKey).catch(() => {});
-  return { ok: true };
-}
-
 /** สรุปความพร้อมของรังที่ตั้งขาย (ใช้เตือนในหน้ารัง) */
 export function saleReadiness(media: MediaRow[]) {
   const n = (k: string) => media.filter((m) => m.kind === k).length;

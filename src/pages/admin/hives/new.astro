@@ -80,7 +80,7 @@ const err = (k: string) => errors[k];
       <div>
         <label class="label" for="box">กล่องรัง</label>
         <select class="field" id="box" name="boxType">
-          {(['teak_2room', 'log', 'other'] as const).map((b) => <option value={b} selected={(v('boxType') || 'teak_2room') === b}>{boxLabel[b]}</option>)}
+          {(['metafarm', 'teak_2room', 'log', 'other'] as const).map((b) => <option value={b} selected={(v('boxType') || 'metafarm') === b}>{boxLabel[b]}</option>)}
         </select>
       </div>
       <div><label class="label" for="place">สถานที่ซื้อ (ถ้าซื้อมา)</label><input class="field" id="place" name="originPlace" maxlength="100" value={v('originPlace')} /></div>

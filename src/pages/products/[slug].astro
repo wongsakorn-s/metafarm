@@ -9,6 +9,7 @@ import { getPublicProducts } from '../../server/public.ts';
 import { formatPrice, orderMessage, pricePer100ml, SHIPPING_NOTE, stockLabel, variantName } from '../../lib/products.ts';
 import { site } from '../../config/site.ts';
 import { placeholder } from '../../lib/placeholders.ts';
+import { photoSrcset, thumbUrl } from '../../lib/media.ts';
 import NotFound from '../../components/NotFound.astro';
 import { breadcrumbLd, productLd } from '../../lib/seo.ts';
 
@@ -43,11 +44,27 @@ const jsonLd = product
   <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
     <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
-      {product.imageKey ? (
-        <a href={image} data-zoom data-caption={product.name} aria-label={`ดูรูปสินค้า ${product.name} ขยาย`} class="block"><img src={image} alt={product.name} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" /></a>
-      ) : (
-        <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
-      )}
+      <div data-zoom-group>
+        {product.photos.length ? (
+          <>
+            <a href={`/img/${product.photos[0]!.key}`} data-zoom data-caption={product.name} aria-label={`ดูรูปสินค้า ${product.name} ขยาย`} class="relative block">
+              <img src={`/img/${product.photos[0]!.key}`} srcset={photoSrcset(`/img/${product.photos[0]!.key}`)} sizes="(min-width: 768px) 45vw, 100vw" alt={product.name} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+              <span aria-hidden="true" class="pointer-events-none absolute bottom-2 right-2 grid size-9 place-items-center rounded-full bg-black/55 text-white"><Icon name="search" class="size-5" /></span>
+            </a>
+            {product.photos.length > 1 && (
+              <ul class="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {product.photos.slice(1).map((ph, i) => (
+                  <li><a href={`/img/${ph.key}`} data-zoom data-caption={product.name} class="block overflow-hidden rounded-xl" aria-label={`ดูรูปสินค้า ${product.name} รูปที่ ${i + 2} ขยาย`}>
+                    <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-full bg-palm-50 object-cover" />
+                  </a></li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+        )}
+      </div>
       <section>
         <h1 class="text-3xl font-bold">{product.name}</h1>
         {product.description && <p class="mt-2 text-lg text-muted">{product.description}</p>}

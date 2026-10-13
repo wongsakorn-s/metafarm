@@ -7,7 +7,7 @@ import { getPlatformProxy } from 'wrangler';
 const PRODUCTS = [
   {
     slug: 'hive-box',
-    name: 'รังเปล่า (รังไม้สัก 2 ห้อง)',
+    name: 'รัง MetaFarm (รังเปล่า)',
     category: 'hive_box',
     sortOrder: 20,
     description:
@@ -16,7 +16,7 @@ const PRODUCTS = [
   },
   {
     slug: 'stingless-honey',
-    name: 'น้ำผึ้งชันโรงขนเงิน ปี 2569',
+    name: 'น้ำผึ้งชันโรงขนเงิน MetaFarm',
     category: 'honey',
     sortOrder: 30,
     description: 'น้ำผึ้งชันโรงขนเงินจากสวนปาล์มของ MetaFarm จ.ระยอง รสเปรี้ยวอมหวานแบบน้ำผึ้งชันโรง',

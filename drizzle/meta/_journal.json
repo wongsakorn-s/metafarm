@@ -120,6 +120,13 @@
       "when": 1791626902862,
       "tag": "0016_gallery_photos",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1791896853095,
+      "tag": "0017_product_photos",
+      "breakpoints": true
     }
   ]
 }

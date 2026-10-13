@@ -19,7 +19,7 @@ const timestamps = {
 
 export const HIVE_ORIGINS = ['purchased', 'queen_bred', 'split', 'natural', 'unknown'] as const;
 export const HIVE_STATUSES = ['active', 'sold', 'collapsed', 'unknown'] as const;
-export const BOX_TYPES = ['teak_2room', 'log', 'other', 'unknown'] as const;
+export const BOX_TYPES = ['metafarm', 'teak_2room', 'log', 'other', 'unknown'] as const;
 export const DATE_PRECISIONS = ['day', 'month', 'year'] as const;
 export const EVENT_TYPES = [
   'honey_harvest',
@@ -451,3 +451,21 @@ export const galleryPhotos = sqliteTable(
   },
   (t) => [uniqueIndex('gallery_photos_key_uq').on(t.r2Key), index('gallery_photos_cat_idx').on(t.category, t.sortOrder)],
 );
+
+/** รูปสินค้า (หลายรูปต่อสินค้า) — รูปแรก (sort_order มากสุด) ซิงก์ไปที่ products.image_key เสมอ เพื่อใช้เป็นรูปปกในการ์ด/รายการ */
+export const productPhotos = sqliteTable(
+  'product_photos',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id),
+    r2Key: text('r2_key').notNull(),
+    /** มากก่อน = แสดงก่อน (รูปใหม่ได้ค่ามากสุดของสินค้า) */
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdBy: integer('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('product_photos_key_uq').on(t.r2Key), index('product_photos_product_idx').on(t.productId, t.sortOrder)],
+);
+

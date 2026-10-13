@@ -4,7 +4,9 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import SalesTabs from '../../components/SalesTabs.astro';
 import { getDb } from '../../server/db.ts';
 import { getMedia } from '../../server/db.ts';
-import { removeProductImage, setProductImage } from '../../server/media.ts';
+import { deleteProductPhoto, listProductPhotos, moveProductPhoto, reorderProductPhotos, uploadProductPhotos } from '../../server/product-photos.ts';
+import { productPhotoLimit } from '../../lib/product-photos.ts';
+import { MAX_FILES_PER_REQUEST, thumbUrl, uploadSummary } from '../../lib/media.ts';
 import { placeholder } from '../../lib/placeholders.ts';
 import { addVariant, listProductsAdmin, setProductPublished, setVariantHidden, updateProductDescription, updateVariant } from '../../server/products.ts';
 import { categoryLabel, formatPrice, variantName } from '../../lib/products.ts';
@@ -74,26 +76,45 @@ if (Astro.request.method === 'POST') {
       if (r.ok) return Astro.redirect('/admin/products?saved=publish', 303);
       error = r.error;
     }
-  } else if (intent === 'image') {
-    const file = form.get('file');
-    if (!(file instanceof File) || file.size === 0) error = 'ยังไม่ได้เลือกรูป';
+  } else if (intent === 'photo_upload') {
+    const productId = Number(form.get('productId'));
+    const files = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
+    const back = (msg: string) => `/admin/products?${new URLSearchParams({ msg })}#p-${productId}`;
+    if (files.length === 0) error = 'ยังไม่ได้เลือกรูป';
     else {
-      const r = await setProductImage(db, getMedia(), user, Number(form.get('productId')), file);
-      if (r.ok) {
-        if (wantsJson(Astro.request)) return jsonResult({ ok: true, message: 'เปลี่ยนรูปสินค้าแล้ว', redirect: '/admin/products?saved=image' });
-        return Astro.redirect('/admin/products?saved=image', 303);
-      }
-      error = r.error ?? 'อัปโหลดไม่สำเร็จ';
+      const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
+      const r = await uploadProductPhotos(db, getMedia(), user, productId, files, { batch: String(form.get('batch') ?? ''), thumbs });
+      const message = r.error ?? uploadSummary(r.added, r.skipped);
+      // สคริปต์อัปโหลด/คิวรอสต้องรู้ผลจริง (422 เมื่อข้ามทุกไฟล์)
+      if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: back(message) });
+      return Astro.redirect(back(message), 303);
     }
     if (wantsJson(Astro.request)) return jsonResult({ ok: false, message: error });
-  } else if (intent === 'image_remove') {
-    const r = await removeProductImage(db, getMedia(), user, Number(form.get('productId')));
-    if (r.ok) return Astro.redirect('/admin/products?saved=image_removed', 303);
+  } else if (intent === 'reorder') {
+    const productId = Number(form.get('category'));
+    const ids = String(form.get('order') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    const r = productId && ids.length ? await reorderProductPhotos(db, user, productId, ids) : { ok: false, error: 'ข้อมูลลำดับไม่ถูกต้อง' };
+    if (wantsJson(Astro.request)) return jsonResult({ ok: r.ok, message: r.ok ? 'บันทึกลำดับแล้ว' : (r.error ?? 'บันทึกไม่สำเร็จ') });
+    if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'บันทึกลำดับแล้ว' })}#p-${productId}`, 303);
+    error = r.error ?? 'บันทึกไม่สำเร็จ';
+  } else if (intent === 'photo_move') {
+    const dir = String(form.get('dir') ?? '');
+    if (dir !== 'up' && dir !== 'down' && dir !== 'top') error = 'คำสั่งไม่ถูกต้อง';
+    else {
+      const r = await moveProductPhoto(db, user, Number(form.get('photoId')), dir);
+      if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'ย้ายรูปแล้ว' })}#p-${Number(form.get('productId'))}`, 303);
+      error = r.error ?? 'ย้ายไม่สำเร็จ';
+    }
+  } else if (intent === 'photo_delete') {
+    const r = await deleteProductPhoto(db, getMedia(), user, Number(form.get('photoId')));
+    if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'ลบรูปแล้ว' })}#p-${Number(form.get('productId'))}`, 303);
     error = r.error ?? 'ลบไม่สำเร็จ';
   } else error = 'คำสั่งไม่ถูกต้อง';
 }
 
 const items = await listProductsAdmin(db);
+const allPhotos = await listProductPhotos(db);
+const notice = Astro.url.searchParams.get('msg') ?? '';
 // ชนกัน: เทียบค่าที่กรอกกับค่าล่าสุดของแถวนั้น แล้วเลื่อนเวอร์ชันเป็นล่าสุด (กดบันทึกอีกครั้ง = ยืนยันค่าของคุณ)
 let conflict: { diffs: FieldDiff[]; at: string } | null = null;
 const latestVariant = items.flatMap((p) => p.variants).find((v) => v.id === conflictVariant);
@@ -107,6 +128,9 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
 <AdminLayout title="สินค้า" active="products">
   <SalesTabs active="products" />
   {saved && savedText[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedText[saved]}</p>}
+  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
+  <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
+  <p id="sort-live" class="sr-only" aria-live="polite"></p>
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
   <p class="mb-4 rounded-xl bg-honey-50 p-3 text-sm">
@@ -128,28 +152,65 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
           </form>
         </div>
 
-        <div class="mt-4 flex flex-wrap items-start gap-4">
-          {p.imageKey ? (
-            <a href={`/media/${p.imageKey}`} data-zoom data-caption={p.name} aria-label={`ดูรูปสินค้า ${p.name} ขยาย`} target="_blank" rel="noopener"><img src={`/media/${p.imageKey}`} alt={`รูปสินค้า ${p.name}`} width="160" height="120" class="h-[120px] w-40 rounded-xl bg-palm-50 object-cover" /></a>
-          ) : (
-            <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="รูปชั่วคราว" width="160" height="120" class="h-[120px] w-40 rounded-xl bg-palm-50 object-cover" />
-          )}
-          <div class="min-w-0 flex-1 basis-60 space-y-2">
-            <p class="text-sm font-medium">{p.imageKey ? 'รูปสินค้า (รูปจริง)' : 'ยังใช้รูปชั่วคราวอยู่ — อัปโหลดรูปจริงได้เลย (เปลี่ยนได้ทุกเมื่อ)'}</p>
-            <form method="post" enctype="multipart/form-data" data-resize class="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="intent" value="image" /><input type="hidden" name="productId" value={p.id} />
-              <input class="field-file min-w-0 flex-1" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" required aria-label={`เลือกรูปสินค้า ${p.name}`} />
-              <button class="btn-primary" type="submit">{p.imageKey ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}</button>
-            </form>
-            {p.imageKey && (
-              <form method="post" data-confirm="ลบรูปสินค้านี้ แล้วกลับไปใช้รูปชั่วคราวหรือไม่?">
-                <input type="hidden" name="intent" value="image_remove" /><input type="hidden" name="productId" value={p.id} />
-                <button class="btn-ghost" type="submit">ลบรูป</button>
-              </form>
-            )}
-            <p class="hint" data-upload-status role="status" aria-live="polite"></p>
-          </div>
-        </div>
+        {(() => {
+          const ph = allPhotos.filter((x) => x.productId === p.id);
+          const max = productPhotoLimit(p.category);
+          return (
+            <div class="mt-4" data-photos={p.id}>
+              <h3 class="text-sm font-medium">รูปสินค้า <span class="font-normal text-muted">({ph.length}/{max})</span></h3>
+              {ph.length === 0 ? (
+                <div class="mt-2 flex items-center gap-3">
+                  <img src={p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="รูปชั่วคราว" width="160" height="120" class="h-[90px] w-[120px] rounded-xl bg-palm-50 object-cover" />
+                  <p class="text-sm text-muted">ยังใช้รูปชั่วคราวอยู่ — อัปโหลดรูปจริงได้เลย (ใส่ได้ไม่เกิน {max} รูป)</p>
+                </div>
+              ) : (
+                <>
+                  {ph.length > 1 && <p class="hint mt-1">รูปที่ 1 = รูปหลักที่โชว์ในรายการสินค้า · <strong>กดค้างที่จุดมุมขวาบนของรูปแล้วลาก</strong> เพื่อเรียงลำดับ (ใช้คีย์บอร์ด: โฟกัสที่จุด กด Space แล้วลูกศร)</p>}
+                  <ul class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={p.id}>
+                    {ph.map((x, i) => (
+                      <li class="space-y-2" data-photo-id={x.id}>
+                        <div class="relative">
+                          <a href={`/media/${x.r2Key}`} data-zoom data-caption={p.name} aria-label={`ดูรูปที่ ${i + 1} ของ ${p.name} ขยาย`} class="relative block" target="_blank" rel="noopener">
+                            <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                            <img src={thumbUrl(`/media/${x.r2Key}`)} alt={`รูปสินค้า ${p.name} ที่ ${i + 1}`} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
+                          </a>
+                          <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${ph.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}
+                            class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
+                        </div>
+                        <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${ph.length}`}>
+                          {(['up', 'down', 'top'] as const).map((d) => {
+                            const off = d === 'down' ? i === ph.length - 1 : i === 0;
+                            const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
+                            return (
+                              <form method="post" class="flex-1">
+                                <input type="hidden" name="intent" value="photo_move" /><input type="hidden" name="photoId" value={x.id} /><input type="hidden" name="productId" value={p.id} /><input type="hidden" name="dir" value={d} />
+                                <button class="btn-ghost !px-0 w-full min-w-11" type="submit" disabled={off} aria-label={`${label} (รูปที่ ${i + 1})`} title={label}><Icon name={d} class="size-5" /></button>
+                              </form>
+                            );
+                          })}
+                        </div></noscript>
+                        <form method="post" data-confirm="ลบรูปนี้ออกจากสินค้าใช่ไหม?">
+                          <input type="hidden" name="intent" value="photo_delete" /><input type="hidden" name="photoId" value={x.id} /><input type="hidden" name="productId" value={p.id} />
+                          <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {ph.length < max && (
+                <form method="post" enctype="multipart/form-data" data-photo-upload data-label={p.name} class="mt-3 space-y-2">
+                  <input type="hidden" name="intent" value="photo_upload" /><input type="hidden" name="productId" value={p.id} />
+                  <label class="label flex min-h-11 items-end" for={`pf-${p.id}`}>เพิ่มรูป (เลือกได้ครั้งละหลายรูป · เหลืออีก {max - ph.length} รูป)</label>
+                  <input class="field-file" id={`pf-${p.id}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
+                  <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ย่อรูปและลบพิกัด GPS ให้อัตโนมัติ · ขึ้นหน้าเว็บทันที</p>
+                  <p data-upload-status class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
+                  <button class="btn-primary w-full sm:w-auto" type="submit">อัปโหลดรูป</button>
+                </form>
+              )}
+            </div>
+          );
+        })()}
 
         <details class="mt-3">
           <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">ชื่อและคำอธิบายสินค้าบนเว็บ</summary>
@@ -225,29 +286,48 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
 </AdminLayout>
 
 <script>
-  import { resizeImage } from '../../scripts/resize-image';
-  import { describeUploadError, postUpload } from '../../scripts/upload';
+  import '../../scripts/gallery-sort';
+  import { appendPrepared, resizeAll } from '../../scripts/resize-image';
+  import { describeUploadError, newBatchId } from '../../scripts/upload';
+  import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../scripts/outbox';
 
-  // ย่อรูปในเบราว์เซอร์ก่อนส่ง (ประหยัดเน็ต) — ถ้า JS ใช้ไม่ได้ ฟอร์มส่งไฟล์เดิมตามปกติ
+  // เหมือนหน้ารูปรัง/แกลเลอรี: ย่อรูปก่อนส่ง + รหัสชุด (ส่งซ้ำไม่บันทึกซ้ำ) + คิวรอส่งเมื่อสัญญาณหลุด
   // ยืนยันก่อนลบ/กันกดซ้ำ อยู่ในสคริปต์กลางของหลังบ้าน (scripts/admin-forms.ts)
-  document.querySelectorAll<HTMLFormElement>('form[data-resize]').forEach((form) => {
+  document.querySelectorAll<HTMLFormElement>('form[data-photo-upload]').forEach((form) => {
+    const status = form.querySelector<HTMLElement>('[data-upload-status]')!;
+    const btn = form.querySelector<HTMLButtonElement>('button[type=submit]');
+    const input = form.querySelector<HTMLInputElement>('input[type=file]')!;
+    const say = (msg: string, bad = false) => {
+      status.textContent = msg;
+      status.classList.remove('hidden');
+      status.classList.toggle('bg-red-50', bad);
+      status.classList.toggle('text-danger', bad);
+      status.classList.toggle('bg-honey-50', !bad);
+      status.classList.toggle('text-honey-700', !bad);
+    };
+    let batch = newBatchId();
+    input.addEventListener('change', () => (batch = newBatchId()));
     form.addEventListener('submit', async (e) => {
-      const input = form.querySelector<HTMLInputElement>('input[type=file]')!;
-      const file = input.files?.[0];
-      if (!file) return;
+      const picked = [...(input.files ?? [])];
+      if (picked.length === 0) return;
       e.preventDefault();
-      const status = form.parentElement?.querySelector<HTMLElement>('[data-upload-status]');
-      const btn = form.querySelector<HTMLButtonElement>('button[type=submit]');
       btn && (btn.disabled = true);
       try {
-        status && (status.textContent = 'กำลังย่อรูปและอัปโหลด…');
-        const small = await resizeImage(file);
+        const small = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`));
         const fd = new FormData(form);
-        fd.set('file', small, small.name);
-        const r = await postUpload(form.action || location.href, fd, small.size);
-        location.href = r.redirect ?? location.href;
+        fd.delete('file');
+        fd.set('batch', batch);
+        appendPrepared(fd, small);
+        const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
+        say('กำลังอัปโหลด…');
+        const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `สินค้า · ${form.dataset.label} · ${small.length} รูป`, bytes: after });
+        if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
+        if (o.kind === 'invalid') say(`ไม่ได้บันทึกรูป: ${o.message}`, true);
+        else if (o.kind === 'unsaved') say(UNSAVED_MSG, true);
+        else { say(o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG); form.reset(); batch = newBatchId(); }
+        btn && (btn.disabled = false);
       } catch (err) {
-        status && (status.textContent = describeUploadError(err));
+        say(describeUploadError(err), true);
         btn && (btn.disabled = false);
       }
     });

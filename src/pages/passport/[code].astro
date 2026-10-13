@@ -29,7 +29,7 @@ if (!hive) {
 
 const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
 
-const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['ปิดรัง', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
+const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['รังล่ม', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
 
 const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน'], queen_cell_taken: ['queen', 'เก็บไข่นางพญา'], brood_split: ['brood', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['note', ''] } as const;
 ---

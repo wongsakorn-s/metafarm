@@ -83,7 +83,7 @@ describe('status / sale / new hive', () => {
   });
   it('รังใหม่ต้องเลือกที่มา', () => {
     expect(parseForm(newHiveSchema, form({ origin: 'unknown' })).ok).toBe(false);
-    expect(parseForm(newHiveSchema, form({ origin: 'queen_bred', queenSourceCode: 'A55', broodSourceCode: 'A89', queenBornOn: today }))).toMatchObject({ ok: true, data: { boxType: 'teak_2room' } });
+    expect(parseForm(newHiveSchema, form({ origin: 'queen_bred', queenSourceCode: 'A55', broodSourceCode: 'A89', queenBornOn: today }))).toMatchObject({ ok: true, data: { boxType: 'metafarm' } });
   });
 });
 

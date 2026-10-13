@@ -81,7 +81,7 @@ export const newHiveSchema = z.object({
   originPlace: opt(z.string().max(100)),
   acquiredOn: opt(date),
   queenBornOn: opt(date),
-  boxType: z.enum(BOX_TYPES).default('teak_2room'),
+  boxType: z.enum(BOX_TYPES).default('metafarm'),
   queenSourceCode: opt(hiveCode),
   broodSourceCode: opt(hiveCode),
   purchasePrice: opt(int(1_000_000)),

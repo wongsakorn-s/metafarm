@@ -61,6 +61,7 @@ try {
   const keys = [
     ...(await env.DB.prepare(`SELECT r2_key k FROM hive_media WHERE r2_key IS NOT NULL`).all<{ k: string }>()).results.map((r) => r.k),
     ...(await env.DB.prepare(`SELECT image_key k FROM products WHERE image_key IS NOT NULL`).all<{ k: string }>()).results.map((r) => r.k),
+    ...(await env.DB.prepare(`SELECT r2_key k FROM product_photos`).all<{ k: string }>()).results.map((r) => r.k),
   ];
   let copied = 0, missing = 0, bytes = 0;
   for (const key of keys) {

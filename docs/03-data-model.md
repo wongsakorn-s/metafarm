@@ -32,7 +32,7 @@ users ─< sessions · audit_logs
 | `queen_born_on` | date | "Queen's Birthday" |
 | `queen_source_hive_id` | fk hives | "ไข่นางจาก Axx" |
 | `brood_source_hive_id` | fk hives | "ไข่อ่อนจาก Axx" |
-| `box_type` | enum | `teak_2room` (รังไม้สัก Metafarm) · `log` (ขอนไม้) · `other` |
+| `box_type` | enum | ป้ายที่แสดง (เจ้าของขอ 2026-10-13): `metafarm` = รัง MetaFarm (ค่าเริ่มต้นของรังใหม่) · `teak_2room` = รังไม้ 2 ห้อง · `log` = รังไม้ · `other` = อื่น ๆ (ค่าภายในเดิมคงไว้ เปลี่ยนเฉพาะป้าย) |
 | `status` | enum | `active` (Exist) · `sold` (Sold) · `collapsed` (ล่ม) · `unknown` |
 | `status_changed_on` | date | |
 | `collapse_reason` | text | ไม่บังคับ |
@@ -70,7 +70,8 @@ users ─< sessions · audit_logs
 
 ### สินค้าและการขาย (Phase 4 — รายละเอียดใน [11-phase4-plan.md](11-phase4-plan.md))
 
-- **products**: `slug`, `name`, `category` (`hive_box` | `honey` | `other`), `description`, `published`, `image_key` (รูปที่เจ้าของอัปโหลด ว่าง = รูปชั่วคราว)
+- **products**: `slug`, `name`, `category` (`hive_box` | `honey` | `other`), `description`, `published`, `image_key` (รูปปก = รูปแรกของ `product_photos` ซิงก์อัตโนมัติ · ว่าง = รูปชั่วคราว)
+- **product_photos**: `product_id`, `r2_key` (unique), `sort_order` (มากก่อน = แสดงก่อน; รูปใหม่ต่อท้าย) — เพดานต่อสินค้า รังเปล่า 6 รูป · น้ำผึ้ง/อื่น ๆ 3 รูป (`src/lib/product-photos.ts`) · migration 0017 ย้ายรูปเดี่ยวเดิมเข้ามา
 - **product_variants**: `product_id`, `label` (เช่น "Size เล็ก"), `size_ml`, `price_thb`, `price_confirmed` (ยังไม่ยืนยัน = ป้าย "ราคาตัวอย่าง"), `stock_qty` (เว็บแสดงแค่ มี/ไม่มี), `unit_cost` 🔒, `harvest_year_be`, `hidden` (0015: ขนาดที่เลิกขาย — ไม่ลบ ไม่แสดงบนเว็บ/ฟอร์มออเดอร์ใหม่/การบรรจุ)
 - **customers** 🔒: `name`, `phone`, `line_name`, `address`
 - **orders** 🔒: `code` (`S<ปี พ.ศ.>-NNN`), `customer_id`, `channel` (`line` | `facebook` | `phone` | `farm` | `other`), `ordered_on`, `status` (`awaiting_payment` → `paid` → `fulfilled` หรือ `cancelled` ก่อนส่ง), `paid_on`, `pay_method`, `ship_method`, `ship_fee`, `tracking_no`, `fulfilled_on`, `note`, `create_key` (กันสร้างซ้ำ)

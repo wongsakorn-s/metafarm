@@ -22,7 +22,7 @@ export const speciesLabel = (name: string) => name.replace(/^ชันโรง\
 /** ป้ายวันที่เริ่มต้นของรัง: ซื้อมา = ได้มาเมื่อ · เพาะนางพญาเอง/แยกรัง = แยกขยายรัง · อื่น ๆ = เริ่มรังเมื่อ */
 export const acquiredLabel = (origin: string) => (origin === 'purchased' ? 'ได้มาเมื่อ' : origin === 'queen_bred' || origin === 'split' ? 'แยกขยายรัง' : 'เริ่มรังเมื่อ');
 
-export const boxLabel = { teak_2room: 'รังไม้สัก 2 ห้อง', log: 'ขอนไม้', other: 'อื่น ๆ', unknown: '???' } as const;
+export const boxLabel = { metafarm: 'รัง MetaFarm', teak_2room: 'รังไม้ 2 ห้อง', log: 'รังไม้', other: 'อื่น ๆ', unknown: '???' } as const;
 
 export const eventLabel = {
   honey_harvest: 'เก็บน้ำหวาน',

@@ -5,7 +5,7 @@
 // ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
-import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productVariants, products, settings, species } from '../db/schema.ts';
+import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productPhotos, productVariants, products, settings, species } from '../db/schema.ts';
 import { provinceOf } from '../lib/place.ts';
 import type { Db } from './db.ts';
 import { byCode } from './hives.ts';
@@ -38,7 +38,7 @@ export interface PublicHive {
   queenBornOn: string | null;
   queenSource: string | null;
   broodSource: string | null;
-  /** active = ยังอยู่, sold = ขายแล้ว, collapsed = ปิดรัง (ล่ม) */
+  /** active = ยังอยู่, sold = ขายแล้ว, collapsed = รังล่ม */
   status: 'active' | 'sold' | 'collapsed' | 'unknown';
   publicNote: string | null;
   updatedAt: string;
@@ -151,6 +151,8 @@ export interface PublicProduct {
   description: string | null;
   /** รูปสินค้าจริง (ถ้าเจ้าของฟาร์มอัปโหลดแล้ว) ไม่งั้นเป็น null */
   imageKey: string | null;
+  /** รูปสินค้าทั้งหมด รูปแรกก่อน (รูปแรก = imageKey) */
+  photos: { key: string }[];
   variants: PublicVariant[];
 }
 
@@ -162,6 +164,11 @@ export async function getPublicProducts(db: Db, slug?: string): Promise<PublicPr
     .where(and(eq(products.published, true), slug ? eq(products.slug, slug) : undefined))
     .orderBy(asc(products.sortOrder), asc(products.id));
   if (prods.length === 0) return [];
+  const photoRows = await db
+    .select({ productId: productPhotos.productId, key: productPhotos.r2Key })
+    .from(productPhotos)
+    .where(inArray(productPhotos.productId, prods.map((p) => p.id)))
+    .orderBy(desc(productPhotos.sortOrder), desc(productPhotos.id));
   const variants = await db
     .select({
       productId: productVariants.productId,
@@ -179,6 +186,7 @@ export async function getPublicProducts(db: Db, slug?: string): Promise<PublicPr
   return prods
     .map(({ id, ...p }) => ({
       ...p,
+      photos: photoRows.filter((x) => x.productId === id).map((x) => ({ key: x.key })),
       variants: variants
         .filter((v) => v.productId === id)
         .map((v) => ({ id: v.id, label: v.label, sizeMl: v.sizeMl, priceThb: v.priceThb, priceIsSample: !v.priceConfirmed, inStock: !!v.inStock, harvestYearBe: v.harvestYearBe })),
@@ -393,7 +401,9 @@ export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
   // รูปสินค้า: เปิดเฉพาะสินค้าที่แสดงบนเว็บ (published) และเป็นรูปปัจจุบันของสินค้านั้น
   if (key.startsWith('products/')) {
     const p = await db.select({ one: sql<number>`1` }).from(products).where(and(eq(products.imageKey, key), eq(products.published, true))).limit(1);
-    return p.length > 0;
+    if (p.length > 0) return true;
+    const q = await db.select({ one: sql<number>`1` }).from(productPhotos).innerJoin(products, eq(products.id, productPhotos.productId)).where(and(eq(productPhotos.r2Key, key), eq(products.published, true))).limit(1);
+    return q.length > 0;
   }
   const row = await db
     .select({ one: sql<number>`1` })
