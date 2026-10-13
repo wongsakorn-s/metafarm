@@ -52,7 +52,7 @@ if (Astro.request.method === 'POST') {
     }
   } else if (intent === 'product_text') {
     const p = parseForm(productTextSchema, form);
-    if (!p.ok) error = p.errors.description ?? 'ข้อมูลไม่ถูกต้อง';
+    if (!p.ok) error = p.errors.name ?? p.errors.description ?? 'ข้อมูลไม่ถูกต้อง';
     else {
       const r = await updateProductDescription(db, user, p.data);
       if (r.ok) return Astro.redirect('/admin/products?saved=product_text', 303);
@@ -101,7 +101,7 @@ if (latestVariant) {
   conflict = { diffs: differingFields(posted, latestVariant, { priceThb: 'ราคา (บาท)', stockQty: 'สต็อก (ชิ้น)', unitCost: 'ต้นทุน/ชิ้น' }), at: shortStamp(latestVariant.updatedAt) };
   posted.version = latestVariant.updatedAt;
 }
-const savedText: Record<string, string> = { product_text: 'บันทึกคำอธิบายสินค้าแล้ว', variant_add: 'เพิ่มขนาดแล้ว — แสดงบนเว็บทันที (สต็อกเริ่มที่ 0)', variant_hide: 'ซ่อนขนาดแล้ว — ไม่แสดงบนเว็บและในฟอร์มออเดอร์ใหม่', variant_show: 'แสดงขนาดนั้นอีกครั้งแล้ว', variant: 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)', publish: 'บันทึกการแสดง/ซ่อนสินค้าแล้ว', image: 'เปลี่ยนรูปสินค้าแล้ว', image_removed: 'ลบรูปสินค้าแล้ว (เว็บกลับไปใช้รูปชั่วคราว)' };
+const savedText: Record<string, string> = { product_text: 'บันทึกชื่อและคำอธิบายสินค้าแล้ว', variant_add: 'เพิ่มขนาดแล้ว — แสดงบนเว็บทันที (สต็อกเริ่มที่ 0)', variant_hide: 'ซ่อนขนาดแล้ว — ไม่แสดงบนเว็บและในฟอร์มออเดอร์ใหม่', variant_show: 'แสดงขนาดนั้นอีกครั้งแล้ว', variant: 'บันทึกราคาและสต็อกแล้ว (ถือว่ายืนยันราคาแล้ว)', publish: 'บันทึกการแสดง/ซ่อนสินค้าแล้ว', image: 'เปลี่ยนรูปสินค้าแล้ว', image_removed: 'ลบรูปสินค้าแล้ว (เว็บกลับไปใช้รูปชั่วคราว)' };
 ---
 
 <AdminLayout title="สินค้า" active="products">
@@ -152,12 +152,14 @@ const savedText: Record<string, string> = { product_text: 'บันทึกค
         </div>
 
         <details class="mt-3">
-          <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">คำอธิบายสินค้าบนเว็บ</summary>
+          <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">ชื่อและคำอธิบายสินค้าบนเว็บ</summary>
           <form method="post" class="mt-2 space-y-2">
             <input type="hidden" name="intent" value="product_text" /><input type="hidden" name="productId" value={p.id} />
-            <label class="sr-only" for={`pd-${p.id}`}>คำอธิบายสินค้า {p.name}</label>
+            <label class="label" for={`pn-${p.id}`}>ชื่อสินค้า</label>
+            <input class="field" id={`pn-${p.id}`} name="name" required minlength="2" maxlength="100" value={p.name} />
+            <label class="label" for={`pd-${p.id}`}>คำอธิบายสินค้า</label>
             <textarea class="field" id={`pd-${p.id}`} name="description" rows="2" maxlength="300">{p.description ?? ''}</textarea>
-            <button class="btn-primary" type="submit">บันทึกคำอธิบาย</button>
+            <button class="btn-primary" type="submit">บันทึกชื่อและคำอธิบาย</button>
           </form>
         </details>
 

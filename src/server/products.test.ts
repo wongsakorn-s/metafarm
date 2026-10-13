@@ -58,4 +58,14 @@ describe('คำอธิบายสินค้า', () => {
     await updateProductDescription(t.db, t.owner, { productId: 1 });
     expect((await getPublicProducts(t.db, 'stingless-honey'))[0]!.description).toBeNull();
   });
+
+  it('แก้ชื่อสินค้าได้ · ลิงก์ (slug) ไม่เปลี่ยน · ไม่ส่งชื่อ = คงชื่อเดิม', async () => {
+    const before = (await getPublicProducts(t.db, 'stingless-honey'))[0]!;
+    await updateProductDescription(t.db, t.owner, { productId: 1, name: 'น้ำผึ้งชันโรงขนเงิน (ชื่อใหม่)' });
+    const after = (await getPublicProducts(t.db, 'stingless-honey'))[0]!;
+    expect(after.name).toBe('น้ำผึ้งชันโรงขนเงิน (ชื่อใหม่)');
+    expect(after.slug).toBe(before.slug);
+    await updateProductDescription(t.db, t.owner, { productId: 1 });
+    expect((await getPublicProducts(t.db, 'stingless-honey'))[0]!.name).toBe('น้ำผึ้งชันโรงขนเงิน (ชื่อใหม่)');
+  });
 });

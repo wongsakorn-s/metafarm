@@ -68,13 +68,14 @@ export async function setVariantHidden(db: Db, user: SessionUser, d: z.output<ty
   return { ok: true };
 }
 
-/** แก้คำอธิบายสินค้า (ข้อความใต้ชื่อบนเว็บ) — ว่าง = ไม่แสดง */
+/** แก้ชื่อและคำอธิบายสินค้า (ข้อความใต้ชื่อบนเว็บ) — คำอธิบายว่าง = ไม่แสดง · ชื่อไม่ส่งมา = ไม่เปลี่ยน */
 export async function updateProductDescription(db: Db, user: SessionUser, d: z.output<typeof productTextSchema>): Promise<Result> {
-  const p = await db.query.products.findFirst({ where: eq(products.id, d.productId), columns: { id: true, description: true } });
+  const p = await db.query.products.findFirst({ where: eq(products.id, d.productId), columns: { id: true, name: true, description: true } });
   if (!p) return { ok: false, error: 'ไม่พบสินค้านี้' };
+  const name = d.name ?? p.name;
   await db.batch([
-    db.update(products).set({ description: d.description ?? null, ...touch }).where(eq(products.id, p.id)),
-    audit(db, user, 'product.description', p.id, { from: p.description, to: d.description ?? null }),
+    db.update(products).set({ name, description: d.description ?? null, ...touch }).where(eq(products.id, p.id)),
+    audit(db, user, 'product.description', p.id, { from: p.description, to: d.description ?? null, ...(name !== p.name ? { name: { from: p.name, to: name } } : {}) }),
   ]);
   return { ok: true };
 }

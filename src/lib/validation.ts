@@ -120,6 +120,8 @@ export const newVariantSchema = z.object({
 /** คำอธิบายสินค้าใต้ชื่อบนเว็บ (เช่นเมื่อเหลือขนาดเดียว ข้อความ "มีสองขนาด" ต้องแก้ได้เอง) */
 export const productTextSchema = z.object({
   productId: z.coerce.number().int().positive(),
+  /** ชื่อสินค้าบนเว็บ (ไม่ส่งมา = ไม่เปลี่ยน) · ลิงก์ของสินค้า (slug) ไม่เปลี่ยนตาม */
+  name: opt(z.string().min(2, 'ชื่อสั้นเกินไป').max(100, 'ชื่อยาวเกิน 100 ตัวอักษร')),
   description: opt(z.string().max(300, 'ยาวเกิน 300 ตัวอักษร')),
 });
 

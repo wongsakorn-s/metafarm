@@ -68,7 +68,7 @@ const jsonLd = hive
         <p data-num class="mt-1 text-3xl font-bold text-palm-700">{formatPrice(hive.priceThb)} <span class="text-base font-normal text-muted">({SHIPPING_NOTE})</span></p>
         {/* บรรทัดตายตัว "รังไม้สัก 2 ห้องของ MetaFarm" ตัดออก (บางรังไม่ใช่ไม้สัก/ไม่ได้ทำเอง) — ใช้ "ข้อความเพิ่มเติมของรัง" ที่เจ้าของใส่แทน */}
         {hive.publicNote && <p class="mt-2 whitespace-pre-line text-muted">{hive.publicNote}</p>}
-        <ContactButtons class="mt-4" intent="order" block message={msg} phoneHint={`โทรสอบถามรัง ${hive.code} (บอกว่าสนใจรังนี้)`} />
+        <ContactButtons class="mt-4" intent="order" block message={msg} phoneHint={`โทรสอบถาม แล้วบอกว่าสนใจรัง ${hive.code}`} />
 
         <dl class="card mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
           <dt class="text-muted">สายพันธุ์</dt><dd>{speciesLabel(hive.species)}</dd>
