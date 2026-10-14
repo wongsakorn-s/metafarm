@@ -24,7 +24,7 @@ const groups = [
   ...(owner ? [{
     title: 'แก้หน้าเว็บ',
     items: [
-      { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อและชำระเงิน', hint: 'LINE เบอร์โทร Facebook แผนที่ เลขบัญชี พิกัดฟาร์ม' },
+      { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อและชำระเงิน', hint: 'LINE เบอร์โทร Facebook แผนที่ เลขบัญชี' },
       { href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตรอบรม', hint: 'รูปหน้าแรก วิดีโอแนะนำฟาร์ม ราคาอบรม' },
       { href: '/admin/gallery', icon: 'image', label: 'รูปหน้าแกลเลอรี', hint: 'ชันโรง ส่งมอบรัง ส่งมอบน้ำผึ้ง ห้องงานไม้' },
       { href: '/admin/products', icon: 'cart', label: 'สินค้าและราคา', hint: 'ชื่อ ราคา รูปของรังเปล่าและน้ำผึ้ง' },
@@ -43,17 +43,17 @@ const groups = [
 ---
 
 <AdminLayout title="เมนู" active="more">
-  <p class="mb-4 text-muted">เข้าสู่ระบบเป็น <strong class="text-ink">{user.name}</strong> ({roleLabel[user.role]})</p>
+  <p class="mb-4 text-lg">สวัสดี <strong>{user.name}</strong> <span class="text-base text-muted">({roleLabel[user.role]})</span></p>
   <div class="space-y-5 md:grid md:grid-cols-2 md:items-start md:gap-5 md:space-y-0 2xl:grid-cols-3">
     {groups.map((g) => (
       <section aria-labelledby={`g-${g.title}`}>
-        <h2 id={`g-${g.title}`} class="mb-2 px-1 text-sm font-semibold text-muted">{g.title}</h2>
+        <h2 id={`g-${g.title}`} class="mb-2 flex items-center gap-2 px-1 text-lg font-bold text-palm-900"><span class="h-5 w-1 rounded-full bg-palm-600" aria-hidden="true"></span>{g.title}</h2>
         <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {g.items.map((it) => (
             <li>
-              <a href={it.href} target={it.external ? '_blank' : undefined} rel={it.external ? 'noopener' : undefined} class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
-                <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={it.icon as IconName} class="size-5" /></span>
-                <span class="min-w-0 flex-1"><span class="block font-medium">{it.label}</span>{it.hint && <span class="block truncate text-sm text-muted">{it.hint}</span>}</span>
+              <a href={it.href} target={it.external ? '_blank' : undefined} rel={it.external ? 'noopener' : undefined} class="flex min-h-16 items-center gap-3 px-4 py-2.5 active:bg-canvas">
+                <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={it.icon as IconName} class="size-6" /></span>
+                <span class="min-w-0 flex-1"><span class="block text-base font-semibold">{it.label}</span>{it.hint && <span class="line-clamp-2 text-sm text-muted">{it.hint}</span>}</span>
                 <Icon name="chevron" class="size-5 shrink-0 text-muted" />
               </a>
             </li>
@@ -61,14 +61,14 @@ const groups = [
         </ul>
       </section>
     ))}
-    <section id="install" class="rounded-2xl border border-line bg-surface p-4 md:hidden" aria-labelledby="install-h">
-      <h2 id="install-h" class="font-semibold">ติดตั้งเป็นแอปบนหน้าจอโฮม</h2>
-      <p class="hint mb-2">ติดตั้งแอปไว้ที่หน้าจอมือถือ เปิดได้เร็วจากไอคอน และเวลาสัญญาณไม่ดี รายการที่บันทึกไว้จะรอส่งในเครื่องได้นานขึ้น (สำคัญสำหรับ iPhone)</p>
-      <ul class="space-y-1 text-sm">
-        <li><strong>iPhone (Safari):</strong> กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรขึ้น) → "เพิ่มไปยังหน้าจอโฮม" — แอปบน iPhone เก็บข้อมูลแยกจาก Safari ถ้ามีรายการ "รอส่ง" ค้างอยู่ ให้ส่งให้หมดก่อนติดตั้ง และล็อกอินใหม่ในแอปหนึ่งครั้ง</li>
-        <li><strong>Android (Chrome):</strong> กดเมนู ⋮ มุมขวาบน → "เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</li>
-      </ul>
-    </section>
+    <details id="install" class="rounded-2xl border border-line bg-surface md:hidden">
+      <summary class="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2 text-base font-semibold"><span class="grid size-11 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name="phone" class="size-6" /></span>ติดตั้งเป็นแอปบนหน้าจอมือถือ</summary>
+      <div class="space-y-3 border-t border-line p-4 text-sm">
+        <p>ติดตั้งแล้วเปิดได้เร็วจากไอคอน และเวลาสัญญาณไม่ดี รายการที่บันทึกไว้จะรอส่งในเครื่องได้นานขึ้น (สำคัญสำหรับ iPhone)</p>
+        <p><strong>iPhone:</strong> เปิดด้วย Safari → กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรชี้ขึ้น) → เลือก "เพิ่มไปยังหน้าจอโฮม"<br /><span class="text-muted">ถ้ามีรายการ "ค้างส่ง" อยู่ ให้ส่งให้หมดก่อนติดตั้ง และล็อกอินใหม่ในแอปหนึ่งครั้ง</span></p>
+        <p><strong>Android:</strong> เปิดด้วย Chrome → กดจุดสามจุดมุมขวาบน → เลือก "เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</p>
+      </div>
+    </details>
     <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?" class="md:hidden">
       <button class="flex min-h-14 w-full items-center justify-center rounded-2xl border border-line bg-surface font-semibold text-danger active:bg-red-50" type="submit">ออกจากระบบ</button>
     </form>
