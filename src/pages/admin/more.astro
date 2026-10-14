@@ -18,7 +18,7 @@ const groups = [
       { href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
       { href: '/admin/photos', icon: 'camera', label: 'รังที่ยังไม่มีรูป', hint: 'ไปถ่ายรูปรังเหล่านี้' },
       { href: '/admin/todo', icon: 'note', label: 'รังที่ข้อมูลยังไม่ครบ', hint: 'รังที่ยังมีเรื่องไม่ทราบ (???)' },
-      { href: '/admin/outbox', icon: 'status', label: 'รายการที่ยังส่งไม่สำเร็จ', hint: 'ที่บันทึกไว้ตอนสัญญาณไม่ดี — รอส่งในเครื่องนี้' },
+      { href: '/admin/outbox', icon: 'status', label: 'รายการที่ค้างส่ง', hint: 'ที่บันทึกไว้ตอนสัญญาณไม่ดี — รอส่งในเครื่องนี้' },
     ],
   },
   ...(owner ? [{
@@ -36,7 +36,7 @@ const groups = [
     title: 'บัญชี',
     items: [
       { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่านของฉัน', hint: user.email },
-      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'users', label: 'คนใช้งานระบบ', hint: 'เพิ่มคนใช้ เปลี่ยนสิทธิ์ ปิดบัญชี' }] : []),
+      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'lock', label: 'คนใช้งานระบบ', hint: 'เพิ่มคนใช้ เปลี่ยนสิทธิ์ ปิดบัญชี' }] : []),
     ],
   },
 ] as { title: string; items: { href: string; icon: string; label: string; hint?: string; external?: boolean }[] }[];

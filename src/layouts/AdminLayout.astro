@@ -4,7 +4,7 @@ import { site } from '../config/site.ts';
 import Icon from '../components/Icon.astro';
 import { canManageFarm, canManageUsers, roleLabel } from '../lib/permissions.ts';
 
-type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users' | 'gallery' | 'settingsHome';
+type Key = 'dashboard' | 'production' | 'hives' | 'quick' | 'orders' | 'customers' | 'lots' | 'products' | 'reports' | 'more' | 'new' | 'readiness' | 'settings' | 'account' | 'photos' | 'todo' | 'users' | 'gallery' | 'settingsHome' | 'outbox';
 interface Props {
   title: string;
   active?: Key;
@@ -32,7 +32,7 @@ const tabs = [
   { key: 'more', href: '/admin/more', icon: 'menu', label: 'เมนู' },
 ] as const;
 // หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
-const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'settingsHome', 'account', 'photos', 'todo', 'users', 'gallery', ...(owner ? (['lots'] as Key[]) : [])];
+const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'settingsHome', 'account', 'photos', 'todo', 'users', 'gallery', 'outbox', ...(owner ? (['lots'] as Key[]) : [])];
 const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products' || active === 'reports')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
 
 // แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
@@ -48,6 +48,7 @@ const sideGroups = [
     { key: 'production', href: '/admin/production', icon: 'chart', label: 'ผลผลิตและอากาศ' },
     { key: 'photos', href: '/admin/photos', icon: 'camera', label: 'รังที่ยังไม่มีรูป' },
     { key: 'todo', href: '/admin/todo', icon: 'note', label: 'รังที่ข้อมูลยังไม่ครบ' },
+    { key: 'outbox', href: '/admin/outbox', icon: 'status', label: 'รายการที่ค้างส่ง' },
   ] },
   { title: 'ขาย', items: [
     { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ออเดอร์' },
@@ -59,10 +60,7 @@ const sideGroups = [
     { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ติดต่อและชำระเงิน' },
     { key: 'settingsHome', href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตร' },
     { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปหน้าแกลเลอรี' },
-    { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'สิ่งที่ต้องทำก่อนเปิดเว็บ' },
-  ] },
-  { title: 'คนใช้งาน', items: [
-    { key: 'users', href: '/admin/users', icon: 'users', label: 'คนใช้งานระบบ' },
+    { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
   ] },
 ] as const;
 const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.filter((n) => allowed(n.key)) })).filter((g) => g.items.length > 0);
@@ -103,16 +101,11 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
             </div>
           </div>
         ))}
-        {/* หน้า "เมนู" เดียวกับแท็บ "เมนู" บนมือถือ — รวมทุกหน้ารอง (รูปแกลเลอรี คิวถ่ายรูป ข้อมูลไม่ครบ ตั้งค่า บัญชี ฯลฯ) */}
-        <div class="border-t border-line pt-3">
-          <a href="/admin/more" aria-current={tabActive('more') ? 'page' : undefined}
-            class:list={['flex min-h-9 items-center gap-3 rounded-xl px-3 font-medium', tabActive('more') ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
-            <Icon name="menu" class="size-5 text-palm-700" />เมนู<span class="ml-auto text-xs font-normal text-muted">รวมทุกหน้า</span>
-          </a>
-        </div>
       </nav>
       <form method="post" action="/admin/logout" class="border-t border-line p-4" data-confirm="ออกจากระบบใช่ไหม?">
-        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-2 flex min-h-10 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
+        <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
+        {canManageUsers(user) && <a href="/admin/users" aria-current={active === 'users' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="lock" class="size-4" />คนใช้งานระบบ</a>}
+        <a href="/" target="_blank" rel="noopener" class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="globe" class="size-4" />ดูหน้าเว็บจริง</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
     </aside>

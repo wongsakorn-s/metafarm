@@ -7,7 +7,7 @@ import Icon from '../../components/Icon.astro';
 export const prerender = false;
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รอส่ง" active="more">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รายการที่ค้างส่ง" active="outbox">
   <p class="mb-4 max-w-2xl text-muted">รายการที่บันทึกตอนสัญญาณไม่ดี เก็บไว้ใน<strong class="text-ink">เครื่องนี้</strong> ระบบจะส่งขึ้นเองเมื่อสัญญาณกลับมา (ไม่ต้องบันทึกซ้ำ — ส่งซ้ำก็ไม่เกิดรายการซ้ำ)</p>
 
   <div class="mb-4 flex flex-wrap items-center gap-3">
