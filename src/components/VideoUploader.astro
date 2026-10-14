@@ -8,11 +8,11 @@ const { action, id } = Astro.props;
   <div>
     <label class="label flex min-h-11 items-end" for={id}>เลือกไฟล์วิดีโอ (MP4)</label>
     <input class="field-file" id={id} type="file" accept="video/mp4,video/quicktime,.mp4,.mov" />
-    <p class="hint">ไฟล์ MP4 แบบ H.264 ไม่เกิน 90 MB (แนะนำ 720p ยาวไม่เกิน 1–2 นาที) · iPhone: การตั้งค่า &gt; กล้อง &gt; รูปแบบ &gt; "เข้ากันได้มากที่สุด" · ระบบลบพิกัด GPS ในวิดีโอให้อัตโนมัติ · ใช้ Wi-Fi จะเร็วและไม่หลุด</p>
+    <p class="hint">ไฟล์ .mp4 ขนาดไม่เกิน 90 MB (แนะนำคลิปสั้น 1–2 นาที) · ใช้ Wi-Fi จะส่งเร็วและไม่หลุด · ระบบลบตำแหน่งที่ถ่ายออกให้เอง · ถ้าถ่ายด้วย iPhone ให้ตั้งกล้องเป็น "เข้ากันได้มากที่สุด" ก่อนถ่าย (การตั้งค่า &gt; กล้อง &gt; รูปแบบ)</p>
   </div>
   <progress data-progress hidden class="h-3 w-full" max="100" value="0"></progress>
   <p data-status hidden role="status" aria-live="polite"></p>
   <button data-start type="button" class="btn-primary w-full" disabled>อัปโหลดวิดีโอ</button>
-  <noscript><p class="hint">ต้องเปิด JavaScript เพื่ออัปโหลดวิดีโอ</p></noscript>
+  <noscript><p class="hint">ต้องเปิด JavaScript ในเบราว์เซอร์จึงจะอัปโหลดวิดีโอได้</p></noscript>
 </div>
 <script>import '../scripts/video-upload';</script>

@@ -124,7 +124,7 @@ const byVariant = [...bottled.reduce((m, b) => m.set(b.variantId, { label: `${b.
               <div><label class="label" for="qty">จำนวนขวด</label><input class="field" id="qty" name="qty" type="number" inputmode="numeric" min="1" required value={v('qty')} />{errors.qty && <p class="error">{errors.qty}</p>}</div>
               <div><label class="label" for="bottledOn">วันที่บรรจุ</label><input class="field" id="bottledOn" name="bottledOn" type="date" max={today} required value={v('bottledOn', today)} />{errors.bottledOn && <p class="error">{errors.bottledOn}</p>}</div>
             </div>
-            {owner && <div><label class="label" for="unitCost">ต้นทุนต่อขวด (ขวด+ฉลาก, ไม่บังคับ)</label><input class="field" id="unitCost" name="unitCost" type="number" inputmode="numeric" min="0" value={v('unitCost')} placeholder="บาท" />{errors.unitCost && <p class="error">{errors.unitCost}</p>}<p class="hint">ใช้คิดกำไรในรายงาน · ไม่แสดงบนเว็บ</p></div>}
+            {owner && <div><label class="label" for="unitCost">ต้นทุนต่อขวด (ขวด+ฉลาก, ไม่บังคับ)</label><input class="field" id="unitCost" name="unitCost" type="number" inputmode="numeric" min="0" value={v('unitCost')} placeholder="บาท" />{errors.unitCost && <p class="error">{errors.unitCost}</p>}<p class="hint">ใช้คำนวณกำไรในรายงาน · ลูกค้าไม่เห็น</p></div>}
             <button class="btn-primary w-full" type="submit" disabled={remaining <= 0}>บันทึกการบรรจุ (เพิ่มสต็อก)</button>
           </>
         )}

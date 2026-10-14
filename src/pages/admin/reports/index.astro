@@ -117,7 +117,7 @@ const honeyTotal = honey.reduce((s, h) => s + h.ml, 0);
 
     <section class="card lg:col-span-2" aria-labelledby="exp-h">
       <h2 id="exp-h" class="mb-1 flex items-center gap-2 font-semibold"><Icon name="download" class="size-5 text-palm-700" />ส่งออกเป็นไฟล์ Excel (CSV)</h2>
-      <p class="hint mb-3">เปิดได้ด้วย Excel หรือ Google Sheets · ไฟล์มีข้อมูลลูกค้าและต้นทุน — อย่าส่งต่อให้คนนอก</p>
+      <p class="hint mb-3">เปิดได้ด้วย Excel หรือ Google Sheets · ไฟล์มีข้อมูลลูกค้าและต้นทุน — ห้ามส่งต่อให้คนนอก</p>
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <a class="btn-ghost justify-start" href={`/admin/reports/export/sales-${year}.csv`} download>รายการขายปี {be(year)} (มีต้นทุน/กำไร)</a>
         <a class="btn-ghost justify-start" href="/admin/reports/export/orders.csv" download>ออเดอร์ทั้งหมด</a>

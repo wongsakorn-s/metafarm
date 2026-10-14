@@ -115,7 +115,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     <section class="mb-4 rounded-2xl border border-honey-400 bg-honey-50 p-4" aria-label="ข้อมูลที่ยังไม่ครบ">
       <h2 class="font-semibold text-honey-700">ข้อมูลที่ยังไม่ทราบ (???)</h2>
       <ul class="mt-1 list-inside list-disc text-sm">{topics.map((t) => <li>{t}{t === 'สถานะรัง' && <> — ตั้งที่ <a class="underline" href={`/admin/hives/${hive.code}`}>หน้ารัง › เปลี่ยนสถานะ</a></>}</li>)}</ul>
-      <p class="hint">กรอกช่องที่ไฮไลต์สีเหลืองด้านล่าง เมื่อบันทึกแล้วรายการ ??? จะหายไปเอง</p>
+      <p class="hint">ช่องที่มีกรอบสีเหลืองด้านล่างคือข้อมูลที่ยังไม่ทราบ — กรอกแล้วกดบันทึก ข้อความ ??? จะหายไปเอง</p>
     </section>
   )}
 
@@ -188,7 +188,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     {manager && (
       <fieldset class="rounded-xl border border-line p-3 lg:col-span-2" data-supplier>
         <legend class="px-1 font-semibold">คู่ค้า (ข้อมูลภายใน) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></legend>
-        <p class="hint">เห็นเฉพาะเจ้าของ/แอดมิน — ไม่แสดงต่อลูกค้าและพนักงาน (ชื่อมีหมายเหตุภายในได้ เช่น ข้อสังเกตเกี่ยวกับผู้ขาย)</p>
+        <p class="hint">เฉพาะเจ้าของและแอดมินที่เห็นส่วนนี้ ลูกค้าและพนักงานไม่เห็น (จดอะไรไว้ในชื่อได้ เช่น ข้อสังเกตเกี่ยวกับผู้ขาย)</p>
         <div class="mt-2">
           <label class="label" for="sup-choice">คู่ค้าของรังนี้</label>
           <select class="field" id="sup-choice" name="supplierChoice">
@@ -201,7 +201,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
           <div class="mt-3 grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="supplierEditId" value={v('supplierEditId')} />
             <input type="hidden" name="supplierVersion" value={v('supplierVersion')} />
-            <p class="hint sm:col-span-2">แก้ข้อมูลของ <b>{detail.supplierName ?? 'คู่ค้าเดิม'}</b> (คู่ค้าที่เปิดมากับรังนี้){supplierUses > 1 && <> — ใช้กับ {supplierUses} รัง แก้แล้วเปลี่ยนทุกรัง</>}</p>
+            <p class="hint sm:col-span-2">แก้ข้อมูลของ <b>{detail.supplierName ?? 'คู่ค้าเดิม'}</b> (คู่ค้าของรังนี้ตอนเปิดหน้า){supplierUses > 1 && <> — คู่ค้ารายนี้ใช้กับ {supplierUses} รัง แก้แล้วเปลี่ยนให้ทุกรัง</>}</p>
             <div><label class="label" for="sup-name">ชื่อ</label><input class="field" id="sup-name" name="supplierName" maxlength="100" required value={v('supplierName')} /></div>
             <div><label class="label" for="sup-phone">โทรศัพท์</label><input class="field" id="sup-phone" name="supplierPhone" maxlength="40" inputmode="tel" value={v('supplierPhone')} /></div>
             <div><label class="label" for="sup-area">พื้นที่/จังหวัด</label><input class="field" id="sup-area" name="supplierArea" maxlength="100" value={v('supplierArea')} /></div>
@@ -220,7 +220,7 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <label class="label" for="notes">หมายเหตุภายใน <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></label>
       <textarea class="field" id="notes" name="notes" data-internal-notes rows="5" maxlength="2000">{v('notes')}</textarea>
       {err('notes') && <p class="error">{err('notes')}</p>}
-      <p class="hint">บรรทัด ??? = ข้อมูลที่ยังไม่รู้ เติมแล้วหายเอง</p>
+      <p class="hint">บรรทัดที่ขึ้นต้นด้วย ??? คือเรื่องที่ยังไม่ทราบ — พอรู้แล้วให้พิมพ์ข้อมูลลงไป ข้อความ ??? จะหายไปเอง</p>
     </div>
 
     {/* มือถือ: ปุ่มบันทึกติดเหนือแถบเมนูล่างตลอด (ฟอร์มยาว ไม่ต้องเลื่อนลงไปหา) */}

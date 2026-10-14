@@ -94,11 +94,11 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
   <form method="post" enctype="multipart/form-data" id="upload-form" class="card mb-5 space-y-3" data-code={hive.code} data-max={MAX_FILES_PER_REQUEST}>
     <input type="hidden" name="intent" value="upload" />
     <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูปรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
-    <p class="hint">อัปโหลดครั้งเดียว ใช้ได้ทั้งในสมุดพกและหน้ารังที่ขาย — เลือกรูปที่จะโชว์ในหน้าขายได้ที่รายการด้านล่าง</p>
+    <p class="hint">ถ่ายหรืออัปโหลดรูปรังที่นี่ครั้งเดียว รูปจะขึ้นทั้งในสมุดพกและหน้ารังที่ขาย · ด้านล่างเลือกได้ว่าจะโชว์รูปไหนตอนขาย</p>
     <div>
       <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
       <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple disabled={free === 0} />
-      <p class="hint">{free === 0 ? `ครบ ${LIMITS.passport} รูปแล้ว — ลบรูปเก่าก่อนจึงเพิ่มได้` : `เหลืออีก ${free} รูป · ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปและลบพิกัด GPS ให้อัตโนมัติ (ประหยัดเน็ต)`}</p>
+      <p class="hint">{free === 0 ? `ครบ ${LIMITS.passport} รูปแล้ว — ถ้าจะเพิ่ม ให้ลบรูปเก่าก่อน` : `เพิ่มได้อีก ${free} รูป (ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป) · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง`}</p>
     </div>
     <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
     <button id="upload-btn" class="btn-primary w-full" type="submit" disabled={free === 0}>อัปโหลด</button>
@@ -107,9 +107,9 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
   <section class="card mb-5" aria-labelledby="h-photos">
     <h2 id="h-photos" class="mb-1 text-lg font-semibold">รูปของรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
     <p class="hint mb-3">
-      รูปที่ 1 = รูปหลักของสมุดพก{passport.length > 1 && <> · <strong>กดค้างที่จุดมุมขวาบนของรูปแล้วลาก</strong> เพื่อเรียงลำดับ (ใช้คีย์บอร์ด: โฟกัสที่จุด กด Space แล้วลูกศร)</>}
-      · ติ๊ก <strong>"แสดงในหน้าขาย"</strong> ที่รูปที่ต้องการโชว์ตอนขาย
-      {picked === 0 ? ' (ยังไม่ได้ติ๊ก: หน้าขายใช้ 3 รูปแรกให้อัตโนมัติ)' : ` (ตอนนี้เลือก ${picked} รูป)`}
+      <strong>รูปที่ 1</strong> คือรูปหลักของรัง{passport.length > 1 && <> · อยากเปลี่ยนลำดับ ให้เอานิ้วกดค้างที่ปุ่มจุด ๆ มุมขวาบนของรูป แล้วลากไปวางตำแหน่งที่ต้องการ</>}
+      · กดปุ่ม <strong>"แสดงในหน้าขาย"</strong> ใต้รูป เพื่อเลือกรูปที่จะโชว์ให้ลูกค้าตอนขายรัง
+      {picked === 0 ? ' (ถ้ายังไม่เลือก ระบบจะใช้ 3 รูปแรกให้เอง)' : ` (ตอนนี้เลือกไว้ ${picked} รูป)`}
     </p>
     {passport.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
       <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={hive.code}>
@@ -154,7 +154,7 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
   {/* วิดีโอ */}
   <section class="card mb-5" aria-labelledby="h-video">
     <h2 id="h-video" class="mb-1 text-lg font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> วิดีโอ <span class="text-sm font-normal text-muted">({video ? 1 : 0}/{LIMITS.video})</span></h2>
-    <p class="hint mb-3">แสดงในสมุดพกของรัง (และหน้ารังที่ขาย) · มีได้ 1 คลิป — อัปโหลดอันใหม่จะแทนอันเดิม</p>
+    <p class="hint mb-3">วิดีโอจะขึ้นในสมุดพกและหน้ารังที่ขาย · ใส่ได้ 1 คลิป ถ้าอัปโหลดอันใหม่จะแทนอันเดิม</p>
     {video?.r2Key && (
       <video class="mb-3 block w-full max-h-[60svh] rounded-2xl bg-black" controls playsinline preload="metadata" src={`/video/${video.r2Key}`} aria-label={`วิดีโอรัง ${hive.code}`}></video>
     )}
@@ -164,7 +164,7 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
       <summary class="min-h-11 cursor-pointer py-2 font-medium">หรือวางลิงก์ YouTube แทน</summary>
       <form method="post" class="mt-2 space-y-3">
         <input type="hidden" name="intent" value="video" />
-        <p class="hint">อัปโหลดวิดีโอขึ้น YouTube (ตั้งเป็น "ไม่แสดงในรายการ" ก็ได้) แล้ววางลิงก์ที่นี่</p>
+        <p class="hint">ถ้าอัปโหลดวิดีโอขึ้น YouTube ไว้แล้ว (ตั้งเป็น "ไม่แสดงในรายการ" ก็ได้) ให้คัดลอกลิงก์มาวางที่นี่</p>
         <div><label class="label" for="video">ลิงก์ YouTube</label><input class="field" id="video" name="video" inputmode="url" placeholder="https://youtu.be/…" value={video?.youtubeId ? youtubeWatchUrl(video.youtubeId) : ''} /></div>
         <button class="btn-primary w-full" type="submit">บันทึกลิงก์ YouTube</button>
       </form>

@@ -17,8 +17,8 @@ export const MAX_POSTER_BYTES = 600 * 1024;
 const OK_VIDEO = new Set(['avc1', 'avc3']);
 const HEVC = new Set(['hvc1', 'hev1', 'dvh1', 'dvhe']);
 
-export const HEVC_MESSAGE = 'วิดีโอนี้เป็นแบบ HEVC (iPhone ค่าเริ่มต้น) เครื่องของลูกค้าหลายเครื่องเล่นไม่ได้ — ตั้งค่า iPhone: การตั้งค่า > กล้อง > รูปแบบ > "เข้ากันได้มากที่สุด" แล้วถ่ายใหม่ หรือแปลงเป็น H.264 (MP4) ก่อนอัปโหลด';
-export const NOT_MP4_MESSAGE = 'ไฟล์นี้ไม่ใช่วิดีโอ MP4/MOV ที่อ่านได้ — เลือกไฟล์ .mp4 (H.264)';
+export const HEVC_MESSAGE = 'วิดีโอนี้เปิดไม่ได้ในมือถือของลูกค้าหลายเครื่อง (iPhone ถ่ายแบบ HEVC) — ตั้ง iPhone ที่ การตั้งค่า > กล้อง > รูปแบบ > "เข้ากันได้มากที่สุด" แล้วถ่ายใหม่ หรือแปลงไฟล์เป็น MP4 ก่อนอัปโหลด';
+export const NOT_MP4_MESSAGE = 'ไฟล์นี้ไม่ใช่วิดีโอ MP4 หรืออ่านไม่ได้ — เลือกไฟล์ .mp4';
 
 export type VideoCheck =
   | { ok: true; durationSec: number | null; moov: { offset: number; size: number } }
@@ -100,7 +100,7 @@ export function readMoov(moov: Uint8Array): { videoCodecs: string[]; hasVideoTra
 /** ตรวจไฟล์ทั้งก้อนผ่าน reader: ต้องเป็น MP4/MOV ที่มี moov, ภาพเป็น H.264 */
 export async function checkVideo(size: number, read: Reader): Promise<VideoCheck> {
   if (size < 1024) return { ok: false, error: 'ไฟล์เล็ก/ว่างเกินไป' };
-  if (size > MAX_VIDEO_BYTES) return { ok: false, error: `ไฟล์ใหญ่เกิน ${MAX_VIDEO_BYTES / 1048576} MB — ลดคุณภาพ/ตัดคลิปให้สั้นลง (แนะนำ 720p)` };
+  if (size > MAX_VIDEO_BYTES) return { ok: false, error: `ไฟล์ใหญ่เกิน ${MAX_VIDEO_BYTES / 1048576} MB — ตัดคลิปให้สั้นลงหรือลดคุณภาพวิดีโอก่อน` };
   const at = await findMoov(size, read);
   if (!at) return { ok: false, error: NOT_MP4_MESSAGE };
   if (at.size > MAX_MOOV_BYTES) return { ok: false, error: NOT_MP4_MESSAGE };
@@ -109,7 +109,7 @@ export async function checkVideo(size: number, read: Reader): Promise<VideoCheck
   const info = readMoov(moov);
   if (!info.hasVideoTrack || info.videoCodecs.length === 0) return { ok: false, error: 'ไม่พบภาพวิดีโอในไฟล์นี้' };
   if (info.videoCodecs.some((c) => HEVC.has(c))) return { ok: false, error: HEVC_MESSAGE };
-  if (!info.videoCodecs.every((c) => OK_VIDEO.has(c))) return { ok: false, error: `ไฟล์นี้ใช้ codec ภาพ "${info.videoCodecs.join(', ')}" ซึ่งเล่นบนเว็บไม่ได้ทั่วไป — ใช้ MP4 แบบ H.264` };
+  if (!info.videoCodecs.every((c) => OK_VIDEO.has(c))) return { ok: false, error: `วิดีโอนี้เป็นรูปแบบที่เปิดบนเว็บทั่วไปไม่ได้ ("${info.videoCodecs.join(', ')}") — ใช้ไฟล์ .mp4 ปกติ` };
   return { ok: true, durationSec: info.durationSec, moov: at };
 }
 

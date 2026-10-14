@@ -74,7 +74,7 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
     bar.hidden = true;
     const file = input.files?.[0];
     if (!file) return say('');
-    if (file.size > MAX_VIDEO_BYTES) return say(`ไฟล์ใหญ่ ${mb(file.size)} เกิน ${mb(MAX_VIDEO_BYTES)} — ลดคุณภาพ/ตัดคลิปให้สั้นลง (แนะนำ 720p)`, true);
+    if (file.size > MAX_VIDEO_BYTES) return say(`ไฟล์ใหญ่ ${mb(file.size)} เกิน ${mb(MAX_VIDEO_BYTES)} — ตัดคลิปให้สั้นลงหรือลดคุณภาพวิดีโอก่อน`, true);
     say('กำลังตรวจไฟล์…');
     try {
       const r = await checkVideo(file.size, fileReader(file));
@@ -93,7 +93,7 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
     input.disabled = true;
     bar.hidden = false;
     bar.value = 0;
-    say('กำลังเตรียมไฟล์ (ลบพิกัด GPS)…');
+    say('กำลังเตรียมไฟล์ (ลบตำแหน่งที่ถ่าย)…');
     try {
       const body = await prepare(ready.file, ready.moov);
       say('กำลังอัปโหลด 0% — อย่าปิดหน้านี้');

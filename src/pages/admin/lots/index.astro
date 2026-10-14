@@ -29,7 +29,7 @@ const owner = canManageFarm(Astro.locals.user);
       ) : (
         <p class="text-muted">การเก็บน้ำหวานทั้งหมดอยู่ในล็อตแล้ว — เก็บเพิ่มได้ที่ ➕ บันทึก → เก็บน้ำหวาน</p>
       )}
-      <p class="hint">ล็อต = น้ำผึ้งที่กรองและบรรจุพร้อมกัน · รหัสล็อตพิมพ์บนฉลาก ลูกค้าสแกน QR ดูได้ว่าเก็บเมื่อไรจากรังไหน</p>
+      <p class="hint">ล็อต = น้ำผึ้งที่กรองและบรรจุขวดพร้อมกันหนึ่งรอบ · ลูกค้าสแกน QR บนฉลากแล้วดูได้ว่าเก็บเมื่อไรจากรังไหน</p>
     </div>
     {pending.length > 0 && <a class="btn-primary shrink-0" href="/admin/lots/new"><Icon name="plus" class="size-5" />สร้างล็อต</a>}
   </section>
