@@ -59,7 +59,7 @@ users ─< sessions · audit_logs
 
 | ฟิลด์ | หมายเหตุ |
 |---|---|
-| `hive_id`, `kind` | `passport` (สูงสุด 6 รูป แสดงในสมุดพก · ติ๊ก `show_in_sale` = แสดงในหน้าขายด้วย ตามลำดับ `sort_order`) · `video` (1 คลิป) · ชนิด `sale` เดิมถูกยกเลิก (migration 0018 ลบแถว) |
+| `hive_id`, `kind` | `passport` (สูงสุด 6 รูป แสดงในสมุดพก) · `sale` (สูงสุด 6 รูป เฉพาะหน้ารังที่ขาย — ไม่มี = หน้าขายใช้ 3 รูปแรกของสมุดพก) · `video` (1 คลิป) · เรียงตาม `sort_order` ของแต่ละชุด · คอลัมน์ `show_in_sale` (migration 0018) เลิกใช้แล้ว คงไว้เฉยๆ |
 | `r2_key` หรือ `youtube_id` | รูปเก็บใน R2 · วิดีโอ (`kind='video'`) เป็นไฟล์ MP4 ใน R2 (`r2_key` = `videos/hive-<รหัส>/<uuid>.mp4`) หรือลิงก์ YouTube unlisted (`youtube_id`) |
 | `sort_order`, `alt` | |
 

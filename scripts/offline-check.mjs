@@ -186,15 +186,15 @@ console.log('\n6) รูปตอนออฟไลน์ → เก็บใน
   const count = () => page.locator('img[src^="/media/hives/"]').count();
   const before = await count();
   await goOffline();
-  await page.locator('#upload-form input[type=file]').first().evaluate(async (el) => {
+  await page.locator('#set-passport input[type=file]').first().evaluate(async (el) => {
     const cv = document.createElement('canvas'); cv.width = 1000; cv.height = 750;
     const g = cv.getContext('2d'); g.fillStyle = '#2f6fb3'; g.fillRect(0, 0, 1000, 750);
     const f = new File([await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9))], 'offline.jpg', { type: 'image/jpeg' });
     const dt = new DataTransfer(); dt.items.add(f); el.files = dt.files;
   });
-  await page.click('#upload-btn');
-  await page.locator('#upload-status').filter({ hasText: 'เก็บไว้ในเครื่องแล้ว' }).waitFor({ timeout: 30000 }).catch(() => {});
-  const st = (await page.textContent('#upload-status'))?.trim() ?? '';
+  await page.click('#set-passport button[type=submit]');
+  await page.locator('#set-passport [data-upload-status]').filter({ hasText: 'เก็บไว้ในเครื่องแล้ว' }).waitFor({ timeout: 30000 }).catch(() => {});
+  const st = (await page.textContent('#set-passport [data-upload-status]'))?.trim() ?? '';
   await goOnline();
   await waitDrained();
   await page.reload();

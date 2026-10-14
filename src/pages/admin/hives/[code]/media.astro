@@ -4,7 +4,7 @@ import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
-import { deleteMedia, listMedia, moveHiveMedia, reorderHiveMedia, setPhotoForSale, setVideo, uploadImages } from '../../../../server/media.ts';
+import { deleteMedia, listMedia, moveHiveMedia, reorderHiveMedia, setVideo, uploadImages } from '../../../../server/media.ts';
 import VideoUploader from '../../../../components/VideoUploader.astro';
 import { jsonResult, wantsJson } from '../../../../lib/http.ts';
 import { kindLabel, LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
@@ -33,12 +33,13 @@ if (Astro.request.method === 'POST') {
   const back = (msg: string) => Astro.redirect(`${backTo}?msg=${encodeURIComponent(msg)}`, 303);
 
   if (intent === 'upload') {
-    // รูปทั้งหมดเป็นรูปสมุดพกชุดเดียว (ฟอร์มเก่าที่ค้างในคิวส่ง kind=sale ก็นับเป็นรูปสมุดพก)
+    // รูปสมุดพกกับรูปสำหรับขายอัปโหลดแยกกัน (ฟอร์มที่ไม่ระบุชนิด = รูปสมุดพก)
+    const kind = form.get('kind') === 'sale' ? 'sale' : 'passport';
     const files = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
     if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
     else {
       const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
-      const r = await uploadImages(db, getMedia(), user, hive, 'passport', files, String(form.get('batch') ?? ''), thumbs);
+      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''), thumbs);
       const message = uploadSummary(r.added, r.skipped);
       // สคริปต์อัปโหลดต้องรู้ผลจริง (เดิมได้แค่ redirect → นับว่าสำเร็จแม้ข้ามทุกไฟล์)
       if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: `${backTo}?msg=${encodeURIComponent(message)}` });
@@ -47,7 +48,8 @@ if (Astro.request.method === 'POST') {
     if (wantsJson(Astro.request)) return jsonResult({ ok: false, message: error });
   } else if (intent === 'reorder') {
     const ids = String(form.get('order') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
-    const r = ids.length ? await reorderHiveMedia(db, user, hive, ids) : { ok: false, error: 'ข้อมูลลำดับไม่ถูกต้อง' };
+    const kind = form.get('category') === 'sale' ? 'sale' : 'passport';
+    const r = ids.length ? await reorderHiveMedia(db, user, hive, kind, ids) : { ok: false, error: 'ข้อมูลลำดับไม่ถูกต้อง' };
     if (wantsJson(Astro.request)) return jsonResult({ ok: r.ok, message: r.ok ? 'บันทึกลำดับแล้ว' : (r.error ?? 'บันทึกไม่สำเร็จ') });
     if (r.ok) return back('บันทึกลำดับแล้ว');
     error = r.error ?? 'บันทึกไม่สำเร็จ';
@@ -59,11 +61,6 @@ if (Astro.request.method === 'POST') {
       if (r.ok) return back('ย้ายรูปแล้ว');
       error = r.error ?? 'ย้ายไม่สำเร็จ';
     }
-  } else if (intent === 'sale_flag') {
-    const on = form.get('on') === '1';
-    const r = await setPhotoForSale(db, user, hive, Number(form.get('mediaId')), on);
-    if (r.ok) return back(on ? 'เลือกรูปนี้แสดงในหน้าขายแล้ว' : 'เอารูปนี้ออกจากหน้าขายแล้ว');
-    error = r.error ?? 'บันทึกไม่สำเร็จ';
   } else if (intent === 'delete') {
     const r = await deleteMedia(db, getMedia(), user, hive, Number(form.get('mediaId')));
     if (r.ok) return back('ลบแล้ว');
@@ -78,9 +75,13 @@ if (Astro.request.method === 'POST') {
 const media = await listMedia(db, hive.id);
 const by = (k: string) => media.filter((m) => m.kind === k);
 const passport = by('passport');
+const sale = by('sale');
 const video = by('video')[0];
-const free = remainingSlots('passport', passport.length);
-const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
+// รังที่ตั้งขายอยู่: แสดงรูปสำหรับขายก่อน · รังอื่น: รูปสมุดพกก่อน
+const sets = ([
+  { kind: 'passport', title: 'รูปสมุดพก', items: passport, hint: 'รูปที่ลูกค้าเห็นในสมุดพกของรัง (หน้าประวัติรัง) · รูปที่ 1 เป็นรูปหลัก' },
+  { kind: 'sale', title: 'รูปสำหรับขาย', items: sale, hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย) · รูปที่ 1 เป็นรูปปกในรายการ · ถ้ายังไม่มีรูปสำหรับขาย หน้าขายจะใช้ 3 รูปแรกของสมุดพกให้ก่อน' },
+] as const).toSorted((a, b) => (hive.forSale ? (a.kind === 'sale' ? -1 : 1) : (a.kind === 'passport' ? -1 : 1)));
 ---
 
 <AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`รูปและวิดีโอ ${hive.code}`} active="hives">
@@ -88,68 +89,66 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
-  {/* อัปโหลด: รูปทั้งหมดเป็นรูปสมุดพกชุดเดียว (ไม่มีรูปขายแยก) — ติ๊กเลือกรูปที่จะแสดงในหน้าขายในรายการด้านล่าง */}
+  {/* รูปสมุดพกกับรูปสำหรับขาย: อัปโหลดและเรียงลำดับแยกกัน (เจ้าของขอ 2026-10-14) */}
   <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
   <p id="sort-live" class="sr-only" aria-live="polite"></p>
-  <form method="post" enctype="multipart/form-data" id="upload-form" class="card mb-5 space-y-3" data-code={hive.code} data-max={MAX_FILES_PER_REQUEST}>
-    <input type="hidden" name="intent" value="upload" />
-    <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูปรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
-    <p class="hint">ถ่ายหรืออัปโหลดรูปรังที่นี่ครั้งเดียว รูปจะขึ้นทั้งในสมุดพกและหน้ารังที่ขาย · ด้านล่างเลือกได้ว่าจะโชว์รูปไหนตอนขาย</p>
-    <div>
-      <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
-      <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple disabled={free === 0} />
-      <p class="hint">{free === 0 ? `ครบ ${LIMITS.passport} รูปแล้ว — ถ้าจะเพิ่ม ให้ลบรูปเก่าก่อน` : `เพิ่มได้อีก ${free} รูป (ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป) · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง`}</p>
-    </div>
-    <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
-    <button id="upload-btn" class="btn-primary w-full" type="submit" disabled={free === 0}>อัปโหลด</button>
-  </form>
 
-  <section class="card mb-5" aria-labelledby="h-photos">
-    <h2 id="h-photos" class="mb-1 text-lg font-semibold">รูปของรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
-    <p class="hint mb-3">
-      <strong>รูปที่ 1</strong> คือรูปหลักของรัง{passport.length > 1 && <> · อยากเปลี่ยนลำดับ ให้เอานิ้วกดค้างที่ปุ่มจุด ๆ มุมขวาบนของรูป แล้วลากไปวางตำแหน่งที่ต้องการ</>}
-      · กดปุ่ม <strong>"แสดงในหน้าขาย"</strong> ใต้รูป เพื่อเลือกรูปที่จะโชว์ให้ลูกค้าตอนขายรัง
-      {picked === 0 ? ' (ถ้ายังไม่เลือก ระบบจะใช้ 3 รูปแรกให้เอง)' : ` (ตอนนี้เลือกไว้ ${picked} รูป)`}
-    </p>
-    {passport.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
-      <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={hive.code}>
-        {passport.map((m, i) => (
-          <li class="space-y-2" data-photo-id={m.id}>
-            <div class="relative">
-              <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} รูปที่ ${i + 1} ขยาย`} class="relative block" target="_blank" rel="noopener">
-                <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
-                <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
-              </a>
-              <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${passport.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}
-                class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
-            </div>
-            <form method="post">
-              <input type="hidden" name="intent" value="sale_flag" /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="on" value={m.showInSale ? '0' : '1'} />
-              <button type="submit" aria-pressed={m.showInSale ? 'true' : 'false'} class:list={['flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium', m.showInSale ? 'border-palm-600 bg-palm-100 text-palm-900' : 'border-line bg-surface text-muted']}>
-                <Icon name={m.showInSale ? 'check' : 'tag'} class="size-4" /> {m.showInSale ? 'แสดงในหน้าขาย ✓' : 'แสดงในหน้าขาย'}
-              </button>
-            </form>
-            <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${passport.length}`}>
-              {(['up', 'down', 'top'] as const).map((d) => {
-                const off = d === 'up' || d === 'top' ? i === 0 : i === passport.length - 1;
-                const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
-                return (
-                  <form method="post" class="flex-1">
-                    <input type="hidden" name="intent" value="move" /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="dir" value={d} />
-                    <button class="btn-ghost !px-0 w-full min-w-11" type="submit" disabled={off} aria-label={`${label} (รูปที่ ${i + 1})`} title={label}><Icon name={d} class="size-5" /></button>
+  {sets.map((st) => {
+    const free = remainingSlots(st.kind, st.items.length);
+    return (
+      <section class="card mb-5 space-y-3" aria-labelledby={`h-${st.kind}`} id={`set-${st.kind}`}>
+        <h2 id={`h-${st.kind}`} class="text-lg font-semibold"><Icon name={st.kind === 'sale' ? 'tag' : 'camera'} class="inline-block size-[1.15em] align-[-0.2em]" /> {st.title} <span class="text-sm font-normal text-muted">({st.items.length}/{LIMITS[st.kind]})</span></h2>
+        <p class="hint">{st.hint}</p>
+
+        {st.items.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
+          <>
+            {st.items.length > 1 && <p class="hint">อยากเปลี่ยนลำดับ ให้เอานิ้วกดค้างที่ปุ่มจุด ๆ มุมขวาบนของรูป แล้วลากไปวางตำแหน่งที่ต้องการ</p>}
+            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={st.kind}>
+              {st.items.map((m, i) => (
+                <li class="space-y-2" data-photo-id={m.id}>
+                  <div class="relative">
+                    <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} (${st.title}) รูปที่ ${i + 1} ขยาย`} class="relative block" target="_blank" rel="noopener">
+                      <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                      <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
+                    </a>
+                    <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${st.items.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}
+                      class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
+                  </div>
+                  <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${st.items.length}`}>
+                    {(['up', 'down', 'top'] as const).map((d) => {
+                      const off = d === 'up' || d === 'top' ? i === 0 : i === st.items.length - 1;
+                      const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
+                      return (
+                        <form method="post" class="flex-1">
+                          <input type="hidden" name="intent" value="move" /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="dir" value={d} />
+                          <button class="btn-ghost !px-0 w-full min-w-11" type="submit" disabled={off} aria-label={`${label} (รูปที่ ${i + 1})`} title={label}><Icon name={d} class="size-5" /></button>
+                        </form>
+                      );
+                    })}
+                  </div></noscript>
+                  <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
+                    <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
+                    <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
                   </form>
-                );
-              })}
-            </div></noscript>
-            <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
-              <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
-              <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
-            </form>
-          </li>
-        ))}
-      </ul>
-    )}
-  </section>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <form method="post" enctype="multipart/form-data" data-photo-upload data-code={hive.code} data-set={st.title} class="space-y-3 border-t border-line pt-3">
+          <input type="hidden" name="intent" value="upload" /><input type="hidden" name="kind" value={st.kind} />
+          <div>
+            <label class="label flex min-h-11 items-end" for={`file-${st.kind}`}>เพิ่ม{st.title} (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
+            <input class="field-file" id={`file-${st.kind}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple disabled={free === 0} />
+            <p class="hint">{free === 0 ? `ครบ ${LIMITS[st.kind]} รูปแล้ว — ถ้าจะเพิ่ม ให้ลบรูปเก่าก่อน` : `เพิ่มได้อีก ${free} รูป (ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป) · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง`}</p>
+          </div>
+          <p data-upload-status class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
+          <button class="btn-primary w-full" type="submit" disabled={free === 0}>อัปโหลด{st.title}</button>
+        </form>
+      </section>
+    );
+  })}
 
   {/* วิดีโอ */}
   <section class="card mb-5" aria-labelledby="h-video">
@@ -184,47 +183,48 @@ const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
   import { describeUploadError, newBatchId } from '../../../../scripts/upload';
   import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../../../scripts/outbox';
 
-  // ย่อรูปก่อนอัปโหลด แล้วส่งด้วย fetch (ถ้า JS ใช้ไม่ได้ ฟอร์มจะส่งไฟล์เดิมตามปกติ)
+  // ย่อรูปก่อนอัปโหลด แล้วส่งด้วย fetch (ถ้า JS ใช้ไม่ได้ ฟอร์มจะส่งไฟล์เดิมตามปกติ) — มี 2 ฟอร์ม: รูปสมุดพก / รูปสำหรับขาย
   // ยืนยันก่อนลบ/กันกดซ้ำ อยู่ในสคริปต์กลางของหลังบ้าน (scripts/admin-forms.ts)
-  const form = document.getElementById('upload-form') as HTMLFormElement | null;
-  const status = document.getElementById('upload-status')!;
-  const btn = document.getElementById('upload-btn') as HTMLButtonElement | null;
-  const input = form?.querySelector<HTMLInputElement>('input[type=file]');
-  const say = (msg: string, bad = false) => {
-    status.textContent = msg;
-    status.classList.remove('hidden');
-    status.classList.toggle('bg-red-50', bad);
-    status.classList.toggle('text-danger', bad);
-    status.classList.toggle('bg-honey-50', !bad);
-    status.classList.toggle('text-honey-700', !bad);
-  };
-  // รหัสชุดผูกกับ "ไฟล์ที่เลือก" — กดส่งซ้ำหลังเน็ตหลุด เซิร์ฟเวอร์จะไม่บันทึกรูปเดิมซ้ำ
-  let batch = newBatchId();
-  input?.addEventListener('change', () => (batch = newBatchId()));
+  document.querySelectorAll<HTMLFormElement>('form[data-photo-upload]').forEach((form) => {
+    const status = form.querySelector<HTMLElement>('[data-upload-status]')!;
+    const btn = form.querySelector<HTMLButtonElement>('button[type=submit]');
+    const input = form.querySelector<HTMLInputElement>('input[type=file]')!;
+    const say = (msg: string, bad = false) => {
+      status.textContent = msg;
+      status.classList.remove('hidden');
+      status.classList.toggle('bg-red-50', bad);
+      status.classList.toggle('text-danger', bad);
+      status.classList.toggle('bg-honey-50', !bad);
+      status.classList.toggle('text-honey-700', !bad);
+    };
+    // รหัสชุดผูกกับ "ไฟล์ที่เลือก" — กดส่งซ้ำหลังเน็ตหลุด เซิร์ฟเวอร์จะไม่บันทึกรูปซ้ำ
+    let batch = newBatchId();
+    input.addEventListener('change', () => (batch = newBatchId()));
 
-  form?.addEventListener('submit', async (e) => {
-    const picked = [...(input?.files ?? [])];
-    if (picked.length === 0) return; // ให้ server แจ้งว่ายังไม่ได้เลือกไฟล์
-    e.preventDefault();
-    btn && (btn.disabled = true);
-    try {
-      const small = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`));
-      const fd = new FormData(form);
-      fd.delete('file');
-      fd.set('batch', batch);
-      appendPrepared(fd, small);
-      const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
-      say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
-      // คิวรอส่ง: เก็บรูปในเครื่องก่อน · สัญญาณไม่ดี = ส่งเองทีหลัง (รหัสชุดเดิม เซิร์ฟเวอร์ไม่บันทึกซ้ำ)
-      const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `${form.dataset.code} · รูป ${small.length} รูป`, bytes: after });
-      if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
-      if (o.kind === 'invalid') say(`ไม่ได้บันทึกรูป: ${o.message}`, true);
-      else if (o.kind === 'unsaved') say(UNSAVED_MSG, true);
-      else { say(o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG); form.reset(); batch = newBatchId(); }
-      btn && (btn.disabled = false);
-    } catch (err) {
-      say(describeUploadError(err), true);
-      btn && (btn.disabled = false);
-    }
+    form.addEventListener('submit', async (e) => {
+      const picked = [...(input.files ?? [])];
+      if (picked.length === 0) return; // ให้ server แจ้งว่ายังไม่ได้เลือกไฟล์
+      e.preventDefault();
+      btn && (btn.disabled = true);
+      try {
+        const small = await resizeAll(picked, (n, total) => say(`กำลังย่อรูป ${n}/${total}…`));
+        const fd = new FormData(form);
+        fd.delete('file');
+        fd.set('batch', batch);
+        appendPrepared(fd, small);
+        const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
+        say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
+        // คิวรอส่ง: เก็บรูปในเครื่องก่อน · สัญญาณไม่ดี = ส่งเองทีหลัง (รหัสชุดเดิม เซิร์ฟเวอร์ไม่บันทึกซ้ำ)
+        const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `${form.dataset.code} · ${form.dataset.set} ${small.length} รูป`, bytes: after });
+        if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
+        if (o.kind === 'invalid') say(`ไม่ได้บันทึกรูป: ${o.message}`, true);
+        else if (o.kind === 'unsaved') say(UNSAVED_MSG, true);
+        else { say(o.kind === 'session' ? SESSION_QUEUED_MSG : QUEUED_MSG); form.reset(); batch = newBatchId(); }
+        btn && (btn.disabled = false);
+      } catch (err) {
+        say(describeUploadError(err), true);
+        btn && (btn.disabled = false);
+      }
+    });
   });
 </script>

@@ -3,13 +3,14 @@
 export const MAX_UPLOAD_BYTES = 6 * 1024 * 1024; // 6 MB หลังย่อแล้วปกติไม่เกิน ~500 KB
 export const MAX_FILES_PER_REQUEST = 6;
 
-/** จำนวนสูงสุดต่อชนิด: รูปสมุดพก 6 รูป (รูปในหน้าขายเลือกจากชุดนี้) + วิดีโอ 1 คลิป ตามที่เจ้าของฟาร์มกำหนด, รูปสมุดพกเผื่อไว้ 6 */
-export const LIMITS = { passport: 6, video: 1 } as const;
+/** จำนวนสูงสุดต่อชนิด: รูปสมุดพก 6 + รูปสำหรับขาย 6 (แยกชุด เรียงลำดับแยกกัน) + วิดีโอ 1 คลิป ตามที่เจ้าของฟาร์มกำหนด, รูปสมุดพกเผื่อไว้ 6 */
+export const LIMITS = { passport: 6, sale: 6, video: 1 } as const;
 export type MediaKind = keyof typeof LIMITS;
 export type ImageKind = Exclude<MediaKind, 'video'>;
 
 export const kindLabel: Record<MediaKind, string> = {
-  passport: 'รูปรัง',
+  passport: 'รูปสมุดพก',
+  sale: 'รูปสำหรับขาย',
   video: 'วิดีโอ',
 };
 
@@ -56,7 +57,7 @@ export function remainingSlots(kind: MediaKind, existing: number): number {
   return Math.max(0, LIMITS[kind] - existing);
 }
 
-/** ชื่อไฟล์ใน R2: hives/A25/passport-<uuid>.webp */
+/** ชื่อไฟล์ใน R2: hives/A25/sale-<uuid>.webp */
 export function mediaKey(code: string, kind: ImageKind, id: string, ext: ImageType['ext']): string {
   return `hives/${code}/${kind}-${id}.${ext}`;
 }

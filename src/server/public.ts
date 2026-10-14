@@ -208,7 +208,7 @@ export interface SaleHiveCard {
   coverKey: string | null;
 }
 export interface SaleHiveDetail extends SaleHiveCard {
-  /** รูปที่แสดงในหน้ารังที่ขาย (รูปสมุดพกที่เลือกไว้ รูปแรก = รูปปก) */
+  /** รูปที่แสดงในหน้ารังที่ขาย (รูปสำหรับขายตามลำดับที่เรียง รูปแรก = รูปปก; ไม่มีเลย = 3 รูปแรกของสมุดพก) */
   photos: { key: string; alt: string | null }[];
   video: PublicVideo | null;
   queenSource: string | null;
@@ -231,7 +231,7 @@ export async function getSaleHives(db: Db): Promise<SaleHiveCard[]> {
       acquiredOnPrecision: hives.acquiredOnPrecision,
       queenBornOn: hives.queenBornOn,
       coverKey: sql<string | null>`coalesce(
-        (select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.show_in_sale = 1 and m.r2_key is not null order by m.sort_order, m.id limit 1),
+        (select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'sale' and m.r2_key is not null order by m.sort_order, m.id limit 1),
         (select r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null order by m.sort_order, m.id limit 1))`,
     })
     .from(hives)
@@ -274,14 +274,14 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
   if (!row) return null;
 
   const media = await db
-    .select({ kind: hiveMedia.kind, key: hiveMedia.r2Key, youtubeId: hiveMedia.youtubeId, alt: hiveMedia.alt, showInSale: hiveMedia.showInSale })
+    .select({ kind: hiveMedia.kind, key: hiveMedia.r2Key, youtubeId: hiveMedia.youtubeId, alt: hiveMedia.alt })
     .from(hiveMedia)
     .where(eq(hiveMedia.hiveId, row.id))
     .orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id));
-  // รูปในหน้าขาย = รูปสมุดพกที่เจ้าของติ๊ก "แสดงในหน้าขาย" (ตามลำดับที่เรียงไว้) · ยังไม่ติ๊กเลย = 3 รูปแรกของสมุดพก
-  const all = media.filter((m) => m.kind === 'passport' && m.key);
-  const picked = all.filter((m) => m.showInSale);
-  const photos = (picked.length ? picked : all.slice(0, 3)).map((m) => ({ key: m.key!, alt: m.alt }));
+  // รูปในหน้าขาย = รูปสำหรับขายของรังนี้ตามลำดับที่เจ้าของเรียงไว้ (สูงสุด 6) · ยังไม่มีรูปสำหรับขายเลย = 3 รูปแรกของสมุดพก (หน้าจะได้ไม่ว่าง)
+  const ofKind = (kind: string) => media.filter((m) => m.kind === kind && m.key).map((m) => ({ key: m.key!, alt: m.alt }));
+  const sale = ofKind('sale').slice(0, 6);
+  const photos = sale.length ? sale : ofKind('passport').slice(0, 3);
 
   return {
     code: row.code,
@@ -409,7 +409,7 @@ export async function isPublicMediaKey(db: Db, key: string): Promise<boolean> {
     .select({ one: sql<number>`1` })
     .from(hiveMedia)
     .innerJoin(hives, eq(hives.id, hiveMedia.hiveId))
-    .where(and(eq(hiveMedia.r2Key, key), eq(hiveMedia.kind, 'passport')))
+    .where(and(eq(hiveMedia.r2Key, key), or(eq(hiveMedia.kind, 'passport'), and(eq(hiveMedia.kind, 'sale'), eq(hives.forSale, true), eq(hives.status, 'active')))))
     .limit(1);
   return row.length > 0;
 }

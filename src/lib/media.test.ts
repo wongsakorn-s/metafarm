@@ -42,14 +42,18 @@ describe('parseYoutubeId', () => {
 });
 
 describe('limits & keys', () => {
-  it('รูปรัง 6 รูป (รูปหน้าขายเลือกจากชุดนี้) วิดีโอ 1 คลิป ตามที่เจ้าของฟาร์มกำหนด', () => {
+  it('รูปสมุดพก 6 + รูปสำหรับขาย 6 (แยกชุด) + วิดีโอ 1 คลิป ตามที่เจ้าของฟาร์มกำหนด', () => {
     expect(LIMITS.passport).toBe(6);
+    expect(LIMITS.sale).toBe(6);
     expect(LIMITS.video).toBe(1);
-    expect(remainingSlots('passport', 1)).toBe(5);
-    expect(remainingSlots('passport', 6)).toBe(0);
+    expect(remainingSlots('sale', 1)).toBe(5);
+    expect(remainingSlots('sale', 6)).toBe(0);
     expect(remainingSlots('passport', 9)).toBe(0);
   });
-  it('mediaKey', () => expect(mediaKey('A25', 'passport', 'abc', 'webp')).toBe('hives/A25/passport-abc.webp'));
+  it('mediaKey', () => {
+    expect(mediaKey('A25', 'sale', 'abc', 'webp')).toBe('hives/A25/sale-abc.webp');
+    expect(mediaKey('A25', 'passport', 'abc', 'webp')).toBe('hives/A25/passport-abc.webp');
+  });
   it('uploadSummary', () => {
     expect(uploadSummary(2, [])).toBe('เพิ่มแล้ว 2 รูป');
     expect(uploadSummary(1, [{ name: 'a.jpg', reason: 'เต็มแล้ว' }])).toBe('เพิ่มแล้ว 1 รูป · ข้าม 1 ไฟล์ (a.jpg: เต็มแล้ว)');

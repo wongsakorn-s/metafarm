@@ -225,13 +225,13 @@ console.log('\n7) รูปย่อและ cache ของรูป');
   await page.goto(BASE + '/admin/photos');
   const code = await page.$eval('li[data-code]', (e) => e.dataset.code);
   await page.goto(`${BASE}/admin/hives/${code}/media`);
-  await page.locator('#file').evaluate(async (el) => {
+  await page.locator('#file-passport').evaluate(async (el) => {
     const cv = document.createElement('canvas'); cv.width = 3000; cv.height = 2250; const g = cv.getContext('2d');
     for (let i = 0; i < 800; i++) { g.fillStyle = `hsl(${(i * 37) % 360} 60% 50%)`; g.fillRect((i * 97) % 3000, (i * 53) % 2250, 120, 120); }
     const dt = new DataTransfer(); dt.items.add(new File([await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.92))], 'big.jpg', { type: 'image/jpeg' }));
     el.files = dt.files;
   });
-  await Promise.all([page.waitForURL(/msg=/, { timeout: 60000 }), page.click('#upload-btn')]);
+  await Promise.all([page.waitForURL(/msg=/, { timeout: 60000 }), page.click('#set-passport button[type=submit]')]);
   const src = await page.locator('img[src^="/media/hives/"]').first().getAttribute('src');
   const info = await page.evaluate(async (src) => {
     const full = src.replace('?w=thumb', '');
