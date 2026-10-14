@@ -32,7 +32,7 @@ users ─< sessions · audit_logs
 | `queen_born_on` | date | "Queen's Birthday" |
 | `queen_source_hive_id` | fk hives | "ไข่นางจาก Axx" |
 | `brood_source_hive_id` | fk hives | "ไข่อ่อนจาก Axx" |
-| `box_type` | enum | ป้ายที่แสดง (เจ้าของขอ 2026-10-13): `metafarm` = รัง MetaFarm (ค่าเริ่มต้นของรังใหม่) · `teak_2room` = รังไม้ 2 ห้อง · `log` = รังไม้ · `other` = อื่น ๆ (ค่าภายในเดิมคงไว้ เปลี่ยนเฉพาะป้าย) |
+| `box_type` | enum | ป้ายที่แสดง (เจ้าของขอ 2026-10-13): `metafarm` = รัง MetaFarm (ค่าเริ่มต้นของรังใหม่) · `teak_2room` = รังไม้ 2 ห้อง · `log` = รังไม้ 1 ห้อง · `other` = อื่น ๆ (ค่าภายในเดิมคงไว้ เปลี่ยนเฉพาะป้าย) |
 | `status` | enum | `active` (Exist) · `sold` (Sold) · `collapsed` (ล่ม) · `unknown` |
 | `status_changed_on` | date | |
 | `collapse_reason` | text | ไม่บังคับ |
