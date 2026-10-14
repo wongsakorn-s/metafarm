@@ -11,32 +11,32 @@ const owner = canManageFarm(user);
 
 const groups = [
   {
-    title: 'งานรัง',
+    title: 'งานที่ฟาร์ม',
     items: [
-      { href: '/admin/production', icon: 'chart', label: 'ผลผลิต + สภาพอากาศ', hint: 'น้ำผึ้ง การขยายรัง เทียบฝนและอุณหภูมิ' },
+      { href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง (ล็อต)', hint: 'สร้างล็อต บรรจุขวด พิมพ์ฉลาก' },
+      { href: '/admin/production', icon: 'chart', label: 'ผลผลิตน้ำผึ้งและอากาศ', hint: 'น้ำผึ้ง การขยายรัง เทียบกับฝนและอุณหภูมิ' },
       { href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
-      { href: '/admin/photos', icon: 'camera', label: 'คิวถ่ายรูปรัง', hint: 'รังที่ยังไม่มีรูปสมุดพก' },
-      { href: '/admin/todo', icon: 'note', label: 'ข้อมูลที่ยังไม่ครบ (???)' },
-      { href: '/admin/outbox', icon: 'status', label: 'รอส่ง (บันทึกตอนสัญญาณไม่ดี)', hint: 'รายการที่ยังเก็บอยู่ในเครื่องนี้' },
+      { href: '/admin/photos', icon: 'camera', label: 'รังที่ยังไม่มีรูป', hint: 'ไปถ่ายรูปรังเหล่านี้' },
+      { href: '/admin/todo', icon: 'note', label: 'รังที่ข้อมูลยังไม่ครบ', hint: 'รังที่ยังมีเรื่องไม่ทราบ (???)' },
+      { href: '/admin/outbox', icon: 'status', label: 'รายการที่ยังส่งไม่สำเร็จ', hint: 'ที่บันทึกไว้ตอนสัญญาณไม่ดี — รอส่งในเครื่องนี้' },
     ],
   },
-  ...(owner ? [] : [{ title: 'น้ำผึ้ง', items: [{ href: '/admin/lots', icon: 'honey', label: 'ล็อตน้ำผึ้ง', hint: 'สร้างล็อต บรรจุขวด พิมพ์ฉลาก' }] }]),
-  {
-    title: 'เว็บไซต์',
+  ...(owner ? [{
+    title: 'แก้หน้าเว็บ',
     items: [
-      ...(owner ? [
-        { href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ', hint: 'สิ่งที่ยังต้องเติมก่อนเปิดจริง' },
-        { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อ และหลักสูตรอบรม' },
-        { href: '/admin/gallery', icon: 'image', label: 'รูปหน้าแกลเลอรี', hint: 'ชันโรง ส่งมอบรัง ส่งมอบน้ำผึ้ง ห้องงานไม้' },
-      ] : []),
-      { href: '/', icon: 'globe', label: 'ดูหน้าเว็บสาธารณะ', external: true },
+      { href: '/admin/settings', icon: 'settings', label: 'ช่องทางติดต่อและชำระเงิน', hint: 'LINE เบอร์โทร Facebook แผนที่ เลขบัญชี พิกัดฟาร์ม' },
+      { href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตรอบรม', hint: 'รูปหน้าแรก วิดีโอแนะนำฟาร์ม ราคาอบรม' },
+      { href: '/admin/gallery', icon: 'image', label: 'รูปหน้าแกลเลอรี', hint: 'ชันโรง ส่งมอบรัง ส่งมอบน้ำผึ้ง ห้องงานไม้' },
+      { href: '/admin/products', icon: 'cart', label: 'สินค้าและราคา', hint: 'ชื่อ ราคา รูปของรังเปล่าและน้ำผึ้ง' },
+      { href: '/admin/readiness', icon: 'checklist', label: 'สิ่งที่ต้องทำก่อนเปิดเว็บ', hint: 'รายการที่ยังต้องเติมก่อนเปิดจริง' },
+      { href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', external: true },
     ],
-  },
+  }] : [{ title: 'เว็บไซต์', items: [{ href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', external: true }] }]),
   {
     title: 'บัญชี',
     items: [
-      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่าน', hint: user.email },
-      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'users', label: 'ผู้ใช้และสิทธิ์', hint: 'เพิ่มผู้ใช้ เปลี่ยนบทบาท ปิดบัญชี' }] : []),
+      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่านของฉัน', hint: user.email },
+      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'users', label: 'คนใช้งานระบบ', hint: 'เพิ่มคนใช้ เปลี่ยนสิทธิ์ ปิดบัญชี' }] : []),
     ],
   },
 ] as { title: string; items: { href: string; icon: string; label: string; hint?: string; external?: boolean }[] }[];

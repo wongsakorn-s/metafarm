@@ -5,7 +5,7 @@ import { passwordProblem, tempPassword } from './auth/password.ts';
 describe('pathAllowed (เจ้าของ / แอดมิน / พนักงาน)', () => {
   const owner = { role: 'owner' }, admin = { role: 'admin' }, staff = { role: 'staff' };
   it('หมวดขาย ตั้งค่า = เจ้าของและแอดมิน', () => {
-    for (const p of ['/admin/orders', '/admin/orders/new', '/admin/orders/S2569-001', '/admin/customers/3', '/admin/products', '/admin/reports', '/admin/reports/export/orders.csv', '/admin/settings', '/admin/readiness', '/admin/gallery', '/admin/Orders']) {
+    for (const p of ['/admin/orders', '/admin/orders/new', '/admin/orders/S2569-001', '/admin/customers/3', '/admin/products', '/admin/reports', '/admin/reports/export/orders.csv', '/admin/settings', '/admin/settings/home', '/admin/settings/video', '/admin/readiness', '/admin/gallery', '/admin/Orders']) {
       expect([pathAllowed(owner, p), pathAllowed(admin, p), pathAllowed(staff, p)], p).toEqual([true, true, false]);
     }
   });

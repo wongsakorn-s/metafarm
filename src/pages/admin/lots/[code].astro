@@ -54,7 +54,7 @@ const v = (k: string, d = '') => values[k] ?? d;
 const byVariant = [...bottled.reduce((m, b) => m.set(b.variantId, { label: `${b.product} · ${b.label}`, qty: (m.get(b.variantId)?.qty ?? 0) + b.qty, sold: b.sold }), new Map<number, { label: string; qty: number; sold: number }>())];
 ---
 
-<AdminLayout back={{ href: '/admin/lots', label: 'ล็อตน้ำผึ้ง' }} title={`ล็อต ${lot.code}`} active="lots">
+<AdminLayout back={{ href: '/admin/lots', label: 'น้ำผึ้ง (ล็อต)' }} title={`ล็อต ${lot.code}`} active="lots">
   {saved === 'created' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">สร้างล็อตแล้ว — บันทึกการบรรจุขวดด้านล่าง แล้วพิมพ์ฉลาก</p>}
   {saved === 'bottled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">บันทึกการบรรจุแล้ว — สต็อกในหน้าสินค้าเพิ่มให้แล้ว</p>}
   {saved === 'unbottled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ลบการบรรจุแล้ว — หักสต็อกคืนให้แล้ว</p>}

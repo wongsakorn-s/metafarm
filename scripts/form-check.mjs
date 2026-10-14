@@ -281,7 +281,7 @@ console.log('\n9) เมนูมือถือ: บันทึกด่วน
   await page.goto(BASE + '/admin/quick?code=99999&do=honey');
   check(await page.isVisible('#code-err:has-text("ไม่พบรัง")'), 'เลขรังที่ไม่มี → แจ้ง "ไม่พบรัง"', 'ไม่แจ้งเมื่อไม่พบรัง');
   const tabs = await page.$$eval('nav[aria-label="เมนูหลัก"] a', (as) => as.filter((a) => a.offsetParent).map((a) => a.textContent.trim()));
-  check(tabs.join('|') === 'ภาพรวม|รัง|บันทึก|ขาย|เมนู', `แถบล่าง 5 ปุ่ม: ${tabs.join(' · ')}`, `แถบล่างไม่ถูกต้อง: ${tabs.join(' · ')}`);
+  check(tabs.join('|') === 'ภาพรวม|รัง|จดบันทึก|ขาย|เมนู', `แถบล่าง 5 ปุ่ม: ${tabs.join(' · ')}`, `แถบล่างไม่ถูกต้อง: ${tabs.join(' · ')}`);
 
   await page.goto(BASE + '/');
   const before = await page.isVisible('nav[aria-label="เมนูหลัก (มือถือ)"] a[href="/passport"]');
@@ -839,7 +839,7 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
   // ลิงก์ Facebook แบบแชร์ (แปลงไม่ได้) → หลังบ้านเตือนให้ใส่ m.me เอง
   await save({ facebookUrl: 'https://www.facebook.com/share/1AbCdEf/' });
   await page.goto(BASE + '/admin/settings');
-  check((await page.textContent('#contact')).includes('สร้างลิงก์ Messenger จากลิงก์ Facebook นี้ไม่ได้'), 'ลิงก์ Facebook แบบแชร์ → หลังบ้านเตือนให้ใส่ลิงก์ m.me เอง', 'ไม่เตือนลิงก์ที่แปลงไม่ได้');
+  check((await page.textContent('#contact')).includes('ระบบสร้างปุ่ม Messenger จากลิงก์ Facebook นี้ไม่ได้'), 'ลิงก์ Facebook แบบแชร์ → หลังบ้านเตือนให้ใส่ลิงก์ m.me เอง', 'ไม่เตือนลิงก์ที่แปลงไม่ได้');
   // คืนค่าเดิม
   await post('/admin/settings', { intent: 'contact', ...orig });
   await page.goto(BASE + '/admin/settings');
@@ -848,10 +848,10 @@ console.log('\n18) ปุ่มติดต่อ: ช่องทางหล�
 
 console.log('\n19) รูปหัวหน้าแรก: เจ้าของเลือกรัง → หน้าแรกใช้รูปสมุดพกรังนั้น · รังไม่มีรูป = ปฏิเสธ · ว่าง = โลโก้');
 {
-  await page.goto(BASE + '/admin/settings');
+  await page.goto(BASE + '/admin/settings/home');
   const before = await page.inputValue('#heroHive');
   const home = async () => page.evaluate(async () => (await fetch('/?t=' + Date.now(), { credentials: 'omit' })).text());
-  const setHero = (c) => page.evaluate(async (c) => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', c); return (await fetch('/admin/settings', { method: 'POST', body: fd })).text(); }, c);
+  const setHero = (c) => page.evaluate(async (c) => { const fd = new FormData(); fd.append('intent', 'hero'); fd.append('heroHive', c); return (await fetch('/admin/settings/home', { method: 'POST', body: fd })).text(); }, c);
   // รังที่ยังไม่มีรูปสมุดพก (คิวถ่ายรูป) → อัปโหลดรูปใหญ่ 1200 px ให้ แล้วใช้เป็นรูปหน้าแรก
   // (รูปจาก Excel กว้าง ~200 px ระบบไม่ยอมให้เป็นรูปหน้าแรก — ตรวจข้อนี้แยกด้านล่าง)
   await page.goto(BASE + '/admin/photos');
@@ -865,7 +865,7 @@ console.log('\n19) รูปหัวหน้าแรก: เจ้าขอ�
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await li.locator('[data-state]').filter({ hasText: 'เพิ่มแล้ว' }).waitFor({ timeout: 30000 }).catch(() => {});
-  const r1 = await post('/admin/settings', { intent: 'hero', heroHive: code.toLowerCase() });
+  const r1 = await post('/admin/settings/home', { intent: 'hero', heroHive: code.toLowerCase() });
   const h1 = await home();
   const r2 = await setHero('A99999');
   check(code && h1.includes('alt="รังชันโรงขนเงิน ' + code) && h1.includes('/passport/' + code) && r2.includes('ยังไม่มีรูปสมุดพก'),
@@ -880,10 +880,10 @@ console.log('\n19) รูปหัวหน้าแรก: เจ้าขอ�
   }
   const r3 = small ? await setHero(small) : '';
   check(small && r3.includes('เล็กเกินไป'), `รัง ${small} มีแต่รูปเล็กจาก Excel → ไม่ยอมให้เป็นรูปหน้าแรก`, `ไม่ปฏิเสธรูปเล็ก (${small})`);
-  await post('/admin/settings', { intent: 'hero', heroHive: '' });
+  await post('/admin/settings/home', { intent: 'hero', heroHive: '' });
   const h2 = await home();
   check(h2.includes('/brand/logo-round.webp') && !h2.includes('alt="รังชันโรงขนเงิน'), 'เว้นว่าง → หน้าแรกกลับไปใช้โลโก้', 'เว้นว่างแล้วยังใช้รูปรัง');
-  if (before) await post('/admin/settings', { intent: 'hero', heroHive: before });
+  if (before) await post('/admin/settings/home', { intent: 'hero', heroHive: before });
 }
 
 console.log('\n20) รหัสรังตั้งเอง: ตัวอักษรอะไรก็ได้ + เลข (B12, G108) ไม่ต้องเรียงลำดับ · ซ้ำ = ปฏิเสธ · บันทึกด่วนเลือกชุดได้');

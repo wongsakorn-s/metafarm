@@ -67,7 +67,7 @@ for (const p of pages) {
 // หน้าที่เฉพาะเจ้าของ: เปิดหน้า → 403 (หน้า "ไม่มีสิทธิ์") · ส่งฟอร์ม/ดาวน์โหลด → 403
 const denied = [
   ['GET', '/admin/orders'], ['GET', '/admin/orders/new'], ['GET', '/admin/customers'], ['GET', '/admin/products'], ['GET', '/admin/reports'],
-  ['GET', '/admin/reports/export/customers.csv'], ['GET', '/admin/reports/export/orders.csv'], ['GET', '/admin/settings'], ['GET', '/admin/readiness'], ['GET', '/admin/users'],
+  ['GET', '/admin/reports/export/customers.csv'], ['GET', '/admin/reports/export/orders.csv'], ['GET', '/admin/settings'], ['GET', '/admin/settings/home'], ['GET', '/admin/gallery'], ['GET', '/admin/readiness'], ['GET', '/admin/users'],
   ['POST', '/admin/products'], ['POST', '/admin/orders/new'], ['POST', '/admin/settings'], ['POST', '/admin/users'], ['PUT', '/admin/settings/video'],
   ...(orders[0] ? [['GET', `/admin/orders/${orders[0].code}`], ['POST', `/admin/orders/${orders[0].code}`]] : []),
 ];
