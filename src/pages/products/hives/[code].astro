@@ -26,7 +26,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
 const msg = hive ? orderMessage('', { code: hive.code, price: hive.priceThb }) : '';
 const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
-const photos = hive ? [...hive.salePhotos, ...hive.passportPhotos] : [];
+const photos = hive ? hive.photos : [];
 const cover = photos[0] ? `/img/${photos[0].key}` : placeholder.hive;
 // ราคารังที่ตั้งขาย = เจ้าของฟาร์มตั้งเองในหลังบ้าน จึงถือว่ายืนยันแล้ว
 const jsonLd = hive

@@ -4,7 +4,7 @@ import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
-import { deleteMedia, listMedia, setVideo, uploadImages } from '../../../../server/media.ts';
+import { deleteMedia, listMedia, moveHiveMedia, reorderHiveMedia, setPhotoForSale, setVideo, uploadImages } from '../../../../server/media.ts';
 import VideoUploader from '../../../../components/VideoUploader.astro';
 import { jsonResult, wantsJson } from '../../../../lib/http.ts';
 import { kindLabel, LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
@@ -33,19 +33,37 @@ if (Astro.request.method === 'POST') {
   const back = (msg: string) => Astro.redirect(`${backTo}?msg=${encodeURIComponent(msg)}`, 303);
 
   if (intent === 'upload') {
-    const kind = form.get('kind');
+    // รูปทั้งหมดเป็นรูปสมุดพกชุดเดียว (ฟอร์มเก่าที่ค้างในคิวส่ง kind=sale ก็นับเป็นรูปสมุดพก)
     const files = form.getAll('file').filter((f): f is File => f instanceof File && f.size > 0);
-    if (kind !== 'passport' && kind !== 'sale') error = 'เลือกชนิดรูป';
-    else if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
+    if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
     else {
       const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
-      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''), thumbs);
+      const r = await uploadImages(db, getMedia(), user, hive, 'passport', files, String(form.get('batch') ?? ''), thumbs);
       const message = uploadSummary(r.added, r.skipped);
       // สคริปต์อัปโหลดต้องรู้ผลจริง (เดิมได้แค่ redirect → นับว่าสำเร็จแม้ข้ามทุกไฟล์)
       if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: `${backTo}?msg=${encodeURIComponent(message)}` });
       return back(message);
     }
     if (wantsJson(Astro.request)) return jsonResult({ ok: false, message: error });
+  } else if (intent === 'reorder') {
+    const ids = String(form.get('order') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    const r = ids.length ? await reorderHiveMedia(db, user, hive, ids) : { ok: false, error: 'ข้อมูลลำดับไม่ถูกต้อง' };
+    if (wantsJson(Astro.request)) return jsonResult({ ok: r.ok, message: r.ok ? 'บันทึกลำดับแล้ว' : (r.error ?? 'บันทึกไม่สำเร็จ') });
+    if (r.ok) return back('บันทึกลำดับแล้ว');
+    error = r.error ?? 'บันทึกไม่สำเร็จ';
+  } else if (intent === 'move') {
+    const dir = String(form.get('dir') ?? '');
+    if (dir !== 'up' && dir !== 'down' && dir !== 'top') error = 'คำสั่งไม่ถูกต้อง';
+    else {
+      const r = await moveHiveMedia(db, user, hive, Number(form.get('mediaId')), dir);
+      if (r.ok) return back('ย้ายรูปแล้ว');
+      error = r.error ?? 'ย้ายไม่สำเร็จ';
+    }
+  } else if (intent === 'sale_flag') {
+    const on = form.get('on') === '1';
+    const r = await setPhotoForSale(db, user, hive, Number(form.get('mediaId')), on);
+    if (r.ok) return back(on ? 'เลือกรูปนี้แสดงในหน้าขายแล้ว' : 'เอารูปนี้ออกจากหน้าขายแล้ว');
+    error = r.error ?? 'บันทึกไม่สำเร็จ';
   } else if (intent === 'delete') {
     const r = await deleteMedia(db, getMedia(), user, hive, Number(form.get('mediaId')));
     if (r.ok) return back('ลบแล้ว');
@@ -60,11 +78,9 @@ if (Astro.request.method === 'POST') {
 const media = await listMedia(db, hive.id);
 const by = (k: string) => media.filter((m) => m.kind === k);
 const passport = by('passport');
-const sale = by('sale');
 const video = by('video')[0];
-const free = { passport: remainingSlots('passport', passport.length), sale: remainingSlots('sale', sale.length) };
-// ค่าเริ่มต้น: รังที่ตั้งขายอยู่ → รูปขาย, รังอื่น → รูปสมุดพก (เดิมเลือกรูปขายไว้ก่อนทุกรัง ทำให้รูปทั่วไปไปอยู่ผิดชนิด)
-const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ? 'passport' : free.sale > 0 ? 'sale' : null;
+const free = remainingSlots('passport', passport.length);
+const picked = passport.filter((m) => m.showInSale && m.r2Key).length;
 ---
 
 <AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`รูปและวิดีโอ ${hive.code}`} active="hives">
@@ -72,51 +88,68 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
-  {/* อัปโหลด */}
+  {/* อัปโหลด: รูปทั้งหมดเป็นรูปสมุดพกชุดเดียว (ไม่มีรูปขายแยก) — ติ๊กเลือกรูปที่จะแสดงในหน้าขายในรายการด้านล่าง */}
+  <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
+  <p id="sort-live" class="sr-only" aria-live="polite"></p>
   <form method="post" enctype="multipart/form-data" id="upload-form" class="card mb-5 space-y-3" data-code={hive.code} data-max={MAX_FILES_PER_REQUEST}>
     <input type="hidden" name="intent" value="upload" />
-    <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูป</h2>
-    <fieldset>
-      <legend class="label">ชนิดรูป</legend>
-      <div class="grid gap-2 sm:grid-cols-2">
-        <label class:list={['flex min-h-11 items-center gap-2 rounded-xl border border-line px-3', free.sale === 0 && 'opacity-50']}>
-          <input class="size-5 accent-palm-600" type="radio" name="kind" value="sale" checked={defaultKind === 'sale'} disabled={free.sale === 0} /> รูปสำหรับขาย <span class="text-sm text-muted">(เหลือ {free.sale}/{LIMITS.sale})</span>
-        </label>
-        <label class:list={['flex min-h-11 items-center gap-2 rounded-xl border border-line px-3', free.passport === 0 && 'opacity-50']}>
-          <input class="size-5 accent-palm-600" type="radio" name="kind" value="passport" checked={defaultKind === 'passport'} disabled={free.passport === 0} /> รูปสมุดพก <span class="text-sm text-muted">(เหลือ {free.passport}/{LIMITS.passport})</span>
-        </label>
-      </div>
-    </fieldset>
+    <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูปรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
+    <p class="hint">อัปโหลดครั้งเดียว ใช้ได้ทั้งในสมุดพกและหน้ารังที่ขาย — เลือกรูปที่จะโชว์ในหน้าขายได้ที่รายการด้านล่าง</p>
     <div>
       <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
-      <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
-      <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปให้อัตโนมัติก่อนส่ง (ประหยัดเน็ต)</p>
+      <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple disabled={free === 0} />
+      <p class="hint">{free === 0 ? `ครบ ${LIMITS.passport} รูปแล้ว — ลบรูปเก่าก่อนจึงเพิ่มได้` : `เหลืออีก ${free} รูป · ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปและลบพิกัด GPS ให้อัตโนมัติ (ประหยัดเน็ต)`}</p>
     </div>
     <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
-    <button id="upload-btn" class="btn-primary w-full" type="submit" disabled={free.sale === 0 && free.passport === 0}>อัปโหลด</button>
+    <button id="upload-btn" class="btn-primary w-full" type="submit" disabled={free === 0}>อัปโหลด</button>
   </form>
 
-  {([['sale', sale], ['passport', passport]] as const).map(([k, items]) => (
-    <section class="card mb-5" aria-labelledby={`h-${k}`}>
-      <h2 id={`h-${k}`} class="mb-1 text-lg font-semibold">{kindLabel[k]} <span class="text-sm font-normal text-muted">({items.length}/{LIMITS[k]})</span></h2>
-      <p class="hint mb-3">{k === 'sale' ? 'แสดงเฉพาะในหน้าสินค้า/รังสมบูรณ์ เมื่อตั้งขายรังนี้' : 'แสดงในสมุดพกชันโรง (สาธารณะ)'}</p>
-      {items.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
-        <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group>
-          {items.map((m) => (
-            <li class="space-y-2">
-              <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="block" target="_blank" rel="noopener">
+  <section class="card mb-5" aria-labelledby="h-photos">
+    <h2 id="h-photos" class="mb-1 text-lg font-semibold">รูปของรัง <span class="text-sm font-normal text-muted">({passport.length}/{LIMITS.passport})</span></h2>
+    <p class="hint mb-3">
+      รูปที่ 1 = รูปหลักของสมุดพก{passport.length > 1 && <> · <strong>กดค้างที่จุดมุมขวาบนของรูปแล้วลาก</strong> เพื่อเรียงลำดับ (ใช้คีย์บอร์ด: โฟกัสที่จุด กด Space แล้วลูกศร)</>}
+      · ติ๊ก <strong>"แสดงในหน้าขาย"</strong> ที่รูปที่ต้องการโชว์ตอนขาย
+      {picked === 0 ? ' (ยังไม่ได้ติ๊ก: หน้าขายใช้ 3 รูปแรกให้อัตโนมัติ)' : ` (ตอนนี้เลือก ${picked} รูป)`}
+    </p>
+    {passport.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
+      <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={hive.code}>
+        {passport.map((m, i) => (
+          <li class="space-y-2" data-photo-id={m.id}>
+            <div class="relative">
+              <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} รูปที่ ${i + 1} ขยาย`} class="relative block" target="_blank" rel="noopener">
+                <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
                 <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
               </a>
-              <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
-                <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
-                <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  ))}
+              <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${passport.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}
+                class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
+            </div>
+            <form method="post">
+              <input type="hidden" name="intent" value="sale_flag" /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="on" value={m.showInSale ? '0' : '1'} />
+              <button type="submit" aria-pressed={m.showInSale ? 'true' : 'false'} class:list={['flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium', m.showInSale ? 'border-palm-600 bg-palm-100 text-palm-900' : 'border-line bg-surface text-muted']}>
+                <Icon name={m.showInSale ? 'check' : 'tag'} class="size-4" /> {m.showInSale ? 'แสดงในหน้าขาย ✓' : 'แสดงในหน้าขาย'}
+              </button>
+            </form>
+            <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${passport.length}`}>
+              {(['up', 'down', 'top'] as const).map((d) => {
+                const off = d === 'up' || d === 'top' ? i === 0 : i === passport.length - 1;
+                const label = { up: 'เลื่อนขึ้น', down: 'เลื่อนลง', top: 'ไปบนสุด' }[d];
+                return (
+                  <form method="post" class="flex-1">
+                    <input type="hidden" name="intent" value="move" /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="dir" value={d} />
+                    <button class="btn-ghost !px-0 w-full min-w-11" type="submit" disabled={off} aria-label={`${label} (รูปที่ ${i + 1})`} title={label}><Icon name={d} class="size-5" /></button>
+                  </form>
+                );
+              })}
+            </div></noscript>
+            <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
+              <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
+              <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
 
   {/* วิดีโอ */}
   <section class="card mb-5" aria-labelledby="h-video">
@@ -146,6 +179,7 @@ const defaultKind = hive.forSale && free.sale > 0 ? 'sale' : free.passport > 0 ?
 </AdminLayout>
 
 <script>
+  import '../../../../scripts/gallery-sort';
   import { appendPrepared, resizeAll } from '../../../../scripts/resize-image';
   import { describeUploadError, newBatchId } from '../../../../scripts/upload';
   import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../../../scripts/outbox';

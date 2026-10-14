@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { auditLogs, hiveMedia, hives, products } from '../db/schema.ts';
 import {
@@ -123,8 +123,62 @@ export async function setVideo(db: Db, bucket: R2Bucket, user: SessionUser, hive
   if (stale.length) await bucket.delete(stale.flatMap((k) => [k, posterKeyOf(k)])).catch(() => {});
   return { ok: true };
 }
-/** สรุปความพร้อมของรังที่ตั้งขาย (ใช้เตือนในหน้ารัง) */
+/** สรุปความพร้อมของรังที่ตั้งขาย (ใช้เตือนในหน้ารัง): หน้าขายใช้รูปที่ติ๊กไว้ ถ้ายังไม่ติ๊กใช้ 3 รูปแรกของสมุดพก */
 export function saleReadiness(media: MediaRow[]) {
   const n = (k: string) => media.filter((m) => m.kind === k).length;
-  return { passport: n('passport'), sale: n('sale'), video: n('video') };
+  return { passport: n('passport'), video: n('video') };
+}
+
+// ---------- เรียงลำดับ / เลือกรูปแสดงในหน้าขาย (รูปสมุดพกชุดเดียว) ----------
+
+const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
+const photoRows = (db: Db, hiveId: number) =>
+  db.select({ id: hiveMedia.id, sortOrder: hiveMedia.sortOrder }).from(hiveMedia)
+    .where(and(eq(hiveMedia.hiveId, hiveId), eq(hiveMedia.kind, 'passport'), isNotNull(hiveMedia.r2Key))).orderBy(asc(hiveMedia.sortOrder), asc(hiveMedia.id));
+
+/** เรียงเลขใหม่ทั้งชุดตามลำดับที่ส่งมา (0,1,2…) — เขียนทุกรูปทุกครั้ง ไม่มีเลขซ้ำแม้สองเครื่องเรียงพร้อมกัน (ดู gallery.ts) */
+async function applyOrder(db: Db, user: SessionUser, hive: Hive, rows: { id: number; sortOrder: number }[], order: number[], action: string, diff: unknown) {
+  const byId = new Map(rows.map((r) => [r.id, r.sortOrder]));
+  if (order.every((id, i) => byId.get(id) === i)) return;
+  const stmts = [
+    ...order.map((id, i) => db.update(hiveMedia).set({ sortOrder: i, updatedAt: now }).where(eq(hiveMedia.id, id))),
+    audit(db, user, action, hive.id, diff),
+  ];
+  await db.batch(stmts as unknown as [(typeof stmts)[0], ...(typeof stmts)[number][]]);
+}
+
+/** ลากวางเรียงรูป: ids = ลำดับใหม่ (รูปแรกก่อน) · รูปที่ไม่อยู่ในรายการ (เพิ่งอัปโหลด) ต่อท้าย · id ของรังอื่น/ที่ลบแล้วถูกข้าม */
+export async function reorderHiveMedia(db: Db, user: SessionUser, hive: Hive, ids: number[]): Promise<{ ok: boolean; error?: string }> {
+  const rows = await photoRows(db, hive.id);
+  const known = new Set(rows.map((r) => r.id));
+  const wanted = [...new Set(ids)].filter((id) => known.has(id));
+  if (!wanted.length) return { ok: false, error: 'ไม่พบรูปในรายการ — โหลดหน้าใหม่แล้วลองอีกครั้ง' };
+  const rest = rows.map((r) => r.id).filter((id) => !wanted.includes(id));
+  await applyOrder(db, user, hive, rows, [...wanted, ...rest], 'media.reorder', { count: wanted.length });
+  return { ok: true };
+}
+
+/** เลื่อนทีละตำแหน่ง/ไปบนสุด — ใช้เมื่อไม่มี JavaScript */
+export async function moveHiveMedia(db: Db, user: SessionUser, hive: Hive, mediaId: number, dir: 'up' | 'down' | 'top'): Promise<{ ok: boolean; error?: string }> {
+  const rows = await photoRows(db, hive.id);
+  const from = rows.findIndex((r) => r.id === mediaId);
+  if (from < 0) return { ok: false, error: 'ไม่พบรูปนี้ในรังนี้' };
+  const to = dir === 'top' ? 0 : dir === 'up' ? from - 1 : from + 1;
+  if (to < 0 || to >= rows.length || to === from) return { ok: true };
+  const order = rows.map((r) => r.id);
+  order.splice(to, 0, order.splice(from, 1)[0]!);
+  await applyOrder(db, user, hive, rows, order, 'media.move', { id: mediaId, dir, from: from + 1, to: to + 1 });
+  return { ok: true };
+}
+
+/** ติ๊ก/เอาออก "แสดงในหน้ารังที่ขาย" ของรูปสมุดพก */
+export async function setPhotoForSale(db: Db, user: SessionUser, hive: Hive, mediaId: number, on: boolean): Promise<{ ok: boolean; error?: string }> {
+  const row = await db.query.hiveMedia.findFirst({ where: and(eq(hiveMedia.id, mediaId), eq(hiveMedia.hiveId, hive.id), eq(hiveMedia.kind, 'passport')), columns: { id: true, showInSale: true } });
+  if (!row) return { ok: false, error: 'ไม่พบรูปนี้ในรังนี้' };
+  if (row.showInSale === on) return { ok: true };
+  await db.batch([
+    db.update(hiveMedia).set({ showInSale: on, updatedAt: now }).where(eq(hiveMedia.id, row.id)),
+    audit(db, user, 'media.sale_flag', hive.id, { id: row.id, on }),
+  ]);
+  return { ok: true };
 }

@@ -28,7 +28,7 @@ export const EVENT_TYPES = [
   'note',
   'status_change',
 ] as const;
-export const MEDIA_KINDS = ['passport', 'sale', 'video'] as const;
+export const MEDIA_KINDS = ['passport', 'video'] as const;
 /** หมวดรูปในหน้า Gallery (เจ้าของฟาร์ม 2026-10-10) — ชื่อหมวดภาษาไทยอยู่ที่ src/lib/gallery.ts */
 export const GALLERY_CATEGORIES = ['farm', 'hive_delivery', 'honey_delivery', 'woodshop'] as const;
 export const USER_ROLES = ['owner', 'admin', 'staff'] as const;
@@ -157,6 +157,8 @@ export const hiveMedia = sqliteTable(
       .notNull()
       .references(() => hives.id),
     kind: text('kind', { enum: MEDIA_KINDS }).notNull(),
+    /** รูปสมุดพกที่เลือกให้แสดงในหน้ารังที่ขาย (เจ้าของติ๊กจากรูปสมุดพก — ไม่มีรูปขายแยกอีกแล้ว) */
+    showInSale: integer('show_in_sale', { mode: 'boolean' }).notNull().default(false),
     r2Key: text('r2_key'),
     youtubeId: text('youtube_id'),
     width: integer('width'),

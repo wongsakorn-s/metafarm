@@ -15,7 +15,7 @@ export async function getReadiness(db: Db, settings: SiteSettings) {
     one(sql`select count(*) n from products where published = 1 and image_key is null`),
     one(sql`select count(*) n from hives h where h.status = 'active' and not exists (select 1 from hive_media m where m.hive_id = h.id and m.kind = 'passport' and m.r2_key is not null)`),
     one(sql`select count(*) n from hives where notes like '%???%'`),
-    one(sql`select count(*) n from hives h where h.for_sale = 1 and h.status = 'active' and ((select count(*) from hive_media m where m.hive_id = h.id and m.kind = 'sale') < 3 or not exists (select 1 from hive_media m where m.hive_id = h.id and m.kind = 'video'))`),
+    one(sql`select count(*) n from hives h where h.for_sale = 1 and h.status = 'active' and ((select count(*) from hive_media m where m.hive_id = h.id and m.kind = 'passport' and m.r2_key is not null) < 3 or not exists (select 1 from hive_media m where m.hive_id = h.id and m.kind = 'video'))`),
   ]);
   const unconfirmedCourses = listTraining().filter((c) => effectiveCourse(c, settings.courses[c.slug]).priceIsSample).length;
   return buildChecklist({ contactConfirmed: settings.contact.confirmed, heroChosen: settings.heroHive !== '', unconfirmedPrices, unconfirmedCourses, productsWithoutImage, activeHivesWithoutPhoto, incompleteHives, saleHivesNotReady });

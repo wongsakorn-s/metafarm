@@ -1,6 +1,6 @@
 // รังตัวอย่างในหน้าสมุดพก: สุ่มเฉพาะรังที่รูปและข้อมูลครบ · รังละรูปเดียว (รูปถ่ายใหม่ก่อนรูปเล็กจาก Excel)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getPublicHive, getSaleHive, getSampleHives } from './public.ts';
+import { getPublicHive, getSaleHive, getSaleHives, getSampleHives } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -46,16 +46,20 @@ describe('getSampleHives', () => {
   });
 });
 
-describe('จำนวนรูปสูงสุดบนหน้าสาธารณะ (เจ้าของขอ 2026-10-13)', () => {
-  it('สมุดพก 6 รูป · หน้ารังที่ขาย = รูปขาย 3 + รูปสมุดพก 3', async () => {
+describe('รูปบนหน้าสาธารณะ (เจ้าของขอ 2026-10-13/14)', () => {
+  it('สมุดพก 6 รูป · หน้ารังที่ขาย = รูปที่ติ๊ก "แสดงในหน้าขาย" (ยังไม่ติ๊ก = 3 รูปแรก)', async () => {
     await t.d1.batch([
       t.d1.prepare(`INSERT INTO hives (id, code, species_id, status, for_sale, sale_price) VALUES (20, 'A20', 1, 'active', 1, 1600)`),
       ...Array.from({ length: 8 }, (_, i) => t.d1.prepare(`INSERT INTO hive_media (hive_id, kind, r2_key, sort_order) VALUES (20, 'passport', ?, ?)`).bind(`hives/A20/passport-p${i}-0.webp`, i)),
-      ...Array.from({ length: 4 }, (_, i) => t.d1.prepare(`INSERT INTO hive_media (hive_id, kind, r2_key, sort_order) VALUES (20, 'sale', ?, ?)`).bind(`hives/A20/sale-s${i}-0.webp`, i)),
     ]);
     expect((await getPublicHive(t.db, 'A20'))!.photos).toHaveLength(6);
     const sale = (await getSaleHive(t.db, 'A20'))!;
-    expect(sale.salePhotos).toHaveLength(3);
-    expect(sale.passportPhotos).toHaveLength(3);
+    expect(sale.photos.map((p) => p.key)).toEqual(['hives/A20/passport-p0-0.webp', 'hives/A20/passport-p1-0.webp', 'hives/A20/passport-p2-0.webp']);
+    expect(sale.coverKey).toBe('hives/A20/passport-p0-0.webp');
+    // เจ้าของติ๊กรูปที่ 5 และ 2 → หน้าขายใช้เฉพาะสองรูปนี้ ตามลำดับที่เรียงไว้ · รูปปกของการ์ด = รูปแรกที่ติ๊ก
+    await t.d1.prepare(`UPDATE hive_media SET show_in_sale = 1 WHERE r2_key IN ('hives/A20/passport-p4-0.webp', 'hives/A20/passport-p1-0.webp')`).run();
+    const picked = (await getSaleHive(t.db, 'A20'))!;
+    expect(picked.photos.map((p) => p.key)).toEqual(['hives/A20/passport-p1-0.webp', 'hives/A20/passport-p4-0.webp']);
+    expect((await getSaleHives(t.db)).find((h) => h.code === 'A20')!.coverKey).toBe('hives/A20/passport-p1-0.webp');
   });
 });
