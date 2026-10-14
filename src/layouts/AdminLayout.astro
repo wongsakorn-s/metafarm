@@ -41,14 +41,14 @@ const tabActive = (k: string) => active === k || (k === 'orders' && (active === 
 const sideGroups = [
   { title: 'งานที่ฟาร์ม', items: [
     { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
-    { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รัง' },
+    { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รังทั้งหมด' },
     { key: 'quick', href: '/admin/quick', icon: 'edit', label: 'จดบันทึก' },
     { key: 'new', href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
     { key: 'lots', href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง (ล็อต)' },
     { key: 'production', href: '/admin/production', icon: 'chart', label: 'ผลผลิตและอากาศ' },
-    { key: 'photos', href: '/admin/photos', icon: 'camera', label: 'รังที่ยังไม่มีรูป' },
-    { key: 'todo', href: '/admin/todo', icon: 'note', label: 'รังที่ข้อมูลยังไม่ครบ' },
-    { key: 'outbox', href: '/admin/outbox', icon: 'status', label: 'รายการที่ค้างส่ง' },
+    { key: 'photos', href: '/admin/photos', icon: 'camera', label: 'รังรอถ่ายรูป' },
+    { key: 'todo', href: '/admin/todo', icon: 'note', label: 'รังข้อมูลไม่ครบ' },
+    { key: 'outbox', href: '/admin/outbox', icon: 'status', label: 'รายการค้างส่ง' },
   ] },
   { title: 'ขาย', items: [
     { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ออเดอร์' },
@@ -59,7 +59,7 @@ const sideGroups = [
   { title: 'แก้หน้าเว็บ', items: [
     { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ติดต่อและชำระเงิน' },
     { key: 'settingsHome', href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตร' },
-    { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปหน้าแกลเลอรี' },
+    { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี' },
     { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
   ] },
 ] as const;

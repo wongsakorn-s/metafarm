@@ -71,7 +71,7 @@ const courses = listTraining().map((x) => ({ ...x, eff: effectiveCourse(x, setti
 const err = (k: string, where: string) => (errorWhere === where ? errors[k] : undefined);
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="หน้าแรกและหลักสูตรอบรม" active="settingsHome">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="หน้าแรกและหลักสูตร" active="settingsHome">
   {conflict && <p role="alert" class="mb-4 rounded-xl border-2 border-honey-400 bg-honey-50 p-3 font-medium">ยังไม่ได้บันทึก — มีคนบันทึกการตั้งค่าไปก่อนระหว่างที่คุณแก้อยู่ ตรวจค่าในฟอร์มอีกครั้ง แล้วกดบันทึกเพื่อยืนยัน</p>}
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   {saved && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> บันทึกแล้ว — ลูกค้าบางคนอาจเห็นค่าเก่าอีกไม่เกิน 5 นาที</p>}

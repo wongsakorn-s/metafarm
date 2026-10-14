@@ -16,7 +16,7 @@ const rows = await listHivesWithoutPhoto(getDb(), includeAll);
 const msg = Astro.url.searchParams.get('msg');
 ---
 
-<AdminLayout back={isOwnerUser(Astro.locals.user) ? { href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' } : { href: '/admin/more', label: 'เมนู' }} title="คิวถ่ายรูปรัง" active="photos">
+<AdminLayout back={isOwnerUser(Astro.locals.user) ? { href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' } : { href: '/admin/more', label: 'เมนู' }} title="รังรอถ่ายรูป" active="photos">
   {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {msg}</p>}
 
   <section class="card mb-4">

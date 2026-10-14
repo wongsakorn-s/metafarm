@@ -65,7 +65,7 @@ const tiles = [
 const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3', temp: '#5b6a61' };
 ---
 
-<AdminLayout back={{ href: '/admin', label: 'ภาพรวม' }} title="ผลผลิต + สภาพอากาศ" active="production">
+<AdminLayout back={{ href: '/admin', label: 'ภาพรวม' }} title="ผลผลิตและอากาศ" active="production">
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <nav aria-label="ช่วงเวลา" class="inline-flex rounded-xl border border-line bg-surface p-1">
       {([['12', '12 เดือน'], ['24', '24 เดือน'], ['all', 'ทั้งหมด']] as const).map(([k, l]) => (
