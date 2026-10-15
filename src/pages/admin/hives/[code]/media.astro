@@ -79,8 +79,22 @@ const sale = by('sale');
 const video = by('video')[0];
 // รังที่ตั้งขายอยู่: แสดงรูปสำหรับขายก่อน · รังอื่น: รูปสมุดพกก่อน
 const sets = ([
-  { kind: 'passport', title: 'รูปสมุดพก', items: passport, hint: 'รูปที่ลูกค้าเห็นในสมุดพกของรัง (หน้าประวัติรัง) · รูปที่ 1 เป็นรูปหลัก' },
-  { kind: 'sale', title: 'รูปสำหรับขาย', items: sale, hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย) · รูปที่ 1 เป็นรูปปกในรายการ · ถ้ายังไม่มีรูปสำหรับขาย หน้าขายจะใช้ 3 รูปแรกของสมุดพกให้ก่อน' },
+  {
+    kind: 'passport',
+    title: 'รูปสมุดพก',
+    items: passport,
+    tag: '★ รูปหลัก (เห็นที่ตั้งรัง)',
+    guide: 'รูปที่ 1 เป็นรูปหลัก: ควรถ่ายมุมกว้าง (overall) ให้เห็นตัวรังพร้อมสภาพแวดล้อมที่ตั้ง เพื่อให้เดินหาตำแหน่งรังในสวนได้ง่าย · รูปที่ 2–6 เป็นรูปมุมใกล้ ตัวรัง หรือการดูแล',
+    hint: 'รูปที่ลูกค้าและคนดูแลเห็นในสมุดพกของรัง (หน้าประวัติรัง)',
+  },
+  {
+    kind: 'sale',
+    title: 'รูปสำหรับขาย',
+    items: sale,
+    tag: '★ รูปปก (เปิดฝาโชว์รัง)',
+    guide: 'รูปที่ 1 สำคัญที่สุด: ควรถ่ายเปิดฝาโชว์ข้างในรังผ่านแผ่นพลาสติกใส ให้เห็นประชากรชันโรง ไข่อ่อน-ไข่แก่ และถ้วยน้ำหวาน เพื่อสร้างความมั่นใจให้ผู้ซื้อ · รูปที่ 2–6 เป็นรูปมุมข้างหรือตัวรังภายนอก',
+    hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย) · ถ้ายังไม่มีรูปสำหรับขาย หน้าขายจะใช้ 3 รูปแรกของสมุดพกให้ก่อน',
+  },
 ] as const).toSorted((a, b) => (hive.forSale ? (a.kind === 'sale' ? -1 : 1) : (a.kind === 'passport' ? -1 : 1)));
 ---
 
@@ -100,15 +114,23 @@ const sets = ([
         <h2 id={`h-${st.kind}`} class="text-lg font-semibold"><Icon name={st.kind === 'sale' ? 'tag' : 'camera'} class="inline-block size-[1.15em] align-[-0.2em]" /> {st.title} <span class="text-sm font-normal text-muted">({st.items.length}/{LIMITS[st.kind]})</span></h2>
         <p class="hint">{st.hint}</p>
 
+        <div class="rounded-xl border border-palm-100 bg-palm-50/70 p-3 text-sm text-palm-900">
+          <p class="font-semibold text-palm-800"><Icon name="info" class="inline-block size-[1.15em] align-[-0.2em]" /> แนะนำการเลือกรูป:</p>
+          <p class="mt-1 leading-relaxed text-muted">{st.guide}</p>
+        </div>
+
         {st.items.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
           <>
             {st.items.length > 1 && <p class="hint">อยากเปลี่ยนลำดับ ให้เอานิ้วกดค้างที่ปุ่มจุด ๆ มุมขวาบนของรูป แล้วลากไปวางตำแหน่งที่ต้องการ</p>}
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={st.kind}>
               {st.items.map((m, i) => (
                 <li class="space-y-2" data-photo-id={m.id}>
-                  <div class="relative">
+                  <div class="relative overflow-hidden rounded-xl">
                     <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} (${st.title}) รูปที่ ${i + 1} ขยาย`} class="relative block" target="_blank" rel="noopener">
                       <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                      <span data-first-label class:list={['pointer-events-none absolute inset-x-2 bottom-2 rounded-lg bg-black/75 px-2 py-1 text-center text-xs font-semibold text-white shadow-sm backdrop-blur', i !== 0 && 'hidden']}>
+                        {st.tag}
+                      </span>
                       <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
                     </a>
                     <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${st.items.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}

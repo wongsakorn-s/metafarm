@@ -27,6 +27,8 @@ function renumber(ul: HTMLElement) {
   lis.forEach((li, i) => {
     const badge = li.querySelector('[data-pos]');
     if (badge) badge.textContent = String(i + 1);
+    const firstLabel = li.querySelector('[data-first-label]');
+    if (firstLabel) firstLabel.classList.toggle('hidden', i !== 0);
     li.querySelector('[data-drag-handle]')?.setAttribute('aria-label', `จัดลำดับรูปที่ ${i + 1} จาก ${lis.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`);
   });
 }
