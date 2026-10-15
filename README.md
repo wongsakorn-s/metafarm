@@ -1,211 +1,236 @@
-# 🐝 MetaFarm (Palm Oil & Stingless Bee Farm)
+# MetaFarm
 
-> เว็บไซต์และระบบบริหารจัดการฟาร์มชันโรงขนเงินในสวนปาล์มน้ำมัน 50 ไร่ ต.หนองไร่ อ.ปลวกแดง จ.ระยอง  
-> พัฒนาด้วย **Astro 7 + Tailwind 4 + Cloudflare Workers (D1, R2)**
+Production web platform and operational management system for MetaFarm (Palm Oil & Stingless Bee Farm), located in Pluak Daeng, Rayong, Thailand.
 
-[![Production Status](https://img.shields.io/badge/Production-Live-success)](https://metafarm.wong-saengsurasak.workers.dev)
-[![Node](https://img.shields.io/badge/Node-24%20LTS-brightgreen)](https://nodejs.org)
-[![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers%20%7C%20D1%20%7C%20R2-orange)](https://cloudflare.com)
+Built with **Astro 7**, **Tailwind CSS 4**, and **Cloudflare Workers (D1, R2)**.
+
+[![Production Status](https://img.shields.io/badge/Production-Live-2ea44f)](https://metafarm.wong-saengsurasak.workers.dev)
+[![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Workers-f38020)](https://workers.cloudflare.com)
+[![Framework](https://img.shields.io/badge/Framework-Astro%207-bc52ee)](https://astro.build)
+[![Styling](https://img.shields.io/badge/Styling-Tailwind%20CSS%204-06b6d4)](https://tailwindcss.com)
+[![Runtime](https://img.shields.io/badge/Node.js-%3E%3D24%20LTS-339933)](https://nodejs.org)
 [![Test Suite](https://img.shields.io/badge/Tests-406%20passed-brightgreen)](https://vitest.dev)
 [![Mobile Lighthouse](https://img.shields.io/badge/Lighthouse-99--100-brightgreen)](https://pagespeed.web.dev)
 
 ---
 
-## 📌 สารบัญ (Table of Contents)
-1. [ภาพรวมของระบบ (Overview)](#-ภาพรวมของระบบ-overview)
-2. [เทคโนโลยีหลัก (Tech Stack)](#-เทคโนโลยีหลัก-tech-stack)
-3. [การติดตั้งและรันบนเครื่อง (Quick Start)](#-การติดตั้งและรันบนเครื่อง-quick-start)
-4. [ชุดคำสั่งและการตรวจสอบคุณภาพ (Scripts & QA)](#-ชุดคำสั่งและการตรวจสอบคุณภาพ-scripts--qa)
-5. [โครงสร้างโปรเจกต์ (Project Structure)](#-โครงสร้างโปรเจกต์-project-structure)
-6. [สารบัญเอกสารโครงการ (Documentation Index)](#-สารบัญเอกสารโครงการ-documentation-index)
-7. [ข้อควรระวังและความปลอดภัย (Safety Rules)](#-ข้อควรระวังและความปลอดภัย-safety-rules)
+## Table of Contents
+
+- [Overview](#overview)
+- [System Architecture & Stack](#system-architecture--stack)
+- [Core Features](#core-features)
+- [Getting Started](#getting-started)
+- [Development and QA Scripts](#development-and-qa-scripts)
+- [Project Directory Structure](#project-directory-structure)
+- [Documentation Index](#documentation-index)
+- [Operational Safety & Compliance](#operational-safety--compliance)
 
 ---
 
-## 🌟 ภาพรวมของระบบ (Overview)
+## Overview
 
-ระบบถูกออกแบบตามหลัก **Mobile-first** เพื่อให้เจ้าของฟาร์มวัย 55 ปีและพนักงานใช้งานได้สะดวกทั้งขณะเดินตรวจรังในสวนและบนคอมพิวเตอร์
+MetaFarm operates a 50-rai palm oil orchard and an apiary of silver-haired stingless bees (*Tetragonula pegdeni* / ชันโรงขนเงิน) housed in proprietary teak hives. 
 
-### 1. เว็บไซต์สาธารณะ (Public Web)
-* **หน้าแรก (`/`):** เรื่องราวฟาร์ม, จุดเด่นรังไม้สัก 2 ห้อง, ตัวเลขจริงจากฐานข้อมูล, วิดีโอแนะนำสวน, และสินค้าเด่น
-* **ความรู้และงานวิจัย:**
-  * ชันโรงขนเงิน (`/stingless-bee`): ลักษณะทางกายภาพ และโครงสร้างภายในรัง
-  * น้ำผึ้งชันโรง (`/honey`): สรรพคุณทางโภชนาการ (ไม่โอ้อวดเกินจริงตามกฎหมายอาหาร)
-  * งานวิจัย (`/learn/research`): สรุปงานวิจัยทางวิทยาศาสตร์พร้อมแหล่งอ้างอิง
-* **สินค้าและบริการ (`/products`):**
-  * รังพันธุ์ชันโรงสมบูรณ์ (`/products/hives/[code]`): รูปส่องทะลุพลาสติกใสโชว์ความสมบูรณ์ + วิดีโอ + ทักสั่งซื้อ
-  * รังเปล่าไม้สัก (`/products/hive-box`) และน้ำผึ้งขวด 175 มล. (`/products/stingless-honey`)
-* **สมุดพกชันโรง (`/passport` & `/passport/[code]`):** ค้นหาและดูประวัติย้อนหลังของรังครบ 147 รัง ตรวจสอบสายพันธุ์แม่-ลูก และดูภาพรังในสวน
-* **ตรวจสอบที่มาของน้ำผึ้ง (`/lot/[code]`):** สแกน QR Code บนขวดน้ำผึ้ง เพื่อดูวันที่เก็บและรังต้นกำเนิด
-* **แกลเลอรีภาพถ่าย (`/gallery`):** 4 หมวดหมู่ (ชันโรง, ส่งมอบรัง, ส่งมอบน้ำผึ้ง, ห้องงานไม้)
-* **คอร์สอบรม (`/training`):** การแยกขยายรัง และการเก็บกรองน้ำผึ้ง
-* **ระบบแสดงภาพพรีเมียม:** สลับดูรูปย่อได้ทันทีบนหน้าเว็บ พร้อม Lightbox ที่ซูมได้เต็มรูปแบบ (Pinch, Double-tap, Wheel, Pan)
-
-### 2. ระบบหลังบ้าน (Admin Backoffice - `/admin`)
-* **ทะเบียนรัง & เหตุการณ์:** บันทึกการเก็บน้ำหวาน (มล./กรัม), เก็บไข่นางพญา, แยกรัง, เปลี่ยนสถานะ
-* **ระบบรูปถ่าย 2 ชุดแยกชัดเจน:**
-  * **รูปสมุดพก (สูงสุด 6 รูป):** รูปที่ 1 เป็นมุมกว้าง 4:3 เห็นที่ตั้งในสวน เพื่อให้เดินหารังได้ง่าย
-  * **รูปสำหรับขาย (สูงสุด 6 รูป):** รูปที่ 1 เป็นมุมบนส่องทะลุแผ่นพลาสติกใส เพื่อโชว์ความพร้อมในการขาย
-* **การขาย & สต็อก:** บันทึกออเดอร์, จัดการลูกค้า, แบ่งขวดน้ำผึ้งตามล็อตเก่า-ใหม่, พิมพ์ฉลากพร้อม QR ติดขวด
-* **เตรียมความพร้อมก่อนเปิดร้าน:**
-  * `/admin/readiness`: ตรวจสอบเช็คลิสต์ 7 ข้อก่อนเปิดร้าน
-  * `/admin/photos`: คิวถ่ายรูปรังที่ยังไม่มีรูปสมุดพก (เปิดถ่ายบนมือถือขณะเดินในสวนได้ทันที)
-  * `/admin/todo`: เติมข้อมูลรังที่ยังไม่ครบ หรือกด "ไม่ทราบจริง ๆ" เพื่อเคลียร์รายการเตือน
-* **สิทธิ์ผู้ใช้ 3 ระดับ:** เจ้าของ (Owner), แอดมิน (Admin), พนักงาน (Staff - ซ่อนข้อมูลเงินและลูกค้า)
-* **รองรับการทำงานในสวน:** ติดตั้งเป็น PWA บนมือถือได้ พร้อมระบบบันทึกคิวออฟไลน์เมื่อสัญญาณเน็ตหลุด
+The system delivers a dual-purpose platform:
+1. **Public Web Portal:** Educational articles, scientific research summaries, product catalogs, and traceability verification via digital hive passports and honey extraction lot lookups.
+2. **Operational Backoffice (`/admin`):** Field records (honey extractions, colony divisions, queen rearing), media management, inventory, multi-channel customer orders, role-based access control, and offline-capable data synchronization for orchard work.
 
 ---
 
-## 🛠 เทคโนโลยีหลัก (Tech Stack)
+## System Architecture & Stack
 
-| ส่วนของระบบ | เทคโนโลยีที่เลือกใช้ | เหตุผลและจุดเด่น |
+| Component | Technology | Rationale & Characteristics |
 |---|---|---|
-| **Frontend & SSR** | **Astro 7 + Tailwind CSS 4** | ไม่มี overhead จาก React โค้ดฝั่ง Client เป็น Pure TS น้ำหนักเบา โหลดเร็วระดับ 99-100 คะแนน |
-| **Edge Compute** | **Cloudflare Workers** | ทำงานบน Edge ใกล้ผู้ใช้ ตอบสนองรวดเร็ว ไร้ค่าใช้จ่ายเซิร์ฟเวอร์ |
-| **Database** | **Cloudflare D1 + Drizzle ORM** | SQLite at Edge มีระบบ Migration ปลอดภัย สำรองข้อมูลอัตโนมัติทุกคืน |
-| **Media Storage** | **Cloudflare R2** | เก็บรูปถ่ายและวิดีโอ ย่อรูปขนาด WebP และลบข้อมูลพิกัด GPS/EXIF ก่อนบันทึกเสมอ |
-| **Testing** | **Vitest + Playwright Core** | รัน Miniflare D1 จำลองแบบสมบูรณ์ ตรวจทั้ง Unit, Browser, Mobile Touch และ Data Leaks |
+| **Framework & SSR** | Astro 7 + Tailwind CSS 4 | Zero React client runtime overhead. Client scripts use modular vanilla TypeScript. Generates static and SSR edge pages with 99–100 Mobile Lighthouse scores. |
+| **Compute Engine** | Cloudflare Workers | Server-side rendering and asset delivery deployed at the edge with sub-millisecond cold starts and zero infrastructure overhead. |
+| **Database** | Cloudflare D1 + Drizzle ORM | SQLite at the edge with typed queries, strict foreign key constraints, automated point-in-time migrations, and nightly automated backups. |
+| **Object Storage** | Cloudflare R2 | S3-compatible asset storage for full-resolution photos, thumbnails, and H.264 video. Media uploads automatically undergo client and server EXIF/GPS scrubbing. |
+| **Testing & Verification** | Vitest + Playwright Core | 406 integration and unit tests running against isolated Miniflare D1 instances. Real browser tests for desktop and mobile viewport emulation. |
 
 ---
 
-## 🚀 การติดตั้งและรันบนเครื่อง (Quick Start)
+## Core Features
 
-> [!NOTE]
-> ระบบต้องการ **Node.js 24 LTS** ขึ้นไป (ตรวจสอบด้วย `node -v` หรือดูที่ไฟล์ `.nvmrc`)
+### Public Platform
 
-### 1. ติดตั้ง Dependencies และสร้างฐานข้อมูลในเครื่อง
-```sh
-# ติดตั้งแพ็กเกจ
-npm install
+- **Knowledge Base:**
+  - Stingless Bee Biology (`/stingless-bee`): Anatomy, hive architecture, and colony behavior.
+  - Honey Properties (`/honey`): Raw honey characteristics compliant with consumer food labeling guidelines.
+  - Scientific Research (`/learn/research`): Peer-reviewed studies on stingless bee honey.
+- **Product Catalog (`/products`):**
+  - Live Colonies (`/products/hives/[code]`): Complete colony listings with top-down interior photos (through transparent hive covers) and queen origin history.
+  - Equipment & Honey: Custom teak boxes (`/products/hive-box`) and bottled honey (`/products/stingless-honey`).
+- **Hive Passport (`/passport/[code]`):**
+  - Public record for all 147 colonies showing acquisition date, queen mother/egg origins, daughter colony lineages, timeline history, and 4:3 garden location photos.
+- **Lot Traceability (`/lot/[code]`):**
+  - Scannable bottle QR codes linking consumers directly to harvest dates, source hives, and batch origin records.
+- **Interactive Media Experience:**
+  - Dynamic on-page thumbnail switcher coupled with a touch-friendly, hardware-accelerated lightbox supporting pinch-to-zoom, double-tap, mouse wheel zoom, and pan.
 
-# รัน Migration สร้างตารางใน D1 ในเครื่อง (.wrangler/state)
-npm run db:migrate:local
-```
+### Operational Backoffice (`/admin`)
 
-### 2. นำเข้าข้อมูลและสร้างบัญชีผู้ใช้
-```sh
-# แปลงไฟล์ Excel ข้อมูลรังต้นฉบับ
-npm run import:excel
-
-# นำเข้าข้อมูลรังและรูปภาพเข้าสู่ DB/R2 บนเครื่อง
-npm run db:seed:local
-npm run media:seed:local
-npm run products:seed:local
-
-# สร้างผู้ใช้สำหรับล็อกอิน (รหัสผ่านจะถูกบันทึกไว้ใน private/dev-owner.txt)
-npm run user:create -- --email owner@metafarm.local --generate
-```
-
-### 3. รันเซิร์ฟเวอร์สำหรับพัฒนา
-```sh
-npm run dev
-```
-* เข้าชมเว็บไซต์สาธารณะ: `http://localhost:4321`
-* เข้าสู่ระบบหลังบ้าน: `http://localhost:4321/admin`
+- **Hive Registry & Event Logging:**
+  - Log honey harvests (ml/g), queen cell extraction, colony division, and health inspections with deduplication and idempotency keys.
+- **Dual Photo Pipeline:**
+  - Distinct photo roles for garden location photos (wide 4:3 shots to locate hives in the orchard) and sale photos (top-down view through transparent sheets showing colony population).
+- **Sales & Lot Allocation:**
+  - Manual order capture from chat channels (LINE, Facebook), stock deduction on payment, and automated FIFO honey lot allocation per bottle size.
+- **Field & Offline Readiness:**
+  - PWA support for mobile installation.
+  - IndexedDB outbox queue ensuring offline form submissions in the orchard sync automatically when connectivity returns.
+- **Role-Based Access Control (RBAC):**
+  - Three distinct roles: Owner, Admin, and Staff (Staff cannot view revenue, supplier identities, or customer personal information).
+- **Readiness Verification (`/admin/readiness`):**
+  - Real-time launch checklist verifying real contact channels, confirmed pricing, required hive media, and pending field data.
 
 ---
 
-## 🧪 ชุดคำสั่งและการตรวจสอบคุณภาพ (Scripts & QA)
+## Getting Started
 
-### 1. การตรวจสอบโค้ดและการทดสอบพื้นฐาน
+### Prerequisites
+
+- **Node.js 24 LTS** or higher (see `.nvmrc`)
+- **npm** (included with Node.js)
+
+### Local Environment Setup
+
+1. **Install dependencies:**
+   ```sh
+   npm install
+   ```
+
+2. **Initialize local database and apply migrations:**
+   ```sh
+   npm run db:migrate:local
+   ```
+
+3. **Import initial dataset and seed media:**
+   ```sh
+   npm run import:excel
+   npm run db:seed:local
+   npm run media:seed:local
+   npm run products:seed:local
+   ```
+
+4. **Create a local administrator user:**
+   ```sh
+   npm run user:create -- --email owner@metafarm.local --generate
+   ```
+   *Generated credentials are saved to `private/dev-owner.txt`.*
+
+5. **Start local development server:**
+   ```sh
+   npm run dev
+   ```
+   - Public Website: `http://localhost:4321`
+   - Admin Backoffice: `http://localhost:4321/admin`
+
+---
+
+## Development and QA Scripts
+
+### Code Quality and Unit Testing
+
 ```sh
-npm run check              # ตรวจสอบ TypeScript & Astro Types (0 errors/warnings)
-npm test                   # รัน Vitest ครบ 406 การทดสอบ (Unit + Integration D1)
-npm run build              # จำลองการคอมไพล์โปรเจกต์สำหรับ Production
-npm run preview            # พรีวิวผลลัพธ์หลัง Build
+npm run check              # Run Astro and TypeScript static type checks
+npm test                   # Execute complete Vitest suite (406 tests)
+npm run build              # Produce production build assets
+npm run preview            # Preview production build locally
 ```
 
-### 2. การตรวจสอบการแสดงผลและความปลอดภัย (Quality Assurance)
+### Comprehensive QA and Verification
+
 ```sh
-# ตรวจสอบการแสดงผลบนเบราว์เซอร์จริง (Edge/Chrome ทั้งจอมือถือและคอมพิวเตอร์)
-# *ต้องเปิด `npm run dev` ทิ้งไว้ก่อนรันคำสั่งนี้*
+# Verify rendering across desktop and mobile in installed Chromium/Edge
+# (Requires local dev server running via `npm run dev`)
 npm run check:browser
 
-# จำลองการใช้งานบนมือถือ (หน้าจอสัมผัส, จุดแตะ ≥44px, ฟอนต์ ≥16px, เน็ตช้า, สัญญาณหลุด)
+# Emulate mobile touchscreen UX (tap targets >= 44px, inputs >= 16px, offline resilience)
 npm run check:mobile
 
-# ตรวจสอบว่าไม่มีข้อมูลลับ 🔒 (ราคาซื้อ, ชื่อคู่ค้า, ลูกค้า) รั่วไหลไปหน้าสาธารณะ
-# *ต้องเปิด `npm run dev` ทิ้งไว้ก่อนรันคำสั่งนี้*
+# Scan public endpoints to ensure no confidential data (purchase price, supplier, customer PII) leaks
+# (Requires local dev server running via `npm run dev`)
 npm run check:leaks
 
-# ทดสอบฟอร์มบันทึกข้อมูลหลังบ้านทั้งหมด (รันบนเครื่องเท่านั้น)
+# Automated validation of all admin forms and CSRF tokens
 npm run check:forms
 
-# ตรวจสอบการจำกัดสิทธิ์ของพนักงาน (ต้องไม่เห็นยอดเงิน คู่ค้า หรือลูกค้า)
+# Verify staff permission boundaries (confidential financial and customer isolation)
 npm run check:staff
 
-# ทดสอบระบบคิวบันทึกข้อมูลเมื่อออฟไลน์ในสวน
+# Test offline outbox queue and network recovery behavior
 npm run check:offline
 
-# ตรวจสอบคะแนน Lighthouse บนมือถือ (ต้อง build และรัน preview ก่อน)
+# Audit mobile Lighthouse performance and accessibility scores
 npm run check:lighthouse
 ```
 
-### 3. คำสั่งจัดการสื่อและเตรียมขึ้นระบบ
+### Data and Operations
+
 ```sh
-npm run brand:build        # ปรับขนาดและ Optimize โลโก้/ไอคอนเว็บจากต้นฉบับ
-npm run predeploy          # ตรวจสอบความพร้อมก่อนนำขึ้น Production
-npm run snapshot:export    # ส่งออก Snapshot ฐานข้อมูลและรูปภาพในเครื่อง
-npm run generate-types     # อัปเดต Cloudflare Wrangler Types หลังแก้ wrangler.jsonc
+npm run brand:build        # Generate optimized web logos and favicons from source assets
+npm run predeploy          # Validate deployment prerequisites before release
+npm run snapshot:export    # Export sanitized local database and media snapshot
+npm run generate-types     # Update Cloudflare Worker typing definitions
 ```
 
 ---
 
-## 📂 โครงสร้างโปรเจกต์ (Project Structure)
+## Project Directory Structure
 
 ```
 metafarm/
-├── content/               # บทความและเนื้อหา Markdown (แก้ไขได้โดยไม่ต้องแก้โค้ด)
-│   ├── learn/             # งานวิจัยและองค์ความรู้
-│   ├── pages/             # เนื้อหาหน้าเว็บ (ชันโรงขนเงิน, น้ำผึ้ง, ความเป็นส่วนตัว)
-│   └── training/          # รายละเอียดหลักสูตรการอบรม
-├── design/                # โลโก้ และภาพร่างการออกแบบ (Wireframes)
-├── design-system/         # คู่มือดีไซน์ซิสเต็ม (MASTER.md: สี, ฟอนต์, กฎ UX)
-├── docs/                  # เอกสารวิเคราะห์และแผนงานทางเทคนิค (ดูตารางด้านล่าง)
-├── drizzle/               # D1 SQL Migrations
-├── mock-data/             # ข้อมูลตัวอย่างสำหรับใช้ทดสอบ
-├── private/               # ⚠️ gitignore: ไฟล์ Excel ต้นฉบับ และข้อมูลอ่อนไหว
-├── scripts/               # สคริปต์อัตโนมัติ (Import, Seed, Backup, QA checks)
-└── src/                   # โค้ดต้นฉบับของเว็บแอปพลิเคชัน
-    ├── components/        # Astro Components (Header, Footer, Lightbox, Cards)
-    ├── db/                # Drizzle Schema (`schema.ts`)
-    ├── layouts/           # Page Layouts (`PublicLayout`, `AdminLayout`)
-    ├── lib/               # โมดูลฟังก์ชันอรรถประโยชน์ และ Business Logic
-    ├── pages/             # Astro Routing (เว็บสาธารณะ และ `/admin/*`)
-    ├── scripts/           # Client-side Scripts (Lightbox, Zoom, Outbox, Resize)
-    ├── server/            # ฟังก์ชันฝั่ง Server (Auth, Database queries, API)
-    └── styles/            # Tailwind Global Styles
+├── content/               # Editable Markdown articles (loaded via src/lib/content.ts)
+│   ├── learn/             # Scientific research summaries
+│   ├── pages/             # Informational pages (species, honey, privacy)
+│   └── training/          # Training course descriptions
+├── design/                # Brand logo files and UI wireframes
+├── design-system/         # Design system tokens and UX standards (MASTER.md)
+├── docs/                  # Architectural documentation, decisions, and runbooks
+├── drizzle/               # D1 SQL migration files
+├── mock-data/             # Local test dataset schemas
+├── private/               # Local-only supplier raw data and Excel imports (gitignored)
+├── scripts/               # Automation scripts (import, backup, testing, and deployment)
+└── src/                   # Application source code
+    ├── components/        # Reusable Astro UI components
+    ├── db/                # Drizzle schema definitions (schema.ts)
+    ├── layouts/           # Page layouts (PublicLayout.astro, AdminLayout.astro)
+    ├── lib/               # Shared domain utilities, validation, and SEO helpers
+    ├── pages/             # File-based routing (public routes and /admin/* endpoints)
+    ├── scripts/           # Client-side scripts (lightbox, outbox, image resize)
+    ├── server/            # Server-side business logic, DB queries, and auth
+    └── styles/            # Global Tailwind CSS 4 style definitions
 ```
 
 ---
 
-## 📚 สารบัญเอกสารโครงการ (Documentation Index)
+## Documentation Index
 
-เอกสารทั้งหมดถูกจัดเก็บอยู่ในโฟลเดอร์ [`docs/`](docs/) เพื่อใช้อ้างอิงการตัดสินใจและข้อกำหนดทางเทคนิค:
+Detailed engineering plans and operational guidelines are maintained in the [`docs/`](docs/) directory:
 
-| ไฟล์เอกสาร | หัวข้อและเนื้อหาสำคัญ |
+| Document | Description |
 |---|---|
-| [**00-roadmap.md**](docs/00-roadmap.md) | แผนการพัฒนารายเฟส (Phase 0–5), สถานะปัจจุบัน และสิ่งที่ต้องทำต่อ |
-| [**01-requirements.md**](docs/01-requirements.md) | กลุ่มผู้ใช้, ข้อกำหนดการใช้งาน (Non-functional), และ User Stories |
-| [**02-architecture.md**](docs/02-architecture.md) | สถาปัตยกรรมระบบ, โครงสร้าง Server/Client, และหลักการออกแบบ |
-| [**03-data-model.md**](docs/03-data-model.md) | โครงสร้างฐานข้อมูล D1, ฟิลด์ข้อมูลลับ 🔒, และการแปลงข้อมูลจาก Excel |
-| [**04-sitemap.md**](docs/04-sitemap.md) | แผนผังหน้าจอทั้งหมด (หน้าเว็บสาธารณะ และเมนูหลังบ้านทั้งมือถือ/คอม) |
-| [**05-sales-channels.md**](docs/05-sales-channels.md) | ช่องทางการขาย, การสั่งซื้อผ่านแชต, และข้อกำหนดฉลาก/อย. |
-| [**06-mock-data.md**](docs/06-mock-data.md) | สรุปข้อมูลจริงของฟาร์ม และราคาตั้งต้นสำหรับทดสอบ |
-| [**07-decisions.md**](docs/07-decisions.md) | บันทึกการตัดสินใจทางสถาปัตยกรรม (ADR) และข้อตกลงกับเจ้าของฟาร์ม |
-| [**08-stack-comparison.md**](docs/08-stack-comparison.md) | การเปรียบเทียบเทคโนโลยีและการเลือก Astro + Cloudflare |
-| [**09-research-notes.md**](docs/09-research-notes.md) | ข้อมูลและหลักฐานอ้างอิงงานวิจัยน้ำผึ้งชันโรง (เพื่อความถูกต้องตามกฎหมาย) |
-| [**10-deploy-runbook.md**](docs/10-deploy-runbook.md) | คู่มือการขึ้นระบบจริงบน Cloudflare, การสำรอง/กู้คืนข้อมูล และการแก้ปัญหา |
-| [**11-phase4-plan.md**](docs/11-phase4-plan.md) | แผนและข้อกำหนดของ Phase 4 (ออเดอร์, ล็อตน้ำผึ้ง, ฉลาก QR, รายงาน) |
-| [**12-phase5-plan.md**](docs/12-phase5-plan.md) | แผนและข้อกำหนดของ Phase 5 (สิทธิ์ผู้ใช้, โหมดออฟไลน์ในสวน, การจัดการข้อมูลชนกัน) |
+| [**docs/00-roadmap.md**](docs/00-roadmap.md) | Phased roadmap (Phases 0–5), implementation status, and pending milestones. |
+| [**docs/01-requirements.md**](docs/01-requirements.md) | Stakeholder requirements, non-functional constraints, and user stories. |
+| [**docs/02-architecture.md**](docs/02-architecture.md) | System architecture, edge execution model, and security isolation. |
+| [**docs/03-data-model.md**](docs/03-data-model.md) | Entity relationship diagrams, schema specifications, and confidential field markers. |
+| [**docs/04-sitemap.md**](docs/04-sitemap.md) | Complete URL mapping and desktop/mobile interface layouts. |
+| [**docs/05-sales-channels.md**](docs/05-sales-channels.md) | Commercial workflows, customer communication, and regulatory requirements. |
+| [**docs/06-mock-data.md**](docs/06-mock-data.md) | Baseline farm metrics and sample pricing configurations. |
+| [**docs/07-decisions.md**](docs/07-decisions.md) | Architecture Decision Records (ADRs) and technical rationales. |
+| [**docs/08-stack-comparison.md**](docs/08-stack-comparison.md) | Architectural evaluation comparing edge runtimes, databases, and frameworks. |
+| [**docs/09-research-notes.md**](docs/09-research-notes.md) | Academic references and source data for stingless bee honey claims. |
+| [**docs/10-deploy-runbook.md**](docs/10-deploy-runbook.md) | Production release runbook, backup procedures, and disaster recovery. |
+| [**docs/11-phase4-plan.md**](docs/11-phase4-plan.md) | Specifications for inventory, bottling, orders, and sales reporting. |
+| [**docs/12-phase5-plan.md**](docs/12-phase5-plan.md) | Multi-user roles, concurrency safeguards, and offline orchard operations. |
 
 ---
 
-## ⚠️ ข้อควรระวังและความปลอดภัย (Safety Rules)
+## Operational Safety & Compliance
 
 > [!CAUTION]
-> **ระบบ Production คือแหล่งเก็บข้อมูลจริง (Source of Truth):**
-> 1. **ห้ามนำ `seed.sql` หรือ `snapshot.sql` ไปรันกับฐานข้อมูล Production เด็ดขาด** เพราะมีคำสั่ง `DELETE FROM` ที่จะล้างข้อมูลจริงทั้งหมด
-> 2. **ห้ามนำเข้าข้อมูลส่วนบุคคล (PII) หรือข้อมูลคู่ค้าจาก `private/` ขึ้นสู่ Git หรือเปิดเผยบนหน้าสาธารณะ**
-> 3. **ฟิลด์ข้อมูลลับ 🔒:** ราคาซื้อ, ชื่อคู่ค้า, รายชื่อลูกค้า และหมายเหตุส่วนตัว ต้องผ่านตัวกรองฝั่ง Server เสมอ
-> 4. **ข้อกำหนดด้านสุขภาพ:** หน้าเว็บห้ามระบุว่าน้ำผึ้งชันโรง "รักษาโรค" หรือเป็น "ยา" ตามกฎหมายอาหาร ให้ใช้ถ้อยคำว่า "อาหาร ไม่ใช่ยา" เสมอ
+> **Production Data Protection:**
+> 1. Production is the single source of truth. Never run `seed.sql` or `snapshot.sql` against the remote production database; both scripts execute table-level deletions.
+> 2. Supplier personal information and purchase agreements in `private/` are strictly confidential and must never be committed to git or exposed on public pages.
+> 3. Fields flagged as confidential (purchase price, supplier name, customer personal information, private staff notes) must always pass through server-side allowlists before rendering.
+> 4. In compliance with food advertising regulations, honey content must never claim curative, therapeutic, or medicinal properties. Product documentation must always reinforce: *"Stingless bee honey is a natural food, not a medical drug."*
