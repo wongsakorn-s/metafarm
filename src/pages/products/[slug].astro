@@ -43,22 +43,38 @@ const jsonLd = product
 ) : (
   <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
     <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
-    <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]">
+    <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]" data-gallery>
       <div data-zoom-group>
         {product.photos.length ? (
           <>
-            <a href={`/img/${product.photos[0]!.key}`} data-zoom data-caption={product.name} aria-label={`ดูรูปสินค้า ${product.name} ขยาย`} class="relative block">
-              <img src={`/img/${product.photos[0]!.key}`} srcset={photoSrcset(`/img/${product.photos[0]!.key}`)} sizes="(min-width: 768px) 45vw, 100vw" alt={product.name} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover shadow-card md:aspect-square" />
+            <a href={`/img/${product.photos[0]!.key}`} data-zoom data-caption={product.name} aria-label={`ดูรูปสินค้า ${product.name} ขยาย`} class="relative block overflow-hidden rounded-2xl bg-palm-50 shadow-card md:aspect-square" data-gallery-main data-zoom-index="0">
+              <img src={`/img/${product.photos[0]!.key}`} srcset={photoSrcset(`/img/${product.photos[0]!.key}`)} sizes="(min-width: 768px) 45vw, 100vw" alt={product.name} class="aspect-[4/3] w-full object-cover transition-opacity duration-150 md:aspect-square" data-gallery-img />
               <span aria-hidden="true" class="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                <Icon name="search" class="size-3.5" />{product.photos.length > 1 ? `1/${product.photos.length}` : 'ขยาย'}
+                <Icon name="search" class="size-3.5" /><span data-gallery-counter>{product.photos.length > 1 ? `1/${product.photos.length}` : 'ขยาย'}</span>
               </span>
             </a>
             {product.photos.length > 1 && (
-              <ul class="scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0">
-                {product.photos.slice(1).map((ph, i) => (
-                  <li class="shrink-0 sm:w-auto"><a href={`/img/${ph.key}`} data-zoom data-caption={product.name} class="block overflow-hidden rounded-xl" aria-label={`ดูรูปสินค้า ${product.name} รูปที่ ${i + 2} ขยาย`}>
-                    <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
-                  </a></li>
+              <ul class="scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0" data-gallery-thumbs>
+                {product.photos.map((ph, i) => (
+                  <li class="shrink-0 sm:w-auto">
+                    <a
+                      href={`/img/${ph.key}`}
+                      data-gallery-thumb
+                      data-index={i}
+                      data-src={`/img/${ph.key}`}
+                      data-srcset={photoSrcset(`/img/${ph.key}`)}
+                      data-alt={`รูปสินค้า ${product.name} รูปที่ ${i + 1}`}
+                      data-caption={product.name}
+                      class:list={[
+                        'block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
+                        i === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100'
+                      ]}
+                      aria-label={`ดูรูปสินค้า ${product.name} รูปที่ ${i + 1}`}
+                      aria-current={i === 0 ? 'true' : 'false'}
+                    >
+                      <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
+                    </a>
+                  </li>
                 ))}
               </ul>
             )}

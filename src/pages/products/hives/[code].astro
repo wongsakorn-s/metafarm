@@ -60,24 +60,38 @@ const jsonLd = hive
     </div>
     <p class="mb-2 hidden text-sm text-muted md:block"><a class="inline-flex min-h-11 items-center underline" href="/products/hives">← รังสมบูรณ์</a></p>
     {/* มือถือ: หัวข้อ/ราคา → รูป → ข้อมูล/ปุ่มสั่ง → วิดีโอ  |  คอม: ซ้าย = รูป+วิดีโอ, ขวา = หัวข้อ/ราคา/ข้อมูล */}
-    <div class="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-start">
+    <div class="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-start" data-gallery>
       <section aria-label="รูปรัง" class="md:col-start-1 md:row-start-1" data-zoom-group>
         {photos[0] ? (
-          <a href={cover} data-zoom data-caption={`รังชันโรงขนเงิน ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="relative block">
-            <img src={cover} srcset={photos[0] ? photoSrcset(`/img/${photos[0].key}`) : undefined} sizes="(min-width: 768px) 50vw, 100vw" width="800" height="600" alt={photos[0].alt && photos[0].alt !== `รูปรัง ${hive.code}` ? photos[0].alt : `ความสมบูรณ์ภายในรังชันโรงขนเงิน ${hive.code}`} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover shadow-card" />
+          <a href={cover} data-zoom data-caption={`รังชันโรงขนเงิน ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="relative block overflow-hidden rounded-2xl bg-palm-50 shadow-card" data-gallery-main data-zoom-index="0">
+            <img src={cover} srcset={photos[0] ? photoSrcset(`/img/${photos[0].key}`) : undefined} sizes="(min-width: 768px) 50vw, 100vw" width="800" height="600" alt={photos[0].alt && photos[0].alt !== `รูปรัง ${hive.code}` ? photos[0].alt : `ความสมบูรณ์ภายในรังชันโรงขนเงิน ${hive.code}`} class="aspect-[4/3] w-full object-cover transition-opacity duration-150" data-gallery-img />
             <span aria-hidden="true" class="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-              <Icon name="search" class="size-3.5" />{photos.length > 1 ? `1/${photos.length}` : 'ขยาย'}
+              <Icon name="search" class="size-3.5" /><span data-gallery-counter>{photos.length > 1 ? `1/${photos.length}` : 'ขยาย'}</span>
             </span>
           </a>
         ) : (
           <img src={cover} width="800" height="600" alt={`รังชันโรงขนเงิน ${hive.code}`} class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover shadow-card" />
         )}
         {photos.length > 1 && (
-          <ul class="scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0">
-            {photos.slice(1).map((p, i) => (
+          <ul class="scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0" data-gallery-thumbs>
+            {photos.map((p, i) => (
               <li class="shrink-0 sm:w-auto">
-                <a href={`/img/${p.key}`} data-zoom data-caption={`รังชันโรงขนเงิน ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} มุมที่ ${i + 2} ขยาย`} class="block overflow-hidden rounded-xl">
-                  <img src={thumbUrl(`/img/${p.key}`)} width="160" height="160" alt={p.alt && p.alt !== `รูปรัง ${hive.code}` ? p.alt : `รังชันโรงขนเงิน ${hive.code} มุมที่ ${i + 2}`} loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
+                <a
+                  href={`/img/${p.key}`}
+                  data-gallery-thumb
+                  data-index={i}
+                  data-src={`/img/${p.key}`}
+                  data-srcset={photoSrcset(`/img/${p.key}`)}
+                  data-caption={`รังชันโรงขนเงิน ${hive.code}`}
+                  data-alt={p.alt && p.alt !== `รูปรัง ${hive.code}` ? p.alt : (i === 0 ? `ความสมบูรณ์ภายในรังชันโรงขนเงิน ${hive.code}` : `รังชันโรงขนเงิน ${hive.code} มุมที่ ${i + 1}`)}
+                  aria-label={`ดูรูปรัง ${hive.code} รูปที่ ${i + 1}`}
+                  aria-current={i === 0 ? 'true' : 'false'}
+                  class:list={[
+                    'block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
+                    i === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100'
+                  ]}
+                >
+                  <img src={thumbUrl(`/img/${p.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
                 </a>
               </li>
             ))}
