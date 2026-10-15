@@ -1,6 +1,6 @@
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
-import { auditLogs, hiveMedia, hives, products } from '../db/schema.ts';
+import { auditLogs, hiveMedia, hives } from '../db/schema.ts';
 import {
   detectImageType,
   LIMITS,
@@ -72,7 +72,13 @@ export async function uploadImages(
     if (thumb) await bucket.put(thumbKeyOf(key), thumb.bytes, { httpMetadata: { contentType: thumb.mime } });
     try {
       await db.batch([
-        db.insert(hiveMedia).values({ hiveId: hive.id, kind, r2Key: key, alt: `รูปรัง ${hive.code}`, sortOrder: order }),
+        db.insert(hiveMedia).values({
+          hiveId: hive.id,
+          kind,
+          r2Key: key,
+          alt: kind === 'sale' ? `ความสมบูรณ์ภายในรังชันโรงขนเงิน ${hive.code}` : `รูปรัง ${hive.code} และสถานที่ตั้งในสวน`,
+          sortOrder: order,
+        }),
         audit(db, user, 'media.add', hive.id, { kind, key }),
       ]);
     } catch (e) {
