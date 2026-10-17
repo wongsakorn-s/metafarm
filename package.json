@@ -37,15 +37,15 @@
         "backup:media": "node scripts/backup-media.mjs"
     },
     "dependencies": {
-        "@astrojs/cloudflare": "^14.3.3",
+        "@astrojs/cloudflare": "^14.4.0",
         "@fontsource-variable/noto-sans-thai": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
-        "astro": "^7.3.5",
-        "drizzle-orm": "^0.45.3",
+        "astro": "^7.4.0",
+        "drizzle-orm": "^0.45.4",
         "qrcode-generator": "^2.0.4",
         "tailwindcss": "^4.3.3",
-        "wrangler": "^4.147.0",
-        "zod": "^4.6.5"
+        "wrangler": "^4.151.1",
+        "zod": "^4.6.7"
     },
     "allowScripts": {
         "esbuild": true,
@@ -57,9 +57,9 @@
         "drizzle-kit": "^0.31.11",
         "fast-xml-parser": "^5.11.2",
         "fflate": "^0.8.3",
-        "lucide-static": "^1.52.0",
-        "playwright-core": "^1.63.0",
+        "lucide-static": "^1.59.0",
+        "playwright-core": "^1.64.1",
         "typescript": "^6.0.3",
-        "vitest": "^5.0.3"
+        "vitest": "^5.0.5"
     }
 }
