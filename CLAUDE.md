@@ -2,7 +2,7 @@
 
 Website + back office for a stingless bee (ชันโรงขนเงิน) farm. Plans and decisions live in `docs/` (Thai); read `docs/07-decisions.md` and `docs/03-data-model.md` before changing data or features.
 
-- Stack: Astro 7 + Tailwind 4 on Cloudflare Workers (no React — removed 2026-10-10; client code is plain TS in `<script>`), D1 (Drizzle, `src/db/schema.ts`), R2. Package manager: npm. Git: work and commit on `main` only.
+- Stack: Astro 7 + Tailwind 4 on Cloudflare Workers (no React — removed 2026-10-10; client code is plain TS in `<script>`), D1 (Drizzle, `src/db/schema.ts`), R2. Package manager: bun (Node.js/npm compatible). Git: work and commit on `main` only.
 - After every change, update the docs in the same commit (README, CLAUDE.md, `docs/00-roadmap.md`, `03-data-model.md`, `04-sitemap.md`, `10-deploy-runbook.md`, `09-research-notes.md`, `content/README.md` as relevant).
 - One-off production data fixes are SQL files in `scripts/prod-data/` (idempotent, guarded, audit-logged, dry-run with `--local` first); the user runs them with `--remote` unless they explicitly ask Claude to.
 - **Production is live** (https://metafarm.wong-saengsurasak.workers.dev, since 2026-10-05) and is the source of truth: the owner enters real data there. Never use `--remote` wrangler commands, deploy or backup workflows yourself — the user runs them. Never apply `seed.sql` or `snapshot.sql` to production (they `DELETE FROM` every content table; both start with `localOnlyGuard()` from `scripts/local-only-guard.ts`, which aborts when the DB has a non-`@metafarm.local` user — keep local accounts on that domain).

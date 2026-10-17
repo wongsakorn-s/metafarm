@@ -24,17 +24,16 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+          bun-version: latest
+      - run: bun install --frozen-lockfile
       - name: Verify (types, tests, build)
         run: |
-          npm run check
-          npm test
-          npm run build
+          bun run check
+          bun run test
+          bun run build
       - name: Apply D1 migrations (additive only)
-        run: npx wrangler d1 migrations apply metafarm-db --remote
+        run: bunx wrangler d1 migrations apply metafarm-db --remote
       - name: Deploy Worker
-        run: npx wrangler deploy
+        run: bunx wrangler deploy

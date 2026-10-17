@@ -27,13 +27,12 @@ jobs:
         run: echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN — ข้ามการสำรองรูป"
       - uses: actions/checkout@v5
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+          bun-version: latest
+      - run: bun install --frozen-lockfile
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
       - name: Copy new photos to backup bucket
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
-        run: node scripts/backup-media.mjs
+        run: bun scripts/backup-media.mjs

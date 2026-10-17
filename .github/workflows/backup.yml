@@ -23,19 +23,18 @@ jobs:
         run: echo "::notice::ยังไม่ได้ตั้ง CLOUDFLARE_API_TOKEN — ข้ามการสำรอง"
       - uses: actions/checkout@v5
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
-      - uses: actions/setup-node@v5
+      - uses: oven-sh/setup-bun@v2
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
+          bun-version: latest
+      - run: bun install --frozen-lockfile
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
       - name: Export D1 and upload to R2
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: |
           set -euo pipefail
           FILE="metafarm-$(date -u +%F).sql"
-          npx wrangler d1 export metafarm-db --remote --output "$FILE"
+          bunx wrangler d1 export metafarm-db --remote --output "$FILE"
           test -s "$FILE"
-          npx wrangler r2 object put "metafarm-backups/d1/$FILE" --file "$FILE" --content-type application/sql --remote
+          bunx wrangler r2 object put "metafarm-backups/d1/$FILE" --file "$FILE" --content-type application/sql --remote
           echo "::notice::สำรองแล้ว: d1/$FILE ($(wc -c < "$FILE") bytes)"

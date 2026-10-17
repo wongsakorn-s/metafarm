@@ -8,7 +8,8 @@ Built with **Astro 7**, **Tailwind CSS 4**, and **Cloudflare Workers (D1, R2)**.
 [![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Workers-f38020)](https://workers.cloudflare.com)
 [![Framework](https://img.shields.io/badge/Framework-Astro%207-bc52ee)](https://astro.build)
 [![Styling](https://img.shields.io/badge/Styling-Tailwind%20CSS%204-06b6d4)](https://tailwindcss.com)
-[![Runtime](https://img.shields.io/badge/Node.js-%3E%3D24%20LTS-339933)](https://nodejs.org)
+[![Package Manager](https://img.shields.io/badge/Package%20Manager-Bun%201.3-fbf0df)](https://bun.sh)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24%20LTS-339933)](https://nodejs.org)
 [![Test Suite](https://img.shields.io/badge/Tests-406%20passed-brightgreen)](https://vitest.dev)
 [![Mobile Lighthouse](https://img.shields.io/badge/Lighthouse-99--100-brightgreen)](https://pagespeed.web.dev)
 
@@ -89,38 +90,37 @@ The system delivers a dual-purpose platform:
 
 ### Prerequisites
 
-- **Node.js 24 LTS** or higher (see `.nvmrc`)
-- **npm** (included with Node.js)
+- **Bun** (v1.2+ or latest, recommended) or **Node.js 24 LTS**
 
 ### Local Environment Setup
 
 1. **Install dependencies:**
    ```sh
-   npm install
+   bun install
    ```
 
 2. **Initialize local database and apply migrations:**
    ```sh
-   npm run db:migrate:local
+   bun run db:migrate:local
    ```
 
 3. **Import initial dataset and seed media:**
    ```sh
-   npm run import:excel
-   npm run db:seed:local
-   npm run media:seed:local
-   npm run products:seed:local
+   bun run import:excel
+   bun run db:seed:local
+   bun run media:seed:local
+   bun run products:seed:local
    ```
 
 4. **Create a local administrator user:**
    ```sh
-   npm run user:create -- --email owner@metafarm.local --generate
+   bun run user:create -- --email owner@metafarm.local --generate
    ```
    *Generated credentials are saved to `private/dev-owner.txt`.*
 
 5. **Start local development server:**
    ```sh
-   npm run dev
+   bun run dev
    ```
    - Public Website: `http://localhost:4321`
    - Admin Backoffice: `http://localhost:4321/admin`
@@ -132,46 +132,46 @@ The system delivers a dual-purpose platform:
 ### Code Quality and Unit Testing
 
 ```sh
-npm run check              # Run Astro and TypeScript static type checks
-npm test                   # Execute complete Vitest suite (406 tests)
-npm run build              # Produce production build assets
-npm run preview            # Preview production build locally
+bun run check              # Run Astro and TypeScript static type checks
+bun run test               # Execute complete Vitest suite (406 tests)
+bun run build              # Produce production build assets
+bun run preview            # Preview production build locally
 ```
 
 ### Comprehensive QA and Verification
 
 ```sh
 # Verify rendering across desktop and mobile in installed Chromium/Edge
-# (Requires local dev server running via `npm run dev`)
-npm run check:browser
+# (Requires local dev server running via `bun run dev`)
+bun run check:browser
 
 # Emulate mobile touchscreen UX (tap targets >= 44px, inputs >= 16px, offline resilience)
-npm run check:mobile
+bun run check:mobile
 
 # Scan public endpoints to ensure no confidential data (purchase price, supplier, customer PII) leaks
-# (Requires local dev server running via `npm run dev`)
-npm run check:leaks
+# (Requires local dev server running via `bun run dev`)
+bun run check:leaks
 
 # Automated validation of all admin forms and CSRF tokens
-npm run check:forms
+bun run check:forms
 
 # Verify staff permission boundaries (confidential financial and customer isolation)
-npm run check:staff
+bun run check:staff
 
 # Test offline outbox queue and network recovery behavior
-npm run check:offline
+bun run check:offline
 
 # Audit mobile Lighthouse performance and accessibility scores
-npm run check:lighthouse
+bun run check:lighthouse
 ```
 
 ### Data and Operations
 
 ```sh
-npm run brand:build        # Generate optimized web logos and favicons from source assets
-npm run predeploy          # Validate deployment prerequisites before release
-npm run snapshot:export    # Export sanitized local database and media snapshot
-npm run generate-types     # Update Cloudflare Worker typing definitions
+bun run brand:build        # Generate optimized web logos and favicons from source assets
+bun run predeploy          # Validate deployment prerequisites before release
+bun run snapshot:export    # Export sanitized local database and media snapshot
+bun run generate-types     # Update Cloudflare Worker typing definitions
 ```
 
 ---
