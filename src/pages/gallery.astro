@@ -3,9 +3,8 @@ import PageHeader from '../components/PageHeader.astro';
 import Icon from '../components/Icon.astro';
 import PublicLayout from '../layouts/PublicLayout.astro';
 import { site } from '../config/site.ts';
-import { GALLERY_CATEGORIES, GALLERY_PLACEHOLDERS, galleryCategory } from '../lib/gallery.ts';
+import { GALLERY_CATEGORIES, galleryCategory } from '../lib/gallery.ts';
 import { photoSrcset, thumbUrl } from '../lib/media.ts';
-import { placeholder } from '../lib/placeholders.ts';
 import { getDb } from '../server/db.ts';
 import { getGallery } from '../server/public.ts';
 
@@ -33,24 +32,26 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
     <section id={s.key} class="mt-10 scroll-mt-20" aria-labelledby={`${s.key}-h`}>
       <h2 id={`${s.key}-h`} class="flex items-center gap-2 text-2xl font-bold"><Icon name={s.icon} class="size-6 text-palm-700" />{s.label}</h2>
       <p class="mt-1 text-muted">{s.hint}</p>
-      <ul class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4" data-zoom-group>
-        {s.photos.length > 0 ? s.photos.map((p, i) => (
-          <li>
-            <figure>
-              <a href={`/img/${p.key}`} data-zoom data-caption={p.caption ?? ''} class="block overflow-hidden rounded-2xl" aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`}>
-                <img src={thumbUrl(`/img/${p.key}`)} srcset={photoSrcset(`/img/${p.key}`)} sizes="(min-width: 768px) 33vw, 50vw" width="800" height="600"
-                  loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-fast) hover:scale-[1.02]" />
-              </a>
-              {p.caption && <figcaption class="mt-1 text-sm text-muted">{p.caption}</figcaption>}
-            </figure>
-          </li>
-        )) : Array.from({ length: GALLERY_PLACEHOLDERS }, () => (
-          <li>
-            <img src={placeholder.gallery} alt="" width="800" height="600" loading="lazy" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover" />
-            <p class="mt-1 text-sm text-muted">รูปกำลังจะมา</p>
-          </li>
-        ))}
-      </ul>
+      {/* หมวดที่ยังไม่มีรูป: ข้อความสั้นกล่องเดียว (เดิมกรอบรูปว่าง 3 ช่อง ดูเหมือนเว็บเสีย — รีวิว UX 2026-10-18) */}
+      {s.photos.length > 0 ? (
+        <ul class="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4" data-zoom-group>
+          {s.photos.map((p, i) => (
+            <li>
+              <figure>
+                <a href={`/img/${p.key}`} data-zoom data-caption={p.caption ?? ''} class="block overflow-hidden rounded-2xl" aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`}>
+                  <img src={thumbUrl(`/img/${p.key}`)} srcset={photoSrcset(`/img/${p.key}`)} sizes="(min-width: 768px) 33vw, 50vw" width="800" height="600"
+                    loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-fast) hover:scale-[1.02]" />
+                </a>
+                {p.caption && <figcaption class="mt-1 text-sm text-muted">{p.caption}</figcaption>}
+              </figure>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="mt-4 flex items-center gap-3 rounded-2xl border border-dashed border-line bg-surface px-4 py-5 text-muted">
+          <Icon name="image" class="size-6 shrink-0 text-palm-700" />ยังไม่มีรูปในหมวดนี้ เรากำลังทยอยเพิ่มรูปจากฟาร์ม
+        </p>
+      )}
     </section>
   ))}
 </PublicLayout>

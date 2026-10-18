@@ -112,7 +112,7 @@ const cards = [
     {d.incomplete > 0 && (
       <li><a href="/admin/todo" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
         <Icon name="help" class="size-6 text-honey-700" />
-        <span class="flex-1"><strong>{d.incomplete} รัง</strong> ข้อมูลยังไม่ครบ (???)</span>
+        <span class="flex-1"><strong>{d.incomplete} รัง</strong> ข้อมูลยังไม่ครบ</span>
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
@@ -175,7 +175,7 @@ const cards = [
       ) : (
         <p class="text-muted">ยังไม่มีการบันทึกเก็บน้ำหวานในปีนี้ เปิดหน้ารังแล้วกด "เก็บน้ำหวาน" ได้เลย</p>
       )}
-      <a class="mt-2 inline-flex min-h-11 items-center gap-1 font-medium text-palm-700 underline" href="/admin/production"><Icon name="chart" class="size-4" />ดูกราฟผลผลิต + สภาพอากาศ</a>
+      <a class="mt-2 inline-flex min-h-11 items-center gap-1 font-medium text-palm-700 underline" href="/admin/production"><Icon name="chart" class="size-4" />ดูหน้าผลผลิตและอากาศ</a>
       {owner && (
         <>
           <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>

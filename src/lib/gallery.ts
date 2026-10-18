@@ -19,8 +19,6 @@ export const isGalleryCategory = (s: unknown): s is GalleryCategory => typeof s 
 
 /** รูปต่อหมวดสูงสุด — หน้าเดียวโหลดไม่หนักเกินไปบนมือถือ */
 export const GALLERY_MAX_PER_CATEGORY = 60;
-/** หมวดที่ยังไม่มีรูป แสดงกรอบรูปชั่วคราวกี่ช่อง */
-export const GALLERY_PLACEHOLDERS = 3;
 
 /** คีย์ใน R2: gallery/<หมวด>/<id>.<ext> — id มาจากรหัสชุดอัปโหลด (กันบันทึกซ้ำเมื่อส่งซ้ำ) หรือ UUID */
 export function galleryKey(category: GalleryCategory, id: string, ext: ImageType['ext']): string {

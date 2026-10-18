@@ -81,11 +81,12 @@ const jsonLd = product
             )}
           </>
         ) : (
-          <img src={image} alt="" class="aspect-[4/3] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+          // ยังไม่มีรูปสินค้า: กรอบเตี้ยลงบนมือถือ ไม่กินทั้งจอ (รีวิว UX 2026-10-18)
+          <img src={image} alt="" class="aspect-[5/2] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
         )}
       </div>
       <section>
-        <h1 class="text-3xl font-bold leading-snug">{keepThaiWords(product.name)}</h1>
+        <h1 class="text-3xl font-bold leading-snug text-palm-900">{keepThaiWords(product.name)}</h1>
         {product.description && <p class="mt-2 whitespace-pre-line text-lg text-muted">{product.description}</p>}
 
         <ul class="mt-5 space-y-3">

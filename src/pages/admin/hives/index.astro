@@ -102,7 +102,7 @@ const quickOn = (set: Record<string, string>) =>
 
   <div class="mb-3 flex items-center justify-between gap-2">
     <p class="text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {activeFilters + (filter.q ? 1 : 0) > 0 && <a class="ml-1 inline-flex min-h-11 items-center underline" href="/admin/hives">ล้าง</a>}</p>
-    <a class="btn-ghost shrink-0" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรัง</a>
+    <a class="btn-ghost shrink-0" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>
   </div>
 
   {rows.length === 0 ? (

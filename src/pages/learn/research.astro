@@ -14,7 +14,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=300');
 {/* หน้านี้ตั้งใจไม่มีปุ่มสั่งซื้อและตัวเลขเงิน เพื่อไม่ให้ดูเหมือนอ้างสรรพคุณของสินค้า (ตัวตรวจ check:leaks บังคับกฎนี้) */}
 <PublicLayout title={fm.title} description={fm.description} active="honey">
   <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/honey">← น้ำผึ้งชันโรง</a></p>
-  <h1 class="text-3xl font-bold md:text-4xl">{fm.title}</h1>
+  <h1 class="text-3xl font-bold leading-snug text-palm-900 md:text-4xl">{fm.title}</h1>
   <Article headings={page.getHeadings()}><Content /></Article>
   {fm.checkedOn && <p class="mt-8 text-sm text-muted">ตรวจอ้างอิงล่าสุด {formatThaiDate(String(fm.checkedOn).slice(0, 10))}</p>}
 </PublicLayout>

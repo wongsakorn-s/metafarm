@@ -24,7 +24,7 @@ const msg = Astro.url.searchParams.get('msg');
     <p class="hint">เดินไปที่รัง กด <strong><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> ถ่ายรูป</strong> หรือ <strong><Icon name="image" class="inline-block size-[1.15em] align-[-0.2em]" /> เลือกรูป</strong> ระบบย่อรูปให้ก่อนส่ง (ประหยัดเน็ต) · เพิ่มรูปอื่น/ลบรูปได้ที่หน้ารังนั้นทีหลัง</p>
     <div class="mt-3 rounded-xl border border-palm-100 bg-palm-50/70 p-3 text-sm text-palm-900">
       <p class="font-semibold text-palm-800"><Icon name="info" class="inline-block size-[1.15em] align-[-0.2em]" /> คำแนะนำการถ่ายรูปสมุดพก:</p>
-      <p class="mt-1 leading-relaxed text-muted">ควรถ่ายมุมกว้าง (overall) ให้เห็นตัวรังพร้อมสภาพแวดล้อมที่ตั้ง เพื่อให้จำได้และเดินหารังในสวนได้ง่าย</p>
+      <p class="mt-1 leading-relaxed text-muted">ควรถ่ายมุมกว้าง ให้เห็นตัวรังพร้อมสภาพแวดล้อมที่ตั้ง เพื่อให้จำได้และเดินหารังในสวนได้ง่าย</p>
     </div>
     <p class="mt-2 text-sm"><a class="underline" href={includeAll ? '/admin/photos' : '/admin/photos?all=1'}>{includeAll ? 'แสดงเฉพาะรังที่ยังอยู่' : 'แสดงรวมรังที่ขายแล้ว/ล่มด้วย'}</a></p>
   </section>

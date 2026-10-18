@@ -54,7 +54,7 @@ const jsonLd = hive
     <div class="mb-3 md:hidden">
       <p class="mb-1 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products/hives">← รังสมบูรณ์</a></p>
       <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h1 class="text-2xl font-bold">รังสมบูรณ์ {hive.code}</h1>
+        <h1 class="text-2xl font-bold text-palm-900">รังสมบูรณ์ {hive.code}</h1>
         <p data-num class="text-2xl font-bold text-palm-700">{formatPrice(hive.priceThb)} <span class="text-[0.8125rem] font-normal text-muted">({SHIPPING_NOTE})</span></p>
       </div>
     </div>
@@ -100,7 +100,7 @@ const jsonLd = hive
       </section>
 
       <section class="md:col-start-2 md:row-span-2 md:row-start-1">
-        <h1 class="hidden text-3xl font-bold md:block">รังสมบูรณ์ {hive.code}</h1>
+        <h1 class="hidden text-3xl font-bold text-palm-900 md:block">รังสมบูรณ์ {hive.code}</h1>
         <p data-num class="mt-1 hidden text-3xl font-bold text-palm-700 md:block">{formatPrice(hive.priceThb)} <span class="text-base font-normal text-muted">({SHIPPING_NOTE})</span></p>
         {/* บรรทัดตายตัว "รังไม้สัก 2 ห้องของ MetaFarm" ตัดออก (บางรังไม่ใช่ไม้สัก/ไม่ได้ทำเอง) — ใช้ "ข้อความเพิ่มเติมของรัง" ที่เจ้าของใส่แทน */}
         {hive.publicNote && <p class="mt-2 whitespace-pre-line text-muted">{hive.publicNote}</p>}

@@ -61,7 +61,7 @@ const saved = Astro.url.searchParams.get('saved');
 const v = (k: string) => values[k] ?? '';
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="ผู้ใช้และสิทธิ์" active="users">
+<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="คนใช้งานระบบ" active="users">
   {saved === 'disable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปิดบัญชีแล้ว — ผู้ใช้ถูกออกจากระบบทุกเครื่อง</p>}
   {saved === 'enable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปิดบัญชีแล้ว</p>}
   {saved === 'role' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปลี่ยนบทบาทแล้ว — ผู้ใช้นั้นต้องล็อกอินใหม่ แล้วจะเห็นเมนูตามบทบาทใหม่</p>}
