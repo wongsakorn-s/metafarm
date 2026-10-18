@@ -44,7 +44,17 @@ if (kind === 'line') {
   if (cur.length) segments.push(cur.join(' '));
 }
 // ป้ายแกน x: เดือนมกราคม (ขึ้นปีใหม่) + เดือนแรก · ถ้าช่วงสั้น ใส่ทุก 3 เดือน
-const showLabel = (m: string, i: number) => i === 0 || m.endsWith('-01') || (n <= 15 && i % 3 === 0);
+// ไม่ให้ป้ายสองเดือนติดกันจนตัวหนังสือทับกัน (เช่น "ม.ค. 69" ติด "ก.พ. 69") — เดือนมกราคมชนะป้ายข้างหน้าที่ชิดเกินไป
+const shown = new Set<number>();
+let last = -9;
+months.forEach((m, i) => {
+  const jan = m.endsWith('-01');
+  if (!(i === 0 || jan || (n <= 15 && i % 3 === 0))) return;
+  if (i - last < 2) { if (!jan) return; shown.delete(last); }
+  shown.add(i);
+  last = i;
+});
+const showLabel = (_m: string, i: number) => shown.has(i);
 const tip = (i: number) =>
   `${monthLabel(months[i]!)}: ` +
   (series.length > 1

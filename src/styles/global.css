@@ -1,10 +1,15 @@
-@import '@fontsource-variable/noto-sans-thai';
+/* ฟอนต์ Sarabun (มีหัว) — เจ้าของเลือก "แบบ 4" 2026-10-18 แทน Noto Sans Thai · โหลดเฉพาะน้ำหนักที่เว็บใช้ (normal/medium/semibold/bold)
+   แต่ละไฟล์แบ่งตามช่วงตัวอักษร (ไทย/ละติน) เบราว์เซอร์โหลดเฉพาะที่หน้าใช้จริง */
+@import '@fontsource/sarabun/400.css';
+@import '@fontsource/sarabun/500.css';
+@import '@fontsource/sarabun/600.css';
+@import '@fontsource/sarabun/700.css';
 @import 'tailwindcss';
 
 /* Design tokens — ที่มาและกฎการใช้: design-system/metafarm/MASTER.md
    สีหลักจากโลโก้ MetaFarm: เขียวปาล์ม + เหลืองน้ำผึ้ง (สไตล์ Organic Biophilic ตามที่ ui-ux-pro-max แนะนำ) */
 @theme {
-  --font-sans: 'Noto Sans Thai Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Sarabun', 'Leelawadee UI', Tahoma, ui-sans-serif, system-ui, sans-serif;
 
   --color-palm-50: #eaf5ee;
   --color-palm-100: #cfe8d8;

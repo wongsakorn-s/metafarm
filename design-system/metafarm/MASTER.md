@@ -37,7 +37,10 @@ The single source of truth for colors, fonts, spacing, icons and UX rules on bot
 
 ## 3. Fonts
 
-- **Noto Sans Thai Variable for the whole site.** It is self-hosted and loads with `font-display: swap`.
+- **Sarabun for the whole site** (public + admin), chosen by the owner on 2026-10-18 from a 5-font comparison ("แบบ 4"; looped Thai, like the owner's Shopee sample). Self-hosted via `@fontsource/sarabun` weights 400/500/600/700 only (Thai + Latin subsets, ~10–12 KB each, `font-display: swap`). Replaced Noto Sans Thai Variable.
+  - Sarabun's Thai is taller and looks smaller at the same px than Noto: page h1s use `leading-snug`, and no text below 13px (`text-[0.8125rem]`, never `text-xs`) for anything a customer must read.
+  - Long Thai headings: pass the text through `keepThaiWords()` (`src/lib/labels.ts`) so `text-wrap: balance` cannot split "ชันโรง|ขนเงิน" or "น้ำ|ผึ้ง" (word joiner between syllables, display text only).
+  - Font size matters for button labels in 2-column grids — keep them short (e.g. "เลือกรูป", not "เลือกจากเครื่อง").
   - The skill suggested Lora/Raleway. **Neither has Thai glyphs**, so they can't be used.
   - IBM Plex Sans Thai was considered and rejected because it adds another 30–40 KB to download.
 - **Body text:** at least 16px, line height 1.55. Markdown articles use `.prose-mf` at 1.0625rem / 1.8.

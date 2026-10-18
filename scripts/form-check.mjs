@@ -287,7 +287,7 @@ console.log('\n9) เมนูมือถือ: บันทึกด่วน
   const before = await page.isVisible('nav[aria-label="เมนูหลัก (มือถือ)"] a[href="/passport"]');
   await page.click('[data-menu-toggle]');
   const links = await page.$$eval('nav[aria-label="เมนูหลัก (มือถือ)"] a', (as) => as.map((a) => a.textContent.trim()));
-  check(!before && links.length === 8, `เมนูเว็บ: ซ่อนไว้ก่อน แตะแล้วเห็นครบ ${links.length} รายการ`, `เมนูเว็บไม่ถูกต้อง (ก่อนแตะเห็น=${before}, ${links.length} รายการ)`);
+  check(!before && links.length === 9, `เมนูเว็บ: ซ่อนไว้ก่อน แตะแล้วเห็นครบ ${links.length} รายการ`, `เมนูเว็บไม่ถูกต้อง (ก่อนแตะเห็น=${before}, ${links.length} รายการ)`);
   // แตะพื้นหลังของหน้า (ไม่ใช่พิกัดตายตัว — หน้าแรกมีการ์ดสินค้าที่เป็นลิงก์แล้ว)
   await page.evaluate(() => document.body.dispatchEvent(new MouseEvent('click', { bubbles: true })));
   check(!(await page.evaluate(() => document.querySelector('[data-site-menu]').open)), 'แตะนอกเมนู → เมนูปิด', 'แตะนอกเมนูแล้วเมนูไม่ปิด');

@@ -40,7 +40,7 @@
     },
     "dependencies": {
         "@astrojs/cloudflare": "^14.4.0",
-        "@fontsource-variable/noto-sans-thai": "^5.3.0",
+        "@fontsource/sarabun": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
         "astro": "^7.4.0",
         "drizzle-orm": "^0.45.4",

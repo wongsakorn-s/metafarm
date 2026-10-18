@@ -77,7 +77,7 @@ const cards = [
     {stats.map((s) => (
       <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
         <span data-num class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
-        <span class="text-[0.8125rem] leading-tight text-muted md:text-sm">{s.label}</span>
+        <span class="text-[0.8125rem] leading-snug text-muted md:text-sm">{s.label}</span>
       </a>
     ))}
   </section>

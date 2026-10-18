@@ -6,7 +6,7 @@
       "name": "metafarm",
       "dependencies": {
         "@astrojs/cloudflare": "^14.4.0",
-        "@fontsource-variable/noto-sans-thai": "^5.3.0",
+        "@fontsource/sarabun": "^5.3.0",
         "@tailwindcss/vite": "^4.3.3",
         "astro": "^7.4.0",
         "drizzle-orm": "^0.45.4",
@@ -202,7 +202,7 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
-    "@fontsource-variable/noto-sans-thai": ["@fontsource-variable/noto-sans-thai@5.3.0", "", {}, "sha512-jHEC1vo8gD09GKf8jtH1IMoPqWmQQSKH3gkyD3ibCIMEkVpEqJ9NJ2c181VHKbTHXc7Wu9CbuBU3yjQNvpbEbw=="],
+    "@fontsource/sarabun": ["@fontsource/sarabun@5.3.0", "", {}, "sha512-8GWxnEIG9g/2JlZxU+APaVwipcLMkZkBps9N1tEyBxXWaJEnAtHpuaDYmFVG7lzTgr28orG7//htD/rfxDlfFg=="],
 
     "@img/colour": ["@img/colour@1.1.0", "", {}, "sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ=="],
 

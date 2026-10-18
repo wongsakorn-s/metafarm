@@ -66,6 +66,8 @@ const sql: string[] = [
   ...localOnlyGuard(),
   // ออเดอร์อ้างถึงรัง/ลูกค้า → ลบก่อน
   'DELETE FROM hive_holds;',
+  // ล็อตของแต่ละบรรทัดออเดอร์ (migration 0014) อ้างถึง order_items และ honey_lots → ลบก่อนทั้งสอง
+  'DELETE FROM order_item_lots;',
   'DELETE FROM order_items;',
   'DELETE FROM orders;',
   'DELETE FROM once_keys;',
