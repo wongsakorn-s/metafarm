@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, parseForm, queenCellSchema, publishSchema, saleSchema, statusSchema, todayBangkok, variantSchema } from './validation.ts';
+import { broodSplitSchema, editHiveSchema, honeyHarvestSchema, newHiveSchema, parseForm, productTextSchema, queenCellSchema, publishSchema, saleSchema, statusSchema, todayBangkok, variantSchema } from './validation.ts';
 
 const form = (o: Record<string, string>) => Object.assign(new FormData(), {}) && Object.entries(o).reduce((f, [k, v]) => (f.append(k, v), f), new FormData());
 const today = todayBangkok();
@@ -105,5 +105,15 @@ describe('newHiveSchema: รหัสรังตั้งเอง', () => {
     expect(code('A0')).toBe('ERR');
     expect(code('A123456')).toBe('ERR');
     expect(code('A12x')).toBe('ERR');
+  });
+});
+
+describe('คำอธิบายสินค้า (เจ้าของขอ 400 ตัวอักษร 2026-10-18)', () => {
+  const line = 'ก'.repeat(49) + '\r\n'; // ฟอร์มส่งขึ้นบรรทัดใหม่เป็น \r\n
+  it('400 ตัว (นับขึ้นบรรทัดเป็น 1) ผ่าน และเก็บเป็น \\n · 401 ตัวไม่ผ่าน', () => {
+    const ok = productTextSchema.safeParse({ productId: '1', description: line.repeat(8) }); // 8 × (49 + 1) = 400
+    expect(ok.success).toBe(true);
+    expect(ok.data?.description).toBe(('ก'.repeat(49) + '\n').repeat(8).trim());
+    expect(productTextSchema.safeParse({ productId: '1', description: 'ก'.repeat(401) }).success).toBe(false);
   });
 });

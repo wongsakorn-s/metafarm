@@ -122,7 +122,8 @@ export const productTextSchema = z.object({
   productId: z.coerce.number().int().positive(),
   /** ชื่อสินค้าบนเว็บ (ไม่ส่งมา = ไม่เปลี่ยน) · ลิงก์ของสินค้า (slug) ไม่เปลี่ยนตาม */
   name: opt(z.string().min(2, 'ชื่อสั้นเกินไป').max(100, 'ชื่อยาวเกิน 100 ตัวอักษร')),
-  description: opt(z.string().max(300, 'ยาวเกิน 300 ตัวอักษร')),
+  // ฟอร์มส่งขึ้นบรรทัดใหม่เป็น \r\n (2 ตัว) แต่ช่องกรอกนับเป็น 1 — แปลงเป็น \n ก่อนนับ ไม่งั้นข้อความ 400 ตัวที่มีหลายบรรทัดถูกปฏิเสธ
+  description: z.preprocess((v) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n') : v), opt(z.string().max(400, 'ยาวเกิน 400 ตัวอักษร'))),
 });
 
 export const variantHiddenSchema = z.object({

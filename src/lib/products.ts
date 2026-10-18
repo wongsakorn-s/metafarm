@@ -6,6 +6,13 @@ export const SHIPPING_NOTE = 'ยังไม่รวมค่าขนส่�
 /** "1,590 บาท" — ใช้บนหน้าสาธารณะ */
 export const formatPrice = (n: number) => `${n.toLocaleString('th-TH')} บาท`;
 
+/** ราคาบนการ์ด (ไม่ใช้คำว่า "เริ่ม" — เจ้าของขอ 2026-10-18): ราคาเดียว = "1,600 บาท" · หลายราคา = ช่วง "1,600–1,800 บาท" · ไม่มีราคา = '' */
+export function priceRange(prices: number[]): string {
+  if (!prices.length) return '';
+  const lo = Math.min(...prices), hi = Math.max(...prices);
+  return lo === hi ? formatPrice(lo) : `${lo.toLocaleString('th-TH')}–${formatPrice(hi)}`;
+}
+
 export const categoryLabel = { hive_box: 'รังเปล่า', honey: 'น้ำผึ้ง', other: 'อื่น ๆ' } as const;
 
 /** ข้อความสถานะสินค้า — เก็บแค่ "มี/ไม่มี" ไม่เปิดเผยจำนวนสต็อกจริง */

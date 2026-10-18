@@ -220,7 +220,7 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
             <label class="label" for={`pn-${p.id}`}>ชื่อสินค้า</label>
             <input class="field" id={`pn-${p.id}`} name="name" required minlength="2" maxlength="100" value={p.name} />
             <label class="label" for={`pd-${p.id}`}>คำอธิบายสินค้า</label>
-            <textarea class="field" id={`pd-${p.id}`} name="description" rows="2" maxlength="300">{p.description ?? ''}</textarea>
+            <textarea class="field" id={`pd-${p.id}`} name="description" rows="5" maxlength="400">{p.description ?? ''}</textarea>
             <button class="btn-primary" type="submit">บันทึกชื่อและคำอธิบาย</button>
           </form>
         </details>

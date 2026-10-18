@@ -23,6 +23,9 @@ export interface PublicEvent {
 }
 
 /** วิดีโอที่แสดงสาธารณะ: ไฟล์ใน R2 (เสิร์ฟผ่าน /video/*) หรือ YouTube */
+/** รังที่ฟาร์มขยายเอง (เพาะนางพญา/ขยายรัง) — แสดงวันเกิดนางพญา · เจ้าของเปลี่ยนรังเพาะนางพญาเป็น "ขยายรังโดย MetaFarm" แล้ว (2026-10-17) วันเกิดนางพญาต้องยังแสดง */
+const bredHere = (origin: string) => origin === 'queen_bred' || origin === 'split';
+
 export type PublicVideo = { key: string; youtubeId?: undefined } | { youtubeId: string; key?: undefined };
 const publicVideo = (m: { key: string | null; youtubeId: string | null } | undefined): PublicVideo | null =>
   m?.key ? { key: m.key } : m?.youtubeId ? { youtubeId: m.youtubeId } : null;
@@ -118,7 +121,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
     province: row.origin === 'purchased' ? provinceOf(row.originPlace) : null,
     acquiredOn: row.acquiredOn,
     acquiredOnPrecision: row.acquiredOnPrecision,
-    queenBornOn: row.origin === 'queen_bred' ? row.queenBornOn : null,
+    queenBornOn: bredHere(row.origin) ? row.queenBornOn : null,
     queenSource: row.queenSource,
     broodSource: row.broodSource,
     status: row.status,
@@ -242,7 +245,7 @@ export async function getSaleHives(db: Db): Promise<SaleHiveCard[]> {
     ...r,
     priceThb: priceThb ?? 0,
     province: r.origin === 'purchased' ? provinceOf(originPlace) : null,
-    queenBornOn: r.origin === 'queen_bred' ? r.queenBornOn : null,
+    queenBornOn: bredHere(r.origin) ? r.queenBornOn : null,
   }));
 }
 
@@ -291,7 +294,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
     province: row.origin === 'purchased' ? provinceOf(row.originPlace) : null,
     acquiredOn: row.acquiredOn,
     acquiredOnPrecision: row.acquiredOnPrecision,
-    queenBornOn: row.origin === 'queen_bred' ? row.queenBornOn : null,
+    queenBornOn: bredHere(row.origin) ? row.queenBornOn : null,
     coverKey: photos[0]?.key ?? null,
     photos,
     video: publicVideo(media.find((m) => m.kind === 'video')),

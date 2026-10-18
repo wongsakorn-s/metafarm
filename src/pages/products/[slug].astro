@@ -85,7 +85,7 @@ const jsonLd = product
       </div>
       <section>
         <h1 class="text-3xl font-bold">{product.name}</h1>
-        {product.description && <p class="mt-2 text-lg text-muted">{product.description}</p>}
+        {product.description && <p class="mt-2 whitespace-pre-line text-lg text-muted">{product.description}</p>}
 
         <ul class="mt-5 space-y-3">
           {product.variants.map((v) => {

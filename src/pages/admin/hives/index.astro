@@ -110,7 +110,7 @@ const quickOn = (set: Record<string, string>) =>
   ) : (
     <>
       {/* มือถือ/แท็บเล็ต: การ์ด (แตะง่าย) */}
-      <ul class="grid gap-3 sm:grid-cols-2 lg:hidden">
+      <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:hidden">
         {rows.map((h) => (
           <li>
             <a href={`/admin/hives/${h.code}`} class="card-link flex gap-3">

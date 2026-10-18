@@ -125,7 +125,8 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
       <div>
         <label class="label" for="origin">ที่มา</label>
         <select class="field" id="origin" name="origin" required>
-          {(['purchased', 'queen_bred', 'split', 'natural', 'unknown'] as const).map((o) => <option value={o} selected={v('origin') === o}>{originLabel[o]}</option>)}
+          {/* เพาะนางพญาเอง/ไม่ทราบที่มา ไม่ให้เลือกใหม่แล้ว (เจ้าของ 2026-10-18) — รังที่ยังเป็นค่าเดิมยังแสดงค่าเดิม ไม่ถูกเปลี่ยนเงียบ ๆ */}
+          {(['purchased', 'split', 'natural', ...(['queen_bred', 'unknown'] as const).filter((o) => v('origin') === o)] as const).map((o) => <option value={o} selected={v('origin') === o}>{originLabel[o]}</option>)}
         </select>
         {err('origin') && <p class="error">{err('origin')}</p>}
       </div>

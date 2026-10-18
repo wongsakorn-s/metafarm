@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acquiredLabel, speciesLabel } from './labels.ts';
+import { acquiredLabel, originLabel, originText, speciesLabel } from './labels.ts';
 
 describe('ป้ายบนหน้าสาธารณะ (เจ้าของขอ 2026-10-13)', () => {
   it('ชื่อสายพันธุ์: ตัดคำว่า "ชันโรง" ออก · ชื่ออื่นไม่เปลี่ยน · ไม่เหลือค่าว่าง', () => {
@@ -14,5 +14,13 @@ describe('ป้ายบนหน้าสาธารณะ (เจ้าข�
     expect(acquiredLabel('split')).toBe('แยกขยายรัง');
     expect(acquiredLabel('natural')).toBe('เริ่มรังเมื่อ');
     expect(acquiredLabel('unknown')).toBe('เริ่มรังเมื่อ');
+  });
+});
+
+describe('ที่มาของรัง (เจ้าของขอ 2026-10-18)', () => {
+  it('ขยายรัง → "ขยายรังโดย MetaFarm" ทั้งหลังบ้านและหน้าสาธารณะ', () => {
+    expect(originLabel.split).toBe('ขยายรังโดย MetaFarm');
+    expect(originText('split', null, 'MetaFarm')).toBe('ขยายรังโดย MetaFarm');
+    expect(originText('purchased', 'ปัตตานี', 'MetaFarm')).toBe('ซื้อมาจากจังหวัดปัตตานี');
   });
 });

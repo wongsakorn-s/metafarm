@@ -8,7 +8,7 @@ import { businessLd } from '../lib/seo.ts';
 import { getDb } from '../server/db.ts';
 import { getFarmStats, getHeroPhoto, getPublicProducts, getSaleHives } from '../server/public.ts';
 import SampleBadge from '../components/SampleBadge.astro';
-import { formatPrice, SHIPPING_NOTE } from '../lib/products.ts';
+import { priceRange, SHIPPING_NOTE } from '../lib/products.ts';
 import { photoSrcset } from '../lib/media.ts';
 import { placeholder } from '../lib/placeholders.ts';
 import { site } from '../config/site.ts';
@@ -17,8 +17,8 @@ export const prerender = false;
 
 const db = getDb();
 const [stats, hero, products, saleHives] = await Promise.all([getFarmStats(db), getHeroPhoto(db, Astro.locals.settings!.heroHive), getPublicProducts(db), getSaleHives(db)]);
-// ราคาเริ่มต้นของแต่ละสินค้า (หน้าแรกโชว์ "เริ่ม …" ไม่ต้องแจกทุกขนาด)
-const from = (prices: number[]) => (prices.length ? `เริ่ม ${formatPrice(Math.min(...prices))}` : '');
+// ราคาของแต่ละสินค้าบนการ์ด: ราคาเดียว หรือช่วงราคา (ไม่ใช้คำว่า "เริ่ม") — ไม่ต้องแจกทุกขนาด
+const from = priceRange;
 const askMessage = 'สนใจสอบถามรังและผลิตภัณฑ์ชันโรง';
 // รังที่เปิดขาย: มีรังเดียว → ลิงก์ไปหน้ารังนั้นเลย (ไม่ต้องผ่านหน้ารายการ 1 รัง)
 const hivesHref = saleHives.length === 1 ? `/products/hives/${saleHives[0]!.code}` : '/products/hives';

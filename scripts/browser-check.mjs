@@ -33,6 +33,30 @@ async function visit(page, path, name, expect = 200) {
   if (issues.length) problems.push(name);
 }
 
+// ปุ่ม ‹ › ใน lightbox ต้องกดได้ด้วยเมาส์/นิ้ว (เคยกดไม่ได้บนคอมเพราะ stage จับ pointer ไว้ — เจ้าของแจ้ง 2026-10-18)
+// คลิกที่กลางปุ่มจริง (page.mouse) ไม่ใช่ element.click() ซึ่งข้ามปัญหานี้ได้
+async function checkLightbox(page, paths, name) {
+  const counter = page.locator('[data-lb-counter]');
+  const text = async () => (await counter.textContent())?.trim() ?? '';
+  for (const path of paths) {
+    await page.goto(BASE + path, { waitUntil: 'networkidle' });
+    const first = page.locator('[data-zoom-group] a[data-zoom]').first();
+    if (!(await first.count())) continue;
+    await first.click();
+    await counter.waitFor({ state: 'visible' });
+    const start = await text();
+    if (!/^1 \/ ([2-9]|\d\d)/.test(start)) { await page.keyboard.press('Escape'); continue; } // รูปเดียว ลองหน้าถัดไป
+    const tap = async (sel) => { const b = await page.locator(sel).boundingBox(); await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); await page.waitForTimeout(400); return text(); };
+    const afterNext = await tap('[data-lb-next]'), afterPrev = await tap('[data-lb-prev]');
+    await page.keyboard.press('Escape');
+    const ok = afterNext.startsWith('2 /') && afterPrev.startsWith('1 /');
+    console.log(`${ok ? 'PASS' : 'FAIL'} lightbox ${name} ${path} (${start} → › ${afterNext} → ‹ ${afterPrev})`);
+    if (!ok) problems.push(`lightbox-${name}`);
+    return;
+  }
+  console.log(`SKIP lightbox ${name}: ไม่พบหน้าที่มีรูปให้เลื่อนอย่างน้อย 2 รูป (${paths.join(', ')})`);
+}
+
 for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 800 }]]) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'th-TH' });
   const page = await ctx.newPage();
@@ -43,6 +67,7 @@ for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desk
   for (const [p, n, st] of [['/stingless-bee', 'stingless-bee'], ['/honey', 'honey'], ['/learn/research', 'research'], ['/training', 'training'], ['/training/hive-splitting', 'training-hive-splitting'],
     ['/training/honey-processing', 'training-honey-processing'], ['/training/nope', 'training-404', 404], ['/contact', 'contact'], ['/privacy', 'privacy']])
     await visit(page, p, `${label}-public-${n}`, st);
+  await checkLightbox(page, ['/gallery', '/passport/A12', '/passport/A25', '/products/hive-box'], label);
   // รังที่เปิดขายอยู่ (ถ้ามี): หาลิงก์แรกจากหน้ารายการแล้วเปิดหน้ารายละเอียด
   await page.goto(BASE + '/products/hives', { waitUntil: 'networkidle' });
   const saleLink = await page.evaluate(() => document.querySelector('a[href^="/products/hives/A"]')?.getAttribute('href'));

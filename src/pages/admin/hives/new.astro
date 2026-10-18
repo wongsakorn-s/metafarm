@@ -57,7 +57,7 @@ const err = (k: string) => errors[k];
       <label class="label" for="origin">ที่มา</label>
       <select class="field" id="origin" name="origin" required>
         <option value="">เลือก…</option>
-        {(['queen_bred', 'split', 'purchased', 'natural'] as const).map((o) => <option value={o} selected={v('origin') === o}>{originLabel[o]}</option>)}
+        {(['split', 'purchased', 'natural'] as const).map((o) => <option value={o} selected={v('origin') === o}>{originLabel[o]}</option>)}
       </select>
       {err('origin') && <p class="error">{err('origin')}</p>}
     </div>

@@ -65,3 +65,15 @@ describe('รูปบนหน้าสาธารณะ (เจ้าขอ�
     expect((await getSaleHives(t.db)).find((h) => h.code === 'A20')!.coverKey).toBe('hives/A20/sale-s0-0.webp');
   });
 });
+
+describe('วันเกิดนางพญาบนสมุดพก (เจ้าของเปลี่ยนรังเพาะนางพญาเป็น "ขยายรังโดย MetaFarm" 2026-10-17)', () => {
+  it('ขยายรัง/เพาะนางพญา → แสดง · ซื้อมา → ไม่แสดง (เหมือนเดิม)', async () => {
+    await t.d1.prepare(`INSERT INTO hives (id, code, species_id, status, origin, acquired_on, queen_born_on) VALUES
+      (30, 'A30', 1, 'active', 'split', '2026-07-22', '2026-08-23'),
+      (31, 'A31', 1, 'active', 'queen_bred', '2026-07-22', '2026-08-25'),
+      (32, 'A32', 1, 'active', 'purchased', '2026-07-22', '2026-08-01')`).run();
+    expect((await getPublicHive(t.db, 'A30'))!.queenBornOn).toBe('2026-08-23');
+    expect((await getPublicHive(t.db, 'A31'))!.queenBornOn).toBe('2026-08-25');
+    expect((await getPublicHive(t.db, 'A32'))!.queenBornOn).toBeNull();
+  });
+});

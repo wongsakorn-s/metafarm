@@ -101,7 +101,7 @@ const formError = (k: string) => (isOpen(k) ? errors._ : undefined);
 const createTarget = (k: 'queen' | 'brood') => {
   const t = normalizeHiveCode(values.targetCode);
   if (!isOpen(k) || !t || !errors.targetCode?.startsWith('ไม่พบรัง')) return null;
-  const q = new URLSearchParams({ code: t, origin: k === 'brood' ? 'split' : 'queen_bred', [k === 'brood' ? 'broodSourceCode' : 'queenSourceCode']: code, acquiredOn: values.occurredOn ?? today });
+  const q = new URLSearchParams({ code: t, origin: 'split', [k === 'brood' ? 'broodSourceCode' : 'queenSourceCode']: code, acquiredOn: values.occurredOn ?? today });
   return { code: t, href: `/admin/hives/new?${q}` };
 };
 // ค่าที่กรอกไว้/ข้อความผิดพลาด คืนให้เฉพาะฟอร์มที่ส่งมา — ฟอร์มอื่นได้ค่าว่างและคีย์กันซ้ำ (idem) ใหม่ของตัวเอง
@@ -167,7 +167,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
         <dt class="text-muted">สายพันธุ์</dt><dd>{detail.species}</dd>
         <dt class="text-muted">ที่มา</dt><dd>{originLabel[hive.origin]}{hive.originPlace ? ` · ${hive.originPlace}` : ''}</dd>
         <dt class="text-muted">ได้มา</dt><dd><Val v={formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')} /></dd>
-        <dt class="text-muted">นางพญาเกิด</dt><dd>{hive.origin === 'queen_bred' ? <Val v={formatThaiDate(hive.queenBornOn)} /> : '–'}</dd>
+        <dt class="text-muted">นางพญาเกิด</dt><dd>{hive.origin === 'queen_bred' || hive.origin === 'split' ? <Val v={formatThaiDate(hive.queenBornOn)} /> : '–'}</dd>
         <dt class="text-muted">ไข่นางจาก</dt><dd>{detail.queenSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.queenSource}`}>{detail.queenSource}</a> : <Val v={ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')} />}</dd>
         <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{detail.broodSource ? <a class="text-palm-700 underline" href={`/admin/hives/${detail.broodSource}`}>{detail.broodSource}</a> : <Val v={ref(null, hive.origin === 'queen_bred' || hive.origin === 'split')} />}</dd>
         <dt class="text-muted">กล่องรัง</dt><dd><Val v={boxLabel[hive.boxType]} /></dd>

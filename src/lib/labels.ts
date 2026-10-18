@@ -11,7 +11,7 @@ export const statusClass = {
 export const originLabel = {
   purchased: 'ซื้อมา',
   queen_bred: 'เพาะนางพญาเอง',
-  split: 'ขยายรัง',
+  split: 'ขยายรังโดย MetaFarm',
   natural: 'ขยายเองตามธรรมชาติ',
   unknown: 'ไม่ทราบที่มา',
 } as const;
@@ -44,7 +44,7 @@ export function originText(origin: string, province: string | null | undefined, 
   switch (origin) {
     case 'purchased': return province ? `ซื้อมาจากจังหวัด${province}` : 'ซื้อมาจากผู้เลี้ยงภายนอก';
     case 'queen_bred': return `เพาะนางพญาเองที่ ${farm}`;
-    case 'split': return `ขยายรังเองที่ ${farm} (แยกจากรังแม่)`;
+    case 'split': return `ขยายรังโดย ${farm}`;
     case 'natural': return 'ขยายเองตามธรรมชาติ';
     default: return '';
   }

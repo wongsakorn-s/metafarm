@@ -218,6 +218,8 @@ function resetZoom(animate = true) {
 
 // Gestures: Pointer Down
 function onPointerDown(e: PointerEvent) {
+  // ปุ่ม ‹ › อยู่ใน stage: ถ้าจับ pointer ไว้ที่ stage เบราว์เซอร์จะส่ง click ไปที่ stage แทนปุ่ม → กดปุ่มไม่ได้บนคอม (เจ้าของแจ้ง 2026-10-18)
+  if ((e.target as Element | null)?.closest('button')) return;
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   stage.setPointerCapture(e.pointerId);
 
@@ -295,6 +297,8 @@ function onPointerMove(e: PointerEvent) {
 
 // Gestures: Pointer Up / Cancel
 function onPointerUp(e: PointerEvent) {
+  // pointer ที่ไม่ได้เริ่มบน stage (เช่นกดปุ่ม ‹ ›) ไม่ใช่การปัด — ถ้าไม่ข้าม จะคิด dx จากจุดเริ่มเก่าแล้วเลื่อนรูปกลับ หักล้างการกดปุ่ม
+  if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   try { stage.releasePointerCapture(e.pointerId); } catch {}
 

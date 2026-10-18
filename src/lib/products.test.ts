@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPrice, orderMessage, pricePer100ml, sizeLabel, stockLabel, variantName } from './products.ts';
+import { formatPrice, orderMessage, priceRange, pricePer100ml, sizeLabel, stockLabel, variantName } from './products.ts';
 
 describe('products helpers', () => {
   it('formatPrice', () => {
@@ -26,6 +26,15 @@ describe('products helpers', () => {
     expect(pricePer100ml(250, 50)).toBe(500);
     expect(pricePer100ml(550, 120)).toBe(458);
     expect(pricePer100ml(550, 120)).toBeLessThan(pricePer100ml(250, 50));
+  });
+});
+
+describe('ราคาบนการ์ด (ไม่มีคำว่า "เริ่ม")', () => {
+  it('ราคาเดียว / ราคาซ้ำ / ช่วงราคา / ไม่มีราคา', () => {
+    expect(priceRange([350])).toBe('350 บาท');
+    expect(priceRange([1600, 1600])).toBe('1,600 บาท');
+    expect(priceRange([1800, 1600, 2000])).toBe('1,600–2,000 บาท');
+    expect(priceRange([])).toBe('');
   });
 });
 
