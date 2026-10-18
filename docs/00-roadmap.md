@@ -184,7 +184,9 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [x] ตรวจบนเครื่อง: `bun run check` (0 errors) · `bun run test` (406 ผ่าน) · `bun run build` ผ่าน · `bunx wrangler --version` ได้ 4.151.1
 - [x] README เขียนใหม่ให้ตรงกับ Bun; คำสั่งในเอกสารทุกไฟล์เปลี่ยนจาก `npm run`/`npx` เป็น `bun run`/`bunx`
 - [ ] ยังไม่ได้ยืนยัน: workflow ที่เปลี่ยนไป Bun รันผ่านบน GitHub จริง (CI/deploy/backup) — ให้ดูผล `ci.yml` หลัง push และก่อน deploy ครั้งถัดไป
-- [ ] `scripts/lighthouse.mjs` และ `scripts/upload-media-remote.mjs` ยังเรียก `npx` ตอนรันจริง (ยังไม่ได้ทดสอบกับ `bunx`) — เปลี่ยนเมื่อได้ลองรันแล้ว
+- [x] `scripts/lighthouse.mjs` เรียก `bunx lighthouse@12` แล้ว (ทดสอบรันจริงกับ `astro preview` ผ่าน — ไม่ต้องใช้ shell บน Windows) · เคลียร์ unused import/ตัวแปร 13 จุดจาก `bun run check` (เหลือ hint ด้านสไตล์ 4 รายการ)
+- [ ] `scripts/upload-media-remote.mjs` ยังเรียก `npx wrangler` ตอนอัปโหลดจริง (ยังไม่ได้ทดสอบกับ `bunx` เพราะยิงขึ้นระบบจริง) — เปลี่ยนเมื่อผู้ดูแลได้ลองรัน
+- [ ] Lighthouse บน preview เครื่องนี้: หน้าแรก performance 87 (< 90) พบ "LCP image was lazily loaded" ควรตรวจว่ารูปแรกบนหน้าแรกใช้ `loading="lazy"` อยู่หรือไม่ · SEO 69 เพราะหน้าเป็น noindex ตามที่ออกแบบไว้จนกว่าเจ้าของยืนยันข้อมูลจริง (ไม่ใช่บั๊ก)
 
 ## ยังค้าง (2026-10-18)
 

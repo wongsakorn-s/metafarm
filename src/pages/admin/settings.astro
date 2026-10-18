@@ -1,7 +1,7 @@
 ---
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { getDb, getMedia } from '../../server/db.ts';
+import { getDb } from '../../server/db.ts';
 import { getSettings, saveContact, saveLocation, savePayment, settingsVersion } from '../../server/settings.ts';
 import { contactSchema, lineChatUrl, locationSchema, paymentSchema, telHref } from '../../lib/settings.ts';
 import { messengerBase } from '../../lib/contact.ts';

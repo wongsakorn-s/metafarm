@@ -18,8 +18,8 @@ let failed = 0;
 
 for (const path of PAGES) {
   const file = `${OUT}/${path.replace(/\W+/g, '_') || 'home'}.json`;
-  execFileSync('npx', ['--yes', 'lighthouse@12', BASE + path, '--output=json', `--output-path=${file}`, '--quiet', '--chrome-flags=--headless=new --no-sandbox', '--only-categories=performance,accessibility,best-practices,seo'], {
-    env: { ...process.env, CHROME_PATH: chrome }, stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32',
+  execFileSync('bunx', ['lighthouse@12', BASE + path, '--output=json', `--output-path=${file}`, '--quiet', '--chrome-flags=--headless=new --no-sandbox', '--only-categories=performance,accessibility,best-practices,seo'], {
+    env: { ...process.env, CHROME_PATH: chrome }, stdio: ['ignore', 'ignore', 'inherit'],
   });
   const r = JSON.parse(readFileSync(file, 'utf8'));
   const sc = Object.fromEntries(Object.entries(r.categories).map(([k, v]) => [k, v.score]));

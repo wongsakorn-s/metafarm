@@ -138,7 +138,7 @@ const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3
         <table class="w-full text-right text-sm">
           <thead class="sticky top-0 bg-surface text-xs text-muted"><tr><th scope="col" class="py-1 text-left">เดือน</th><th scope="col">น้ำผึ้ง (มล.)</th><th scope="col">ขยายรัง</th><th scope="col">ฝน (มม.)</th><th scope="col">สูงสุด (°C)</th></tr></thead>
           <tbody class="divide-y divide-line" data-num>
-            {months.map((m, i) => i).reverse().map((i) => (
+            {months.map((_, i) => i).reverse().map((i) => (
               <tr class:list={[dry[i] && 'bg-honey-50']}>
                 <th scope="row" class="py-1 text-left font-normal">{monthLabel(months[i]!)}{dry[i] && <span class="sr-only"> (เดือนแล้ง)</span>}</th>
                 <td>{fmt(honey[i])}</td><td>{fmt(splits[i]! + queens[i]!)}</td><td>{fmt(rain[i])}</td><td>{fmt(tmax[i], 1)}</td>

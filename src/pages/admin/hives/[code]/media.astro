@@ -1,5 +1,5 @@
 ---
-import { isHiveCode, normalizeHiveCode } from '../../../../lib/hive-code.ts';
+import { normalizeHiveCode } from '../../../../lib/hive-code.ts';
 import Icon from '../../../../components/Icon.astro';
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
@@ -7,7 +7,7 @@ import { getHiveDetail } from '../../../../server/hives.ts';
 import { deleteMedia, listMedia, moveHiveMedia, reorderHiveMedia, setVideo, uploadImages } from '../../../../server/media.ts';
 import VideoUploader from '../../../../components/VideoUploader.astro';
 import { jsonResult, wantsJson } from '../../../../lib/http.ts';
-import { kindLabel, LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
+import { LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
 
 export const prerender = false;
 
@@ -95,7 +95,7 @@ const sets = ([
     guide: 'รูปที่ 1 สำคัญที่สุด: ควรถ่ายเปิดฝาโชว์ข้างในรังผ่านแผ่นพลาสติกใส ให้เห็นประชากรชันโรง ไข่อ่อน-ไข่แก่ และถ้วยน้ำหวาน เพื่อสร้างความมั่นใจให้ผู้ซื้อ · รูปที่ 2–6 เป็นรูปมุมข้างหรือตัวรังภายนอก',
     hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย) · ถ้ายังไม่มีรูปสำหรับขาย หน้าขายจะใช้ 3 รูปแรกของสมุดพกให้ก่อน',
   },
-] as const).toSorted((a, b) => (hive.forSale ? (a.kind === 'sale' ? -1 : 1) : (a.kind === 'passport' ? -1 : 1)));
+] as const).toSorted((a) => (hive.forSale ? (a.kind === 'sale' ? -1 : 1) : (a.kind === 'passport' ? -1 : 1)));
 ---
 
 <AdminLayout back={{ href: `/admin/hives/${hive.code}`, label: `รัง ${hive.code}` }} title={`รูปและวิดีโอ ${hive.code}`} active="hives">

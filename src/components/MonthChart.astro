@@ -74,7 +74,7 @@ const id = `ch-${title.replace(/[^a-z0-9ก-๙]/gi, '').slice(0, 20)}-${n}`;
       <div class="relative h-36 md:h-40">
         {ticks.map((t) => <span class="absolute inset-x-0 border-t border-line" style={`top:${100 - pct(t)}%`}></span>)}
         <div class="absolute inset-0 flex">
-          {months.map((m, i) => (
+          {months.map((_, i) => (
             <div class="chart-cell group relative flex h-full flex-1 flex-col justify-end" tabindex="-1" data-tip={tip(i)}>
               {shade[i] && <span class="absolute inset-0 bg-honey-100/70"></span>}
               {kind === 'bar' && (

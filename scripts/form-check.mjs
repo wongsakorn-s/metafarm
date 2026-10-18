@@ -45,7 +45,7 @@ const post = (url, fields, headers = {}) =>
 
 // หารังที่ยังอยู่ (active) มาใช้ทดสอบ
 await page.goto(BASE + '/admin/hives?status=active&q=A');
-const [HIVE, HIVE2] = await page.$$eval('a[href^="/admin/hives/A"]', (as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))].filter((c) => /^A\d+$/.test(c)).slice(0, 2));
+const [HIVE] = await page.$$eval('a[href^="/admin/hives/A"]', (as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))].filter((c) => /^A\d+$/.test(c)).slice(0, 2));
 const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 
 console.log(`\n1) หน้ารัง ${HIVE}: กรอกผิด → ฟอร์มอื่นไม่ได้คีย์กันซ้ำร่วมกัน / ข้อความผิดชี้ช่อง`);
@@ -403,7 +403,7 @@ console.log('\n12) ขาย: ออเดอร์ → ชำระ → ส่�
   const stock3 = await stockOf();
   check(asked.includes(code2) && stock2 === 2 && stock3 === 3, 'ยกเลิก ' + code2 + ' (ถามยืนยัน) → คืนสต็อก 2 → 3', 'ยกเลิกแล้วสต็อกไม่ถูก (' + stock2 + ' → ' + stock3 + ', ถาม: ' + asked + ')');
   await setStock(0);
-  const made = await page.evaluate(async ({ vid, tag }) => {
+  const made = await page.evaluate(async ({ vid }) => {
     const html = await (await fetch('/admin/orders/new')).text();
     const cid = new DOMParser().parseFromString(html, 'text/html').querySelector('#customerId option:not([value=""])')?.value;
     const fd = new FormData();

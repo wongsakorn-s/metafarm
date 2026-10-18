@@ -40,7 +40,6 @@ await page.goto(BASE + '/admin/hives?status=active&q=A');
 const codes = await page.locator('a[href^="/admin/hives/A"]').evaluateAll((as) => [...new Set(as.map((a) => a.getAttribute('href').split('/')[3]))]);
 const HIVE = codes[0];
 const HIVE2 = codes.find((c) => c !== HIVE);
-const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
 const tag = Date.now().toString().slice(-6);
 const badge = page.locator('[data-outbox-badge]');
 const badgeText = async () => ((await badge.isVisible()) ? (await page.textContent('[data-outbox-text]'))?.trim() : '');
