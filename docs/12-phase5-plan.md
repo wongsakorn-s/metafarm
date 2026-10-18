@@ -135,7 +135,7 @@ So there is no offline page viewing and no service worker. Instead, saving goes 
 - **Not built:** offline page viewing, editing or adding hives offline, background sending after the app is closed (Android Background Sync). Revisit only if field use shows a need.
 - **Tests:**
   - `src/scripts/outbox-core.test.ts`
-  - **`npm run check:offline`** (Chromium) and **`-- --webkit`** (iPhone engine) cover: 3 records offline → all sent once; reply lost after the server saved → no duplicate; >15 s slow → queued then one record; bad hive code online (field error) and offline (waits with reason, deletable); session expired → sent after login; photo offline → exactly one photo.
+  - **`bun run check:offline`** (Chromium) and **`-- --webkit`** (iPhone engine) cover: 3 records offline → all sent once; reply lost after the server saved → no duplicate; >15 s slow → queued then one record; bad hive code online (field error) and offline (waits with reason, deletable); session expired → sent after login; photo offline → exactly one photo.
   - WebKit simulates the dropped signal by aborting server requests, because Playwright's WebKit offline mode also blocks reading local files.
   - `check:forms` section 4 and `check:mobile` field flow now expect queue behaviour.
 - **Found while building:** a toast covering the next form's button for 6 s would have swallowed the next tap. It is now `pointer-events-none`.

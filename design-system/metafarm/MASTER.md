@@ -183,7 +183,7 @@ Components:
 - [ ] Text contrast is at least 4.5:1. The focus ring shows when tabbing with the keyboard.
 - [ ] Images have width/height and alt text.
 - [ ] Empty states have a message and a next step for the user.
-- [ ] `npm run check:mobile`, `check:browser` and `check:forms` (admin pages) all pass.
+- [ ] `bun run check:mobile`, `check:browser` and `check:forms` (admin pages) all pass.
 
 ## 9. UX review 2026-10-08 (rounds 1–2 applied)
 
