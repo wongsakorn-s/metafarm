@@ -183,7 +183,7 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [x] ตรึงเวอร์ชัน Bun เป็น 1.3.11 ในทุก workflow (เดิม `latest`) · ข้อความ usage ในสคริปต์ `scripts/` เปลี่ยนเป็น `bun run`/`bunx`
 - [x] ตรวจบนเครื่อง: `bun run check` (0 errors) · `bun run test` (406 ผ่าน) · `bun run build` ผ่าน · `bunx wrangler --version` ได้ 4.151.1
 - [x] README เขียนใหม่ให้ตรงกับ Bun; คำสั่งในเอกสารทุกไฟล์เปลี่ยนจาก `npm run`/`npx` เป็น `bun run`/`bunx`
-- [ ] ยังไม่ได้ยืนยัน: workflow ที่เปลี่ยนไป Bun รันผ่านบน GitHub จริง (CI/deploy/backup) — ให้ดูผล `ci.yml` หลัง push และก่อน deploy ครั้งถัดไป
+- [x] ยืนยัน workflow บน GitHub หลังย้ายไป Bun (2026-10-18, ตรวจจาก GitHub API หลังเปิด repo เป็น public): `ci.yml` สำเร็จทุกรอบ (5 push ล่าสุดรวม `5484fa7`) · `deploy.yml` สำเร็จ (`87c23da` 10-17 และ `5484fa7` 10-18) · `backup.yml` (D1 รายคืน) สำเร็จต่อเนื่องรวมรอบหลังย้าย Bun (10-17) · `backup-media.yml` รันสำเร็จแล้ว 2 ครั้ง (10-11 และ 10-17 หลังย้าย Bun) — ยังไม่ได้เปิดดูไฟล์ใน `metafarm-backups/media/` ว่ามีรูปครบ
 - [x] `scripts/lighthouse.mjs` เรียก `bunx lighthouse@12` แล้ว (ทดสอบรันจริงกับ `astro preview` ผ่าน — ไม่ต้องใช้ shell บน Windows) · เคลียร์ unused import/ตัวแปร 13 จุดจาก `bun run check` (เหลือ hint ด้านสไตล์ 4 รายการ)
 - [ ] `scripts/upload-media-remote.mjs` ยังเรียก `npx wrangler` ตอนอัปโหลดจริง (ยังไม่ได้ทดสอบกับ `bunx` เพราะยิงขึ้นระบบจริง) — เปลี่ยนเมื่อผู้ดูแลได้ลองรัน
 - [x] หน้าแรก: รูปปกการ์ดรังขายใบแรกเดิมเป็น `loading="lazy"` ทั้งที่เป็น LCP บนมือถือ → เอา lazy ออก ใส่ `fetchpriority="high"` และ `srcset` (รูปย่อ 46 KB แทนรูปเต็ม 248 KB บนจอเล็ก) · Lighthouse ยืนยันว่า lazy/load delay หายแล้ว (load delay 0) แต่ LCP ยังเท่าเดิม (~3.9 วินาที)
