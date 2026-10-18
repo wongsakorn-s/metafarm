@@ -30,7 +30,8 @@ if (Astro.request.method === 'POST') {
     else if (!caption.success) error = caption.error.issues[0]?.message ?? 'คำบรรยายไม่ถูกต้อง';
     else {
       const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
-      const r = await uploadGalleryPhotos(db, getMedia(), user, category, files, { batch: String(form.get('batch') ?? ''), thumbs, caption: caption.data });
+      const mediums = form.getAll('medium').map((f) => (f instanceof File ? f : new File([], '')));
+      const r = await uploadGalleryPhotos(db, getMedia(), user, category, files, { batch: String(form.get('batch') ?? ''), thumbs, mediums, caption: caption.data });
       const message = uploadSummary(r.added, r.skipped);
       const redirect = `/admin/gallery?${new URLSearchParams({ msg: message, c: category })}#${category}`;
       // สคริปต์อัปโหลด/คิวรอส่งต้องรู้ผลจริง (422 เมื่อข้ามทุกไฟล์)
@@ -195,7 +196,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
       fd.delete('file');
       fd.set('batch', batch);
       appendPrepared(fd, small);
-      const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
+      const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0) + (p.medium?.size ?? 0), 0);
       say('กำลังอัปโหลด…');
       const label = (form.querySelector<HTMLInputElement>('input[name=category]:checked')?.parentElement?.textContent ?? '').trim().split(/\s+\d/)[0];
       const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `แกลเลอรี · ${label} · ${small.length} รูป`, bytes: after });

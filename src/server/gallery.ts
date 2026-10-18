@@ -2,10 +2,10 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { auditLogs, galleryPhotos } from '../db/schema.ts';
 import { GALLERY_MAX_PER_CATEGORY, galleryCategory, galleryKey, type GalleryCategory } from '../lib/gallery.ts';
-import { detectImageType, MAX_FILES_PER_REQUEST, MAX_UPLOAD_BYTES, stripMetadata, thumbKeyOf } from '../lib/media.ts';
+import { detectImageType, MAX_FILES_PER_REQUEST, MAX_UPLOAD_BYTES, stripMetadata, imageKeysOf } from '../lib/media.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
-import { validThumb, type Skipped } from './media.ts';
+import { putVariants, type Skipped } from './media.ts';
 
 export type GalleryRow = typeof galleryPhotos.$inferSelect;
 
@@ -27,7 +27,7 @@ export async function uploadGalleryPhotos(
   user: SessionUser,
   category: GalleryCategory,
   files: File[],
-  opts: { batch?: string; thumbs?: File[]; caption?: string } = {},
+  opts: { batch?: string; thumbs?: File[]; mediums?: File[]; caption?: string } = {},
 ): Promise<{ added: number; skipped: Skipped[] }> {
   const skipped: Skipped[] = [];
   let added = 0;
@@ -51,8 +51,7 @@ export async function uploadGalleryPhotos(
     if (slots <= 0) { skipped.push({ name, reason: `หมวดนี้เต็มแล้ว (สูงสุด ${GALLERY_MAX_PER_CATEGORY} รูป — ลบรูปเก่าก่อน)` }); continue; }
 
     await bucket.put(key, stripMetadata(bytes), { httpMetadata: { contentType: type.mime } });
-    const thumb = await validThumb(opts.thumbs?.[i]);
-    if (thumb) await bucket.put(thumbKeyOf(key), thumb.bytes, { httpMetadata: { contentType: thumb.mime } });
+    await putVariants(bucket, key, opts.thumbs?.[i], opts.mediums?.[i]);
     try {
       await db.batch([
         db.insert(galleryPhotos).values({ category, r2Key: key, caption: opts.caption ?? null, sortOrder: order, createdBy: user.id }),
@@ -61,7 +60,7 @@ export async function uploadGalleryPhotos(
     } catch (e) {
       // คำขอชุดเดิมที่มาพร้อมกันบันทึกคีย์นี้ไปแล้ว → ไฟล์ใน R2 เป็นของแถวนั้น ห้ามลบ
       if (batchId && (await exists(key))) { added++; continue; }
-      await bucket.delete([key, thumbKeyOf(key)]).catch(() => {});
+      await bucket.delete(imageKeysOf(key)).catch(() => {});
       throw e;
     }
     added++; slots--; order++;
@@ -143,6 +142,6 @@ export async function deleteGalleryPhoto(db: Db, bucket: R2Bucket, user: Session
     db.delete(galleryPhotos).where(and(eq(galleryPhotos.id, row.id))),
     audit(db, user, 'gallery.delete', row.id, { category: row.category, key: row.r2Key, caption: row.caption, label: galleryCategory[row.category].label }),
   ]);
-  await bucket.delete([row.r2Key, thumbKeyOf(row.r2Key)]).catch(() => {});
+  await bucket.delete(imageKeysOf(row.r2Key)).catch(() => {});
   return { ok: true };
 }

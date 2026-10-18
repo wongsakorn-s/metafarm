@@ -29,6 +29,7 @@
         "predeploy": "node --no-warnings scripts/predeploy-check.mjs",
         "db:migrate:remote": "wrangler d1 migrations apply metafarm-db --remote",
         "media:upload:remote": "node scripts/upload-media-remote.mjs",
+        "media:medium": "node scripts/make-medium.mjs",
         "snapshot:export": "node --no-warnings scripts/export-snapshot.ts",
         "check:mobile": "node scripts/mobile-check.mjs",
         "backup:prepare": "node scripts/prepare-restore.mjs",
@@ -60,6 +61,7 @@
         "fflate": "^0.8.3",
         "lucide-static": "^1.59.0",
         "playwright-core": "^1.64.1",
+        "sharp": "0.35.5",
         "typescript": "^6.0.3",
         "vitest": "^5.0.5"
     }

@@ -213,4 +213,13 @@ export const MAX_THUMB_BYTES = 300 * 1024;
 export const thumbKeyOf = (key: string) => `thumb/${key}`;
 export const thumbUrl = (url: string) => `${url}?w=thumb`;
 /** srcset สำหรับรูปที่แสดงใหญ่บ้างเล็กบ้าง: จอเล็ก/ช่องเล็กใช้รูปย่อ จอใหญ่ใช้รูปเต็ม */
-export const photoSrcset = (url: string) => `${thumbUrl(url)} ${THUMB_EDGE}w, ${url} 1600w`;
+// รูปขนาดกลาง (ด้านยาว 800px) ที่ "med/<คีย์รูปเต็ม>" ขอด้วย ?w=med — ช่องกว้างปานกลางบนจอความละเอียดสูง (การ์ดสินค้า) ไม่ต้องโหลดรูปเต็ม 1600px
+// ถ้ายังไม่มี (รูปเก่าที่ยังไม่ได้รัน bun run media:medium) เซิร์ฟเวอร์ส่งรูปเต็มแทน จึงไม่ต่างจากเดิม
+export const MEDIUM_EDGE = 800;
+export const MAX_MEDIUM_BYTES = 400 * 1024;
+export const mediumKeyOf = (key: string) => `med/${key}`;
+export const mediumUrl = (url: string) => `${url}?w=med`;
+/** ทุกไฟล์ใน R2 ของรูปหนึ่งรูป (เต็ม + ย่อ + กลาง) — ใช้ตอนลบ */
+export const imageKeysOf = (key: string) => [key, thumbKeyOf(key), mediumKeyOf(key)];
+/** srcset สำหรับรูปที่แสดงใหญ่บ้างเล็กบ้าง: ช่องเล็กใช้รูปย่อ ช่องกลางใช้รูปกลาง จอใหญ่ใช้รูปเต็ม (ต้องให้ sizes บอกความกว้างจริงของช่อง) */
+export const photoSrcset = (url: string) => `${thumbUrl(url)} ${THUMB_EDGE}w, ${mediumUrl(url)} ${MEDIUM_EDGE}w, ${url} 1600w`;

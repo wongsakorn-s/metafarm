@@ -17,18 +17,19 @@ const photo = (name = 'delivery.jpg') => new File([jpeg], name, { type: 'image/j
 
 describe('อัปโหลด', () => {
   it('ลบพิกัด GPS ทั้งรูปเต็มและรูปย่อ · คำบรรยายติดทุกรูป · เปิดบนเว็บได้', async () => {
-    const r = await uploadGalleryPhotos(t.db, t.media, t.owner, 'hive_delivery', [photo(), photo()], { thumbs: [photo('t.jpg')], caption: 'ส่งมอบรังที่ชลบุรี' });
+    const r = await uploadGalleryPhotos(t.db, t.media, t.owner, 'hive_delivery', [photo(), photo()], { thumbs: [photo('t.jpg')], mediums: [photo('m.jpg'), photo('m2.jpg')], caption: 'ส่งมอบรังที่ชลบุรี' });
     expect(r).toMatchObject({ added: 2, skipped: [] });
     const rows = (await listGalleryAdmin(t.db)).filter((x) => x.category === 'hive_delivery');
     expect(rows.map((x) => x.caption)).toEqual(['ส่งมอบรังที่ชลบุรี', 'ส่งมอบรังที่ชลบุรี']);
     const key = rows[0]!.r2Key;
     expect(key).toMatch(/^gallery\/hive_delivery\/[0-9a-f-]{36}\.jpg$/);
-    for (const k of [rows[1]!.r2Key, `thumb/${rows[1]!.r2Key}`]) {
+    for (const k of [rows[1]!.r2Key, `thumb/${rows[1]!.r2Key}`, `med/${rows[1]!.r2Key}`]) {
       const stored = new Uint8Array(await (await t.media.get(k))!.arrayBuffer());
       expect(Buffer.from(stored).includes('GPS', 0, 'latin1'), k).toBe(false);
     }
     expect(await isPublicMediaKey(t.db, key)).toBe(true);
     expect(await isPublicMediaKey(t.db, `thumb/${key}`)).toBe(false); // รูปย่อขอผ่าน ?w=thumb ของคีย์ที่เปิดเท่านั้น
+    expect(await isPublicMediaKey(t.db, `med/${key}`)).toBe(false); // รูปกลางขอผ่าน ?w=med เช่นกัน
   });
 
   it('ส่งชุดเดิมซ้ำพร้อมกัน (คิวรอส่ง) → บันทึกครั้งเดียว', async () => {
@@ -65,6 +66,7 @@ describe('หน้าสาธารณะ + แก้/ลบ', () => {
     expect(await isPublicMediaKey(t.db, row.r2Key)).toBe(false);
     expect(await t.media.get(row.r2Key)).toBeNull();
     expect(await t.media.get(`thumb/${row.r2Key}`)).toBeNull();
+    expect(await t.media.get(`med/${row.r2Key}`)).toBeNull();
     expect((await deleteGalleryPhoto(t.db, t.media, t.owner, row.id)).ok).toBe(true);
   });
 });

@@ -45,7 +45,7 @@ The system delivers a dual-purpose platform:
 | **Framework & SSR** | Astro 7 + Tailwind CSS 4 | Zero React client runtime overhead. Client scripts use modular vanilla TypeScript. Generates static and SSR edge pages with 99–100 Mobile Lighthouse scores. |
 | **Compute Engine** | Cloudflare Workers | Server-side rendering and asset delivery deployed at the edge with sub-millisecond cold starts and zero infrastructure overhead. |
 | **Database** | Cloudflare D1 + Drizzle ORM | SQLite at the edge with typed queries, strict foreign key constraints, automated point-in-time migrations, and nightly automated backups. |
-| **Object Storage** | Cloudflare R2 | S3-compatible asset storage for full-resolution photos, thumbnails, and H.264 video. Media uploads automatically undergo client and server EXIF/GPS scrubbing. |
+| **Object Storage** | Cloudflare R2 | S3-compatible asset storage for full-resolution photos, 800px and 480px derivatives, and H.264 video. Media uploads automatically undergo client and server EXIF/GPS scrubbing. |
 | **Testing & Verification** | Vitest + Playwright Core | 406 integration and unit tests running against isolated Miniflare D1 instances. Real browser tests for desktop and mobile viewport emulation. |
 
 ---
@@ -171,6 +171,7 @@ bun run check:lighthouse
 bun run brand:build        # Generate optimized web logos and favicons from source assets
 bun run predeploy          # Validate deployment prerequisites before release
 bun run snapshot:export    # Export sanitized local database and media snapshot
+bun run media:medium       # Create 800px derivatives for older photos (dry-run; add -- --yes to write, -- --remote for production)
 bun run generate-types     # Update Cloudflare Worker typing definitions
 ```
 

@@ -39,7 +39,8 @@ if (Astro.request.method === 'POST') {
     if (files.length === 0) error = 'ยังไม่ได้เลือกไฟล์';
     else {
       const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
-      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''), thumbs);
+      const mediums = form.getAll('medium').map((f) => (f instanceof File ? f : new File([], '')));
+      const r = await uploadImages(db, getMedia(), user, hive, kind, files, String(form.get('batch') ?? ''), thumbs, mediums);
       const message = uploadSummary(r.added, r.skipped);
       // สคริปต์อัปโหลดต้องรู้ผลจริง (เดิมได้แค่ redirect → นับว่าสำเร็จแม้ข้ามทุกไฟล์)
       if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: `${backTo}?msg=${encodeURIComponent(message)}` });
@@ -234,7 +235,7 @@ const sets = ([
         fd.delete('file');
         fd.set('batch', batch);
         appendPrepared(fd, small);
-        const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
+        const before = picked.reduce((n, f) => n + f.size, 0), after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0) + (p.medium?.size ?? 0), 0);
         say(`กำลังอัปโหลด… (${(before / 1048576).toFixed(1)} MB → ${(after / 1048576).toFixed(1)} MB)`);
         // คิวรอส่ง: เก็บรูปในเครื่องก่อน · สัญญาณไม่ดี = ส่งเองทีหลัง (รหัสชุดเดิม เซิร์ฟเวอร์ไม่บันทึกซ้ำ)
         const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `${form.dataset.code} · ${form.dataset.set} ${small.length} รูป`, bytes: after });

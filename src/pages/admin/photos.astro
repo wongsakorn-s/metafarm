@@ -107,7 +107,7 @@ const msg = Astro.url.searchParams.get('msg');
       appendPrepared(fd, pending);
       say(`กำลังส่ง ${pending.length} รูป…`, 'busy');
       const code = form.closest('li')?.dataset.code ?? '';
-      const o = await sendOrQueue({ kind: 'photo', url: form.action, fields: await fieldsOf(fd), label: `${code} · รูปสมุดพก ${pending.length} รูป`, bytes: pending.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0) });
+      const o = await sendOrQueue({ kind: 'photo', url: form.action, fields: await fieldsOf(fd), label: `${code} · รูปสมุดพก ${pending.length} รูป`, bytes: pending.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0) + (p.medium?.size ?? 0), 0) });
       if (o.kind === 'unsaved') {
         // ส่งไม่ได้และเก็บลงเครื่องก็ไม่ได้ — เก็บรูปที่ย่อแล้ว (และรหัสชุดเดิม) ไว้ในหน้านี้ให้กดส่งอีกครั้ง
         // เดิมล้างรูปทิ้ง: รูปที่ถ่ายจากกล้องโดยตรง (ไม่ได้เก็บในอัลบั้ม) หายไปเลย

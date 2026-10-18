@@ -2,11 +2,11 @@
 // หน้าสาธารณะอ่านผ่าน getPublicProducts ใน src/server/public.ts
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { auditLogs, productPhotos, products } from '../db/schema.ts';
-import { detectImageType, MAX_FILES_PER_REQUEST, MAX_UPLOAD_BYTES, stripMetadata, thumbKeyOf } from '../lib/media.ts';
+import { detectImageType, MAX_FILES_PER_REQUEST, MAX_UPLOAD_BYTES, stripMetadata, imageKeysOf } from '../lib/media.ts';
 import { productPhotoKey, productPhotoLimit } from '../lib/product-photos.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
-import { validThumb, type Skipped } from './media.ts';
+import { putVariants, type Skipped } from './media.ts';
 
 export type ProductPhotoRow = typeof productPhotos.$inferSelect;
 
@@ -31,7 +31,7 @@ export async function uploadProductPhotos(
   user: SessionUser,
   productId: number,
   files: File[],
-  opts: { batch?: string; thumbs?: File[] } = {},
+  opts: { batch?: string; thumbs?: File[]; mediums?: File[] } = {},
 ): Promise<{ added: number; skipped: Skipped[]; error?: string }> {
   const p = await db.query.products.findFirst({ where: eq(products.id, productId), columns: { id: true, slug: true, category: true } });
   if (!p) return { added: 0, skipped: [], error: 'ไม่พบสินค้านี้' };
@@ -59,8 +59,7 @@ export async function uploadProductPhotos(
     if (slots <= 0) { skipped.push({ name, reason: `สินค้านี้ใส่ได้ไม่เกิน ${max} รูป — ลบรูปเก่าก่อน` }); continue; }
 
     await bucket.put(key, stripMetadata(bytes), { httpMetadata: { contentType: type.mime } });
-    const thumb = await validThumb(opts.thumbs?.[i]);
-    if (thumb) await bucket.put(thumbKeyOf(key), thumb.bytes, { httpMetadata: { contentType: thumb.mime } });
+    await putVariants(bucket, key, opts.thumbs?.[i], opts.mediums?.[i]);
     try {
       await db.batch([
         db.insert(productPhotos).values({ productId: p.id, r2Key: key, sortOrder: order, createdBy: user.id }),
@@ -69,7 +68,7 @@ export async function uploadProductPhotos(
       ]);
     } catch (e) {
       if (batchId && (await exists(key))) { added++; continue; } // คำขอชุดเดิมที่มาพร้อมกันบันทึกไปแล้ว — ไฟล์เป็นของแถวนั้น ห้ามลบ
-      await bucket.delete([key, thumbKeyOf(key)]).catch(() => {});
+      await bucket.delete(imageKeysOf(key)).catch(() => {});
       throw e;
     }
     added++; slots--; order--;
@@ -130,6 +129,6 @@ export async function deleteProductPhoto(db: Db, bucket: R2Bucket, user: Session
     syncCover(db, row.productId),
     audit(db, user, 'product.photo.delete', row.productId, { key: row.r2Key }),
   ]);
-  await bucket.delete([row.r2Key, thumbKeyOf(row.r2Key)]).catch(() => {});
+  await bucket.delete(imageKeysOf(row.r2Key)).catch(() => {});
   return { ok: true };
 }

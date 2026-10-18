@@ -83,7 +83,8 @@ if (Astro.request.method === 'POST') {
     if (files.length === 0) error = 'ยังไม่ได้เลือกรูป';
     else {
       const thumbs = form.getAll('thumb').map((f) => (f instanceof File ? f : new File([], '')));
-      const r = await uploadProductPhotos(db, getMedia(), user, productId, files, { batch: String(form.get('batch') ?? ''), thumbs });
+      const mediums = form.getAll('medium').map((f) => (f instanceof File ? f : new File([], '')));
+      const r = await uploadProductPhotos(db, getMedia(), user, productId, files, { batch: String(form.get('batch') ?? ''), thumbs, mediums });
       const message = r.error ?? uploadSummary(r.added, r.skipped);
       // สคริปต์อัปโหลด/คิวรอสต้องรู้ผลจริง (422 เมื่อข้ามทุกไฟล์)
       if (wantsJson(Astro.request)) return jsonResult({ ok: r.added > 0, message, added: r.added, skipped: r.skipped, redirect: back(message) });
@@ -318,7 +319,7 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
         fd.delete('file');
         fd.set('batch', batch);
         appendPrepared(fd, small);
-        const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0), 0);
+        const after = small.reduce((n, p) => n + p.file.size + (p.thumb?.size ?? 0) + (p.medium?.size ?? 0), 0);
         say('กำลังอัปโหลด…');
         const o = await sendOrQueue({ kind: 'photo', url: form.action || location.href, fields: await fieldsOf(fd), label: `สินค้า · ${form.dataset.label} · ${small.length} รูป`, bytes: after });
         if (o.kind === 'done') { location.href = o.redirect ?? location.href; return; }
