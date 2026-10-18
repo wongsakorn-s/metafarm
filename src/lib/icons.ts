@@ -10,6 +10,7 @@ export const ICONS = {
   menu: 'menu',
   back: 'chevron-left',
   chevron: 'chevron-right',
+  chevronDown: 'chevron-down',
   up: 'arrow-up',
   down: 'arrow-down',
   top: 'arrow-up-to-line',

@@ -207,6 +207,11 @@
 }
 @utility field {
   @apply block w-full min-w-0 min-h-11 rounded-xl border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/70;
+  /* px-3 (ชั้น utilities) ชนะ padding ขวาของ select ในชั้น base → ข้อความยาวทับลูกศร (รีวิว UX 2026-10-18) — เว้นที่ให้ลูกศรอีกครั้งที่นี่ */
+  &:is(select:not([multiple]):not([size])) {
+    padding-inline-end: 2.5rem;
+    text-overflow: ellipsis;
+  }
 }
 /* ช่องเลือกไฟล์: ปุ่ม "เลือกไฟล์" ของเบราว์เซอร์ให้เข้าชุดกับปุ่มของเว็บ (เดิมเป็นปุ่มเทาของระบบ) */
 @utility field-file {

@@ -38,7 +38,7 @@ lead: ผึ้งตัวเล็กที่ไม่มีเหล็ก�
 
 ## โครงสร้างภายในรังชันโรงขนเงิน
 
-![โครงสร้างภายในรังชันโรงขนเงิน มองจากด้านบน: ห้องบนมีกลุ่มถ้วยเกสรและกลุ่มไข่และตัวอ่อน ห้องล่างมีกลุ่มถ้วยน้ำหวาน](/photos/farm/hive-structure.webp)
+<img src="/photos/farm/hive-structure.webp" srcset="/photos/farm/hive-structure-700.webp 700w, /photos/farm/hive-structure.webp 1400w" sizes="(min-width: 1024px) 740px, 100vw" width="1400" height="1045" loading="lazy" decoding="async" data-zoom-src="/photos/farm/hive-structure.webp" alt="โครงสร้างภายในรังชันโรงขนเงิน มองจากด้านบน: ห้องบนมีกลุ่มถ้วยเกสรและกลุ่มไข่และตัวอ่อน ห้องล่างมีกลุ่มถ้วยน้ำหวาน" />
 
 นอกจากตัวชันโรงทั้งตัวอ่อนและตัวเต็มวัยแล้ว ภายในรังแบ่งเป็นส่วนหลัก ๆ ดังนี้
 
@@ -50,7 +50,7 @@ lead: ผึ้งตัวเล็กที่ไม่มีเหล็ก�
 
 ## รังชันโรงขนเงินของ MetaFarm
 
-![รังไม้สักของ MetaFarm วางอยู่กลางสวนปาล์ม](/photos/farm/hive-teak.webp)
+<img src="/photos/farm/hive-teak.webp" srcset="/photos/farm/hive-teak-700.webp 700w, /photos/farm/hive-teak.webp 1400w" sizes="(min-width: 1024px) 740px, 100vw" width="1400" height="1050" loading="lazy" decoding="async" data-zoom-src="/photos/farm/hive-teak.webp" alt="รังไม้สักของ MetaFarm วางอยู่กลางสวนปาล์ม" />
 
 **MetaFarm** พัฒนาและออกแบบรังเลี้ยงเพื่อให้เหมาะสมกับชันโรงขนเงิน**โดยเฉพาะ**
 

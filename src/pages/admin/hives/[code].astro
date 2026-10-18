@@ -212,11 +212,11 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
               </div>
               <div class="flex shrink-0 flex-col items-end">
                 <time class="text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
-                {/* บันทึกผิด → ลบแล้วบันทึกใหม่ (การเปลี่ยนสถานะ และการเก็บที่อยู่ในล็อตแล้ว ลบไม่ได้) */}
+                {/* บันทึกผิด → ลบแล้วบันทึกใหม่ (การเปลี่ยนสถานะ และการเก็บที่อยู่ในล็อตแล้ว ลบไม่ได้) · ปุ่มมีกรอบ+ไอคอน ให้เห็นชัดว่าเป็นปุ่ม (รีวิว UX 2026-10-18) */}
                 {deletableEvent(e) && !lotCode && canDeleteRecord(user, e) && (
                   <form method="post" data-confirm={`ลบบันทึก "${eventLabel[e.type]}" วันที่ ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)} ใช่ไหม?`}>
                     <input type="hidden" name="intent" value="delete-event" /><input type="hidden" name="eventId" value={e.id} />
-                    <button class="inline-flex min-h-11 min-w-11 items-center justify-center px-1 text-sm text-danger underline" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}>ลบ</button>
+                    <button class="btn-danger mt-1 min-h-11 gap-1 px-3 text-sm" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}><Icon name="trash" class="size-4" />ลบ</button>
                   </form>
                 )}
               </div>

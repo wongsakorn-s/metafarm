@@ -87,7 +87,9 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
     {/* เมนูข้าง (คอม): รายการเลื่อนได้ในตัว · ชื่อผู้ใช้ + ออกจากระบบติดล่างเห็นตลอด */}
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface md:flex">
       <a href="/admin" class="flex items-center gap-2 px-4 pb-4 pt-4 text-xl font-bold text-palm-700"><img src="/brand/logo-round-sm.webp" alt="" width="32" height="30" class="size-8 object-contain" />{site.name}</a>
-      <nav class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3" aria-label="เมนูหลัก">
+      {/* จอคอมเตี้ย (เช่นสูง 800px) เมนูยาวกว่าจอ: แถบจางท้ายรายการ + ข้อความ "เลื่อนดูเมนูเพิ่ม" บอกว่ามีเมนูต่อ (กดแล้วเลื่อนลง) · เปิดหน้าไหนก็เลื่อนให้เห็นเมนูของหน้านั้น — รีวิว UX 2026-10-18 */}
+      <div class="relative flex min-h-0 flex-1 flex-col">
+      <nav class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3" aria-label="เมนูหลัก" data-side-nav>
         {visibleGroups.map((g) => (
           <div>
             <p class="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">{g.title}</p>
@@ -102,6 +104,10 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
           </div>
         ))}
       </nav>
+      <button type="button" data-side-more hidden class="absolute inset-x-0 bottom-0 flex min-h-11 items-end justify-center gap-1 bg-gradient-to-t from-surface via-surface/90 to-transparent pb-1.5 text-sm font-medium text-palm-700">
+        <Icon name="chevronDown" class="size-4" />เลื่อนดูเมนูเพิ่ม
+      </button>
+      </div>
       <form method="post" action="/admin/logout" class="border-t border-line p-4" data-confirm="ออกจากระบบใช่ไหม?">
         <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
         {canManageUsers(user) && <a href="/admin/users" aria-current={active === 'users' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="lock" class="size-4" />คนใช้งานระบบ</a>}
@@ -171,4 +177,16 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
   import '../scripts/gallery-preview';
   import { init as initOutbox } from '../scripts/outbox';
   initOutbox();
+
+  // เมนูข้าง (คอม): ถ้ายังมีเมนูอยู่ใต้จอ แสดงปุ่ม "เลื่อนดูเมนูเพิ่ม" · เลื่อนให้เห็นเมนูของหน้าที่เปิดอยู่
+  const sideNav = document.querySelector<HTMLElement>('[data-side-nav]');
+  const more = document.querySelector<HTMLButtonElement>('[data-side-more]');
+  if (sideNav && more) {
+    const update = () => { more.hidden = sideNav.scrollTop + sideNav.clientHeight >= sideNav.scrollHeight - 4; };
+    sideNav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
+    more.addEventListener('click', () => sideNav.scrollBy({ top: sideNav.clientHeight * 0.6, behavior: 'smooth' }));
+    sideNav.addEventListener('scroll', update, { passive: true });
+    addEventListener('resize', update);
+    update();
+  }
 </script>
