@@ -11,7 +11,7 @@ interface Props {
   description?: string;
   /** ข้อความที่จะใส่ในแชตเมื่อกดปุ่มติดต่อ (LINE ใส่ให้ · Messenger คัดลอกไว้ให้วาง) เช่น "สนใจรัง A25" */
   lineMessage?: string;
-  active?: 'home' | 'stingless-bee' | 'honey' | 'products' | 'training' | 'passport' | 'gallery' | 'contact';
+  active?: 'home' | 'stingless-bee' | 'honey' | 'products' | 'training' | 'passport' | 'gallery' | 'farmstay' | 'contact';
   noindex?: boolean;
   /** พาธหลักของหน้า (เช่น /passport/A25) — ใช้เมื่อ URL ที่เข้ามาอาจต่างกัน */
   canonical?: string;
@@ -37,12 +37,14 @@ const copyOf = (ch: string) => (ch === 'messenger' ? lineMessage : undefined);
 // "สินค้า" ต่อจากหน้าแรก — ลูกค้าที่มาจาก Facebook/LINE มาเพื่อดูของและราคา (เดิมอยู่ลำดับ 4 หลังหน้าบทความ)
 const nav = [
   { key: 'home', href: '/', label: 'หน้าแรก', icon: 'home' },
+  // แกลเลอรีต่อจากหน้าแรก · ฟาร์มสเตย์ (แผนในอนาคต) แทนที่เดิมของแกลเลอรี — เจ้าของขอ 2026-10-18
+  { key: 'gallery', href: '/gallery', label: 'แกลเลอรี', icon: 'image' },
   { key: 'products', href: '/products', label: 'สินค้า', icon: 'cart' },
   { key: 'stingless-bee', href: '/stingless-bee', label: 'ชันโรงขนเงิน', icon: 'hive' },
   { key: 'honey', href: '/honey', label: 'น้ำผึ้ง', icon: 'honey' },
   { key: 'training', href: '/training', label: 'อบรม', icon: 'training' },
   { key: 'passport', href: '/passport', label: 'สมุดพกรัง', icon: 'passport' },
-  { key: 'gallery', href: '/gallery', label: 'แกลเลอรี', icon: 'image' },
+  { key: 'farmstay', href: '/farmstay', label: 'ฟาร์มสเตย์', icon: 'tent' },
   { key: 'contact', href: '/contact', label: 'ติดต่อเรา', icon: 'pin' },
 ] as const;
 ---

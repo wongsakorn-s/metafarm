@@ -1,0 +1,31 @@
+---
+// ฟาร์มสเตย์ (เจ้าของขอ 2026-10-18): ตอนนี้เป็น "แผนในอนาคต" — ข้อความจาก content/pages/farmstay.md · ยังไม่มีราคา/การจอง
+// เนื้อหาเต็มรอตัวอย่างฟาร์มสเตย์ที่เจ้าของจะส่งมา
+import PageHeader from '../components/PageHeader.astro';
+import ContactButtons from '../components/ContactButtons.astro';
+import Icon from '../components/Icon.astro';
+import PublicLayout from '../layouts/PublicLayout.astro';
+import { getPage } from '../lib/content.ts';
+
+export const prerender = false;
+
+const page = getPage('farmstay')!;
+const { Content, frontmatter: fm } = page;
+const message = 'สนใจฟาร์มสเตย์ของ MetaFarm (แผนในอนาคต)';
+Astro.response.headers.set('Cache-Control', 'public, max-age=300');
+---
+
+<PublicLayout title={fm.title} description={fm.description} active="farmstay" lineMessage={message}>
+  <PageHeader title={fm.title} lead={fm.lead} />
+  <p class="mt-3"><span class="badge gap-1 bg-honey-100 text-honey-700"><Icon name="tent" class="size-4" />แผนในอนาคต · ยังไม่เปิดให้บริการ</span></p>
+
+  <div class="prose-mf mt-6 max-w-3xl">
+    <Content />
+  </div>
+
+  <section class="card mt-8 max-w-3xl" aria-labelledby="farmstay-ask">
+    <h2 id="farmstay-ask" class="text-xl font-bold">สนใจฟาร์มสเตย์?</h2>
+    <p class="mt-1 text-muted">บอกเราไว้ก่อนได้ เมื่อพร้อมเปิดเราจะติดต่อกลับ ระหว่างนี้มาเรียนการเลี้ยงชันโรงได้ที่ <a class="text-palm-700 underline" href="/training">หลักสูตรอบรม</a></p>
+    <ContactButtons message={message} class="mt-4" />
+  </section>
+</PublicLayout>

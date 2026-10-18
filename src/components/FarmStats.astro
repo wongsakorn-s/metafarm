@@ -1,9 +1,9 @@
 ---
-// ตัวเลขฟาร์มจากทะเบียนรัง (หน้าแรก + หน้าสมุดพก) — แถบเดียวแบ่ง 3 ช่อง ให้หน้าตาเหมือนกันทุกหน้า
+// ตัวเลขฟาร์มจากทะเบียนรัง (หน้าแรก) — แถบเดียว 4 ช่อง (มือถือ 2×2) เรียงตามที่เจ้าของขอ 2026-10-18:
+// รังในทะเบียน · ขยายรังโดย MetaFarm · ขายแล้ว · รังปัจจุบันในสวน
 // ตัวเลขชิดบนทุกช่อง จึงตรงแนวกันเสมอ แม้ป้ายช่องไหนจะตกบรรทัด (จอแคบมาก)
-// เดิมหน้าสมุดพกเป็นการ์ดแยก 3 ใบ ป้าย "เพาะนางพญาเอง" ตกบรรทัด ตัวเลข 63 จึงลอยสูงกว่าช่องอื่น
 interface Props {
-  stats: { total: number; active: number; queenBred: number };
+  stats: { total: number; active: number; bred: number; sold: number };
   /** ลิงก์ของทุกช่อง (หน้าแรกพาไปสมุดพก) — ไม่ใส่ = ไม่ใช่ลิงก์ */
   href?: string;
   class?: string;
@@ -11,18 +11,23 @@ interface Props {
 const { stats, href, class: cls } = Astro.props;
 const items: [number, string][] = [
   [stats.total, 'รังในทะเบียน'],
-  [stats.active, 'ยังเลี้ยงอยู่'],
-  [stats.queenBred, 'เพาะนางพญาเอง'],
+  [stats.bred, 'ขยายรังโดย MetaFarm'],
+  [stats.sold, 'ขายแล้ว'],
+  [stats.active, 'รังปัจจุบันในสวน'],
 ];
 const Tag = href ? 'a' : 'div';
 ---
 
-<section aria-label="ฟาร์มในตัวเลข" class:list={['grid grid-cols-3 divide-x divide-line rounded-3xl border border-line bg-surface shadow-card', cls]}>
-  {items.map(([n, label]) => (
+<section aria-label="ฟาร์มในตัวเลข" class:list={['grid grid-cols-2 overflow-hidden rounded-3xl border border-line bg-surface shadow-card md:grid-cols-4', cls]}>
+  {items.map(([n, label], i) => (
     <Tag
       href={href}
       class:list={[
-        'flex flex-col items-center px-2 py-4 text-center first:rounded-l-3xl last:rounded-r-3xl md:py-6',
+        'flex flex-col items-center border-line px-2 py-4 text-center md:py-6',
+        // เส้นคั่น: มือถือ 2×2 = เส้นตั้งที่คอลัมน์ขวา + เส้นนอนใต้แถวแรก · คอม 1×4 = เส้นตั้งทุกช่องยกเว้นช่องแรก
+        i % 2 === 1 && 'border-l',
+        i < 2 && 'border-b md:border-b-0',
+        i === 2 && 'md:border-l',
         href && 'transition-colors duration-(--duration-fast) hover:bg-palm-50',
       ]}
     >

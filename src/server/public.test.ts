@@ -1,6 +1,6 @@
 // รังตัวอย่างในหน้าสมุดพก: สุ่มเฉพาะรังที่รูปและข้อมูลครบ · รังละรูปเดียว (รูปถ่ายใหม่ก่อนรูปเล็กจาก Excel)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getPublicHive, getSaleHive, getSaleHives, getSampleHives } from './public.ts';
+import { getFarmStats, getPublicHive, getSaleHive, getSaleHives, getSampleHives } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -75,5 +75,14 @@ describe('วันเกิดนางพญาบนสมุดพก (เ�
     expect((await getPublicHive(t.db, 'A30'))!.queenBornOn).toBe('2026-08-23');
     expect((await getPublicHive(t.db, 'A31'))!.queenBornOn).toBe('2026-08-25');
     expect((await getPublicHive(t.db, 'A32'))!.queenBornOn).toBeNull();
+  });
+});
+
+describe('ตัวเลขฟาร์มหน้าแรก (เจ้าของขอ 2026-10-18)', () => {
+  it('รังในทะเบียน · ขยายรังโดย MetaFarm (ขยายรัง + เพาะนางพญา) · ขายแล้ว · รังปัจจุบันในสวน', async () => {
+    const q = async (where: string) => (await t.d1.prepare(`SELECT count(*) n FROM hives WHERE ${where}`).first<{ n: number }>())!.n;
+    const s = await getFarmStats(t.db);
+    expect(s).toEqual({ total: await q('1'), bred: await q("origin IN ('split', 'queen_bred')"), sold: await q("status = 'sold'"), active: await q("status = 'active'") });
+    expect(s.sold).toBeGreaterThan(0);
   });
 });

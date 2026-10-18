@@ -65,7 +65,7 @@ for (const [label, viewport] of [['mobile', { width: 390, height: 844 }], ['desk
     ['/products', 'products'], ['/products/hives', 'products-hives'], ['/products/hive-box', 'product-hive-box'], ['/products/stingless-honey', 'product-honey'], ['/products/hives/A99999', 'product-hive-404', 404]])
     await visit(page, p, `${label}-public-${n}`, st);
   for (const [p, n, st] of [['/stingless-bee', 'stingless-bee'], ['/honey', 'honey'], ['/learn/research', 'research'], ['/training', 'training'], ['/training/hive-splitting', 'training-hive-splitting'],
-    ['/training/honey-processing', 'training-honey-processing'], ['/training/nope', 'training-404', 404], ['/contact', 'contact'], ['/privacy', 'privacy']])
+    ['/training/honey-processing', 'training-honey-processing'], ['/training/nope', 'training-404', 404], ['/contact', 'contact'], ['/privacy', 'privacy'], ['/farmstay', 'farmstay'], ['/gallery', 'gallery']])
     await visit(page, p, `${label}-public-${n}`, st);
   await checkLightbox(page, ['/gallery', '/passport/A12', '/passport/A25', '/products/hive-box'], label);
   // รังที่เปิดขายอยู่ (ถ้ามี): หาลิงก์แรกจากหน้ารายการแล้วเปิดหน้ารายละเอียด

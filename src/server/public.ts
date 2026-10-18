@@ -320,10 +320,12 @@ export async function getFarmStats(db: Db) {
     .select({
       total: sql<number>`count(*)`,
       active: sql<number>`coalesce(sum(${hives.status} = 'active'), 0)`,
-      queenBred: sql<number>`coalesce(sum(${hives.origin} = 'queen_bred'), 0)`,
+      // ขยายรังโดย MetaFarm = ขยายรัง + เพาะนางพญา (ค่าเดิม) — เจ้าของขอ 2026-10-18
+      bred: sql<number>`coalesce(sum(${hives.origin} in ('split', 'queen_bred')), 0)`,
+      sold: sql<number>`coalesce(sum(${hives.status} = 'sold'), 0)`,
     })
     .from(hives);
-  return { total: r?.total ?? 0, active: r?.active ?? 0, queenBred: r?.queenBred ?? 0 };
+  return { total: r?.total ?? 0, active: r?.active ?? 0, bred: r?.bred ?? 0, sold: r?.sold ?? 0 };
 }
 
 /**

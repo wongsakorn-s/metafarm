@@ -45,6 +45,7 @@ export const ICONS = {
   // สื่อ
   camera: 'camera',
   image: 'image',
+  tent: 'tent',
   video: 'video',
   // การกระทำ
   edit: 'square-pen',
