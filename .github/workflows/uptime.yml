@@ -1,0 +1,34 @@
+name: Uptime
+
+# ตรวจหน้าเว็บจริงทุก 30 นาที (GET หน้าสาธารณะอย่างเดียว ไม่ใช้ secret ไม่แตะฐานข้อมูลนอกจากที่หน้าอ่านเอง)
+# ถ้าหน้าไหนไม่ตอบ 200 ภายใน 15 วินาที (ลองซ้ำ 3 ครั้ง) งานจะล้ม → GitHub ส่งอีเมลแจ้งเจ้าของ repo
+# หมายเหตุ: GitHub หยุด workflow ตามเวลาเองถ้า repo ไม่มีการ push นาน 60 วัน (ต้องกดเปิดใหม่ที่หน้า Actions)
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://metafarm.wong-saengsurasak.workers.dev
+    steps:
+      - name: ตรวจหน้าหลักของเว็บ
+        run: |
+          fail=0
+          for path in / /passport /products /gallery /contact /admin/login /sitemap.xml; do
+            code=000
+            for try in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$SITE$path" || true)
+              [ "$code" = "200" ] && break
+              sleep 5
+            done
+            echo "$code $path"
+            [ "$code" = "200" ] || fail=1
+          done
+          exit $fail

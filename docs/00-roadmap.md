@@ -77,9 +77,10 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [ ] environment `preview` แยกจาก `production` (ตอนนี้มี production เดียว)
 - [x] สคริปต์สร้าง SQL สำหรับ production: `user:create --print-sql`, `products:seed:local -- --sql`, `media:upload:remote` (dry-run เป็นค่าเริ่มต้น) — รันบน production แล้วตอนเปิดระบบ
 - [x] Backup ฐานข้อมูลอัตโนมัติทุกคืน (รันสำเร็จครั้งแรก 2026-10-05)
-- [ ] Backup รูปรายสัปดาห์ — ตั้งไว้แล้ว ยังไม่เคยรันจริง (ณ 2026-10-10)
+- [x] Backup รูปรายสัปดาห์ — รันสำเร็จแล้ว 2026-10-11 และ 10-17 (ยังไม่ได้เปิดดูไฟล์ใน `metafarm-backups/media/`)
 - [x] ทดลองกู้ข้อมูลจาก backup 1 ครั้ง — ได้ข้อมูลครบ 2026-10-05 (runbook ข้อ 4)
-- [ ] Monitoring/analytics
+- [x] Monitoring: `uptime.yml` ตรวจ 7 หน้าทุก 30 นาที แจ้งเตือนทางอีเมลของ GitHub เมื่อล้ม (2026-10-18) · Workers Logs เปิดแล้ว (`observability`)
+- [ ] Analytics (ยังไม่ได้เลือก — Cloudflare Web Analytics ฟรีและไม่ใช้คุกกี้ ต้องเปิดใน dashboard)
 - [ ] เจ้าของฟาร์มใช้งานจริงบนมือถือ (กำลังเริ่ม — กรอกข้อมูลจริงบนระบบจริง)
 
 ## Phase 4: การขาย
@@ -185,7 +186,7 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [x] README เขียนใหม่ให้ตรงกับ Bun; คำสั่งในเอกสารทุกไฟล์เปลี่ยนจาก `npm run`/`npx` เป็น `bun run`/`bunx`
 - [x] ยืนยัน workflow บน GitHub หลังย้ายไป Bun (2026-10-18, ตรวจจาก GitHub API หลังเปิด repo เป็น public): `ci.yml` สำเร็จทุกรอบ (5 push ล่าสุดรวม `5484fa7`) · `deploy.yml` สำเร็จ (`87c23da` 10-17 และ `5484fa7` 10-18) · `backup.yml` (D1 รายคืน) สำเร็จต่อเนื่องรวมรอบหลังย้าย Bun (10-17) · `backup-media.yml` รันสำเร็จแล้ว 2 ครั้ง (10-11 และ 10-17 หลังย้าย Bun) — ยังไม่ได้เปิดดูไฟล์ใน `metafarm-backups/media/` ว่ามีรูปครบ
 - [x] `scripts/lighthouse.mjs` เรียก `bunx lighthouse@12` แล้ว (ทดสอบรันจริงกับ `astro preview` ผ่าน — ไม่ต้องใช้ shell บน Windows) · เคลียร์ unused import/ตัวแปร 13 จุดจาก `bun run check` (เหลือ hint ด้านสไตล์ 4 รายการ)
-- [ ] `scripts/upload-media-remote.mjs` ยังเรียก `npx wrangler` ตอนอัปโหลดจริง (ยังไม่ได้ทดสอบกับ `bunx` เพราะยิงขึ้นระบบจริง) — เปลี่ยนเมื่อผู้ดูแลได้ลองรัน
+- [x] `scripts/upload-media-remote.mjs` เรียก wrangler ของโปรเจกต์ตรง ๆ (ไม่ผ่าน npx/bunx) + ตัวเลือก `--local` สำหรับทดสอบกับ R2 ในเครื่อง — ทดสอบแล้วบนเครื่อง (ยังไม่เคยรันกับระบบจริงด้วยเวอร์ชันนี้) · repo เปิดเป็น public 2026-10-18 — ตรวจประวัติแล้วไม่มีไฟล์ `private/`/Excel/`.env`/token และอีเมลผู้ commit เป็น noreply
 - [x] หน้าแรก: รูปปกการ์ดรังขายใบแรกเดิมเป็น `loading="lazy"` ทั้งที่เป็น LCP บนมือถือ → เอา lazy ออก ใส่ `fetchpriority="high"` และ `srcset` (รูปย่อ 46 KB แทนรูปเต็ม 248 KB บนจอเล็ก) · Lighthouse ยืนยันว่า lazy/load delay หายแล้ว (load delay 0) แต่ LCP ยังเท่าเดิม (~3.9 วินาที)
 - [x] วิดีโอหน้าแรก (ambient): เปลี่ยนจาก `autoplay` + `preload="auto"` เป็น `preload="metadata"` ให้ IntersectionObserver เรียก `play()` เมื่อเห็น ≥ 40% — น้ำหนักหน้าแรกตอนโหลดลดจาก 3.5 MB เหลือ ~600 KB (ไฟล์ ~3 MB ดึงเมื่อเลื่อนมาถึงวิดีโอเท่านั้น) · ทดสอบด้วย Chrome (มือถือ + คอม): ก่อนเลื่อนโหลดแค่ ~31 KB, เลื่อนมาถึงแล้วเล่นเอง, เลื่อนออกแล้วหยุด, ไม่มีแถบควบคุม · ข้อแลกเปลี่ยน: ถ้าปิด JavaScript วิดีโอจะเป็นแค่ภาพปก
 - [x] **รูปขนาดกลาง 800px** (แนะนำจากผล Lighthouse: จอมือถือความละเอียดสูงเลือกรูปเต็ม 1600px 243 KB สำหรับการ์ดกว้าง ~378px): อัปโหลดใหม่สร้าง `med/<คีย์>` ให้เอง (ฝั่งเบราว์เซอร์ → ฟิลด์ `medium` → `putVariants`), `?w=med` ใน `serve-image.ts` (ไม่มีไฟล์ก็ใช้รูปเต็ม), `photoSrcset` = ย่อ 480w + กลาง 800w + เต็ม 1600w, ลบรูปแล้วลบทุกขนาดด้วย `imageKeysOf` · สคริปต์ `bun run media:medium` สร้างให้รูปเก่า (dry-run เป็นค่าเริ่มต้น; `--remote --yes` ผู้ดูแลรันเอง — runbook ข้อ 5.1) · ทดสอบในเครื่อง: รูปการ์ดหน้าแรก 243 KB → 87 KB, **หน้าแรก performance 86 → 92** (รัน 3 รอบนิ่ง), `/products` 95, `/gallery` 98 · test เพิ่ม 4 (`serve-image.test.ts`, รูปกลางใน `media.test.ts`/`gallery.test.ts`)

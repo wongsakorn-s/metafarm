@@ -161,8 +161,8 @@ bun run media:medium -- --remote --yes      # สร้างจริง (ต�
 
 ## 9. ยังไม่ได้ทำ / ไม่ได้ทดสอบ
 
-- สำรองรูปรายสัปดาห์ (`backup-media.yml`) ยังไม่เคยรันจริง ณ 2026-10-10 (ที่สำรองมีแต่ไฟล์ฐานข้อมูล) — กดรันเองครั้งแรก
+- สำรองรูปรายสัปดาห์ (`backup-media.yml`) รันสำเร็จแล้ว (2026-10-11 และ 10-17 ตามผลใน GitHub Actions) แต่ยังไม่ได้เปิดดูไฟล์ใน `metafarm-backups/media/` ว่ามีครบ — ดูด้วย `bunx wrangler r2 object get metafarm-backups/media/_manifest.txt --file m.txt --remote` แล้วนับบรรทัดเทียบกับจำนวนรูป
 - สำรองข้อมูลอยู่บัญชี Cloudflare เดียวกับระบบจริง ใช้ token เดียวกัน เก็บ 30 วัน — ยังไม่มีสำเนานอกบัญชี และยังไม่แยก token สำรองข้อมูล
 - รูปที่ลบในหลังบ้านลบจาก R2 ทันที แต่สำรองรูปสัปดาห์ละครั้ง → รูปที่อัปโหลดหลังรอบสำรองล่าสุดแล้วถูกลบ กู้ไม่ได้
 - แยก environment `preview`/`production` (ตอนนี้มี production เดียว) — ทำเมื่อมีผู้ร่วมพัฒนา
-- การตรวจ/แจ้งเตือนเมื่อเว็บล่ม (ใช้ Workers Logs ใน dashboard ไปก่อน)
+- ตรวจเว็บล่ม: `.github/workflows/uptime.yml` ทุก 30 นาที GET 7 หน้า (`/`, `/passport`, `/products`, `/gallery`, `/contact`, `/admin/login`, `/sitemap.xml`) ลองซ้ำ 3 ครั้ง ไม่ได้ 200 → งานล้ม GitHub ส่งอีเมลแจ้ง · ไม่ตรวจการล็อกอินจริง (ไม่มีรหัสในระบบ) ล็อกอินล้มแบบสุ่มยังต้องดูจาก Workers Logs (`observability` เปิดแล้วใน `wrangler.jsonc`) · GitHub หยุด workflow ตามเวลาเองถ้า repo ไม่มี push นาน 60 วัน ต้องกดเปิดใหม่ที่หน้า Actions
