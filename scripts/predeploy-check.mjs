@@ -1,5 +1,5 @@
 // ตรวจว่าพร้อมขึ้นออนไลน์จริงหรือยัง — บอกสิ่งที่ "ต้องแก้ก่อน" (BLOCKER) และ "ควรแก้" (WARNING)
-//   npm run predeploy
+//   bun run predeploy
 // ไม่ได้เชื่อมต่อ Cloudflare จริง: ใช้ข้อมูลในเครื่อง (ซึ่งควรเหมือนที่จะนำขึ้น) + ไฟล์ในโปรเจกต์
 // ส่วนของเจ้าของฟาร์ม (ติดต่อ/ราคา/รูป/ข้อมูลรัง) เช็กได้ที่หน้า /admin/readiness เช่นกัน
 import { readFileSync, readdirSync } from 'node:fs';
@@ -34,7 +34,7 @@ try {
 
   // --- ข้อมูลในฐานข้อมูล ---
   const owners = (await one("SELECT count(*) n FROM users WHERE role = 'owner' AND active = 1")).n;
-  check(blockers, owners >= 1, 'มีผู้ใช้ owner ในฐานข้อมูล', 'ไม่มีผู้ใช้ owner (หลังบ้านจะเข้าไม่ได้) — สร้างด้วย npm run user:create -- --print-sql');
+  check(blockers, owners >= 1, 'มีผู้ใช้ owner ในฐานข้อมูล', 'ไม่มีผู้ใช้ owner (หลังบ้านจะเข้าไม่ได้) — สร้างด้วย bun run user:create -- --print-sql');
   const unconfirmed = (await one('SELECT count(*) n FROM product_variants v JOIN products p ON p.id = v.product_id WHERE p.published = 1 AND v.price_confirmed = 0')).n;
   check(blockers, unconfirmed === 0, 'ราคาสินค้าทุกรายการยืนยันแล้ว', `ราคาสินค้า ${unconfirmed} ตัวเลือกยังเป็นตัวอย่าง (เว็บแสดงป้าย "ราคาตัวอย่าง") — แก้ที่ /admin/products`);
   const noImg = (await one('SELECT count(*) n FROM products WHERE published = 1 AND image_key IS NULL')).n;

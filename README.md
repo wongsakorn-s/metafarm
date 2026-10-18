@@ -90,7 +90,7 @@ The system delivers a dual-purpose platform:
 
 ### Prerequisites
 
-- **Bun** (v1.2+ or latest, recommended) or **Node.js 24 LTS**
+- **Bun** 1.3.11 (the version pinned in `package.json` and the GitHub workflows; recommended) or **Node.js 24 LTS**
 
 ### Local Environment Setup
 

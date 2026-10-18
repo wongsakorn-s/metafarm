@@ -1,8 +1,8 @@
 // ทดสอบ "ส่งฟอร์มจริง" ในเบราว์เซอร์ — สิ่งที่ check:browser (เปิดหน้าอย่างเดียว) จับไม่ได้
-//   npm run check:forms      ต้องรัน `npm run dev` ไว้ และมี private/dev-owner.txt
+//   bun run check:forms      ต้องรัน `bun run dev` ไว้ และมี private/dev-owner.txt
 //
 // ⚠️ เขียนข้อมูลจริงลงฐานข้อมูล "ในเครื่อง" (เหตุการณ์ทดสอบ, รังใหม่ 1 รัง, รูปทดสอบ) — จึงยอมรันกับ localhost เท่านั้น
-//    ล้างกลับเป็นข้อมูล Excel: npm run db:seed:local && npm run media:seed:local -- --prune
+//    ล้างกลับเป็นข้อมูล Excel: bun run db:seed:local && bun run media:seed:local -- --prune
 import { readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
@@ -128,7 +128,7 @@ console.log('\n4) คิวถ่ายรูป: ผลจริงจากเ
 {
   await page.goto(BASE + '/admin/photos');
   const [c1, c2, c3] = await page.$$eval('li[data-code]', (els) => els.slice(0, 3).map((e) => e.dataset.code));
-  if (!c3) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: npm run db:seed:local && npm run media:seed:local -- --prune');
+  if (!c3) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: bun run db:seed:local && bun run media:seed:local -- --prune');
   const left = async () => Number(await page.textContent('#left'));
   const before = await left();
   const pick = (code, kind) => page.locator(`li[data-code="${code}"] input[id^="pick-"]`).evaluate(async (el, kind) => {
@@ -936,5 +936,5 @@ console.log('\n20) รหัสรังตั้งเอง: ตัวอั�
 check(pageErrors.length === 0, 'ไม่มี JavaScript error ในหน้า', `JavaScript error: ${pageErrors.join(' | ')}`);
 await browser.close();
 console.log(failed ? `\n❌ ไม่ผ่าน ${failed} ข้อ` : '\n✅ ผ่านทั้งหมด');
-console.log('ℹ️ เขียนข้อมูลทดสอบลงฐานข้อมูลในเครื่อง — ล้างด้วย: npm run db:seed:local && npm run media:seed:local -- --prune');
+console.log('ℹ️ เขียนข้อมูลทดสอบลงฐานข้อมูลในเครื่อง — ล้างด้วย: bun run db:seed:local && bun run media:seed:local -- --prune');
 process.exit(failed ? 1 : 0);

@@ -180,8 +180,11 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [x] ย้ายตัวจัดการแพ็กเกจจาก npm เป็น **Bun 1.3** (`bun.lock` แทน `package-lock.json`, `packageManager` ใน `package.json`) — บันทึกเป็น D11 ใน [07-decisions.md](07-decisions.md)
 - [x] workflow `ci.yml` · `deploy.yml` · `backup.yml` · `backup-media.yml` ใช้ `oven-sh/setup-bun` + `bun install --frozen-lockfile` (`bunx wrangler`)
 - [x] อัปเดต dependency เป็นรุ่น minor/patch ล่าสุด
+- [x] ตรึงเวอร์ชัน Bun เป็น 1.3.11 ในทุก workflow (เดิม `latest`) · ข้อความ usage ในสคริปต์ `scripts/` เปลี่ยนเป็น `bun run`/`bunx`
+- [x] ตรวจบนเครื่อง: `bun run check` (0 errors) · `bun run test` (406 ผ่าน) · `bun run build` ผ่าน · `bunx wrangler --version` ได้ 4.151.1
 - [x] README เขียนใหม่ให้ตรงกับ Bun; คำสั่งในเอกสารทุกไฟล์เปลี่ยนจาก `npm run`/`npx` เป็น `bun run`/`bunx`
-- [ ] ยังไม่ได้ยืนยัน: workflow ที่เปลี่ยนไป Bun รันผ่านบน GitHub จริง (CI/deploy/backup) และ `bun run check` · `bun run test` · `bun run build` ผ่านบนเครื่อง — ให้ตรวจก่อน deploy ครั้งถัดไป
+- [ ] ยังไม่ได้ยืนยัน: workflow ที่เปลี่ยนไป Bun รันผ่านบน GitHub จริง (CI/deploy/backup) — ให้ดูผล `ci.yml` หลัง push และก่อน deploy ครั้งถัดไป
+- [ ] `scripts/lighthouse.mjs` และ `scripts/upload-media-remote.mjs` ยังเรียก `npx` ตอนรันจริง (ยังไม่ได้ทดสอบกับ `bunx`) — เปลี่ยนเมื่อได้ลองรันแล้ว
 
 ## ยังค้าง (2026-10-18)
 

@@ -1,7 +1,7 @@
 // ตรวจสิทธิ์พนักงาน (Phase 5.1): ล็อกอินเป็นพนักงานจริง แล้ว
 //   1) เปิดทุกหน้าที่พนักงานเข้าได้ (ทุกรัง ทุกหน้าแก้ไข ทุกล็อต ฯลฯ) ค้นหาข้อมูลเงิน/คู่ค้า/ลูกค้าจริงจาก D1 ใน HTML
 //   2) หน้าที่เฉพาะเจ้าของต้องได้ 403 ทั้งเปิดหน้า ส่งฟอร์ม และดาวน์โหลด CSV
-//   npm run check:staff     ต้องรัน `npm run dev` ไว้ และรัน `npm run check:forms` มาก่อน (ข้อ 15 สร้างบัญชีพนักงานทดสอบ → private/dev-staff.txt)
+//   bun run check:staff     ต้องรัน `bun run dev` ไว้ และรัน `bun run check:forms` มาก่อน (ข้อ 15 สร้างบัญชีพนักงานทดสอบ → private/dev-staff.txt)
 //
 // ยกเว้นโดยตั้งใจ: "หมายเหตุภายใน" ของรัง (พนักงานต้องใช้ทำงาน — ข้อความอิสระอาจมีชื่อคนขายรังปนอยู่)
 //   หน้าเว็บครอบส่วนนี้ด้วย data-internal-notes จึงตัดออกก่อนสแกน · ส่วนอื่นทั้งหมดตรวจเต็ม
@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { getPlatformProxy } from 'wrangler';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4321';
-if (!existsSync('private/dev-staff.txt')) throw new Error('ไม่พบ private/dev-staff.txt — รัน npm run check:forms ก่อน (ข้อ 15 สร้างบัญชีพนักงานทดสอบ)');
+if (!existsSync('private/dev-staff.txt')) throw new Error('ไม่พบ private/dev-staff.txt — รัน bun run check:forms ก่อน (ข้อ 15 สร้างบัญชีพนักงานทดสอบ)');
 const creds = readFileSync('private/dev-staff.txt', 'utf8').split('\n');
 const email = creds[0].split(/:\s*/)[1].trim();
 const password = creds[1].split(/:\s*/)[1].trim();
@@ -39,7 +39,7 @@ const moneyNumbers = new Set([...hives.flatMap((h) => [h.purchase_price, h.sale_
 // ล็อกอิน (เก็บคุกกี้เอง)
 const lr = await fetch(BASE + '/admin/login', { method: 'POST', body: new URLSearchParams({ email, password }), redirect: 'manual', headers: { Origin: BASE } });
 const cookie = (lr.headers.get('set-cookie') ?? '').split(';')[0];
-if (!cookie.startsWith('mf_session=')) throw new Error(`ล็อกอินพนักงานไม่สำเร็จ (${lr.status}) — รัน npm run check:forms ใหม่`);
+if (!cookie.startsWith('mf_session=')) throw new Error(`ล็อกอินพนักงานไม่สำเร็จ (${lr.status}) — รัน bun run check:forms ใหม่`);
 const get = (p, init = {}) => fetch(BASE + p, { redirect: 'manual', ...init, headers: { cookie, Origin: BASE, ...(init.headers ?? {}) } });
 
 let bad = 0, scanned = 0;

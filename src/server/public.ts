@@ -2,7 +2,7 @@
 //
 // ห้ามเปิดเผย (🔒): purchase_price, supplier*, for_sale, sale_price, sold_price, sold_on, customer*,
 //                   notes, collapse_reason, ปริมาณน้ำผึ้ง/ชัน, บันทึกดิบจาก Excel ใน hive_events.note
-// ตรวจโดย `npm run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
+// ตรวจโดย `bun run check:leaks` (สแกนทุกหน้าสมุดพกหาข้อมูลลับ) — แก้ไฟล์นี้แล้วควรรันซ้ำ
 import { alias } from 'drizzle-orm/sqlite-core';
 import { and, asc, desc, eq, inArray, like, or, sql } from 'drizzle-orm';
 import { galleryPhotos, hiveEvents, hiveMedia, hives, honeyLots, lotSources, productPhotos, productVariants, products, settings, species } from '../db/schema.ts';

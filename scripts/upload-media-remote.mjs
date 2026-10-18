@@ -1,6 +1,6 @@
 // อัปโหลดรูปจาก private/import/photos ขึ้น R2 "จริง" บน Cloudflare (ผ่าน wrangler CLI)
-//   npm run media:upload:remote                 แสดงรายการที่จะอัปโหลด (dry-run) ยังไม่ส่งอะไรออกไป
-//   npm run media:upload:remote -- --yes        อัปโหลดจริง (ต้อง `wrangler login` แล้ว และ bucket ถูกสร้างไว้)
+//   bun run media:upload:remote                 แสดงรายการที่จะอัปโหลด (dry-run) ยังไม่ส่งอะไรออกไป
+//   bun run media:upload:remote -- --yes        อัปโหลดจริง (ต้อง `wrangler login` แล้ว และ bucket ถูกสร้างไว้)
 //   ตัวเลือก: --bucket metafarm-media  --concurrency 4
 // ⚠️ ส่งไฟล์ออกนอกเครื่อง จึงต้องใส่ --yes เสมอ · ยังไม่เคยทดสอบกับ Cloudflare จริง (ทดสอบเฉพาะ dry-run)
 import { execFile } from 'node:child_process';
@@ -15,7 +15,7 @@ const { values } = parseArgs({
     yes: { type: 'boolean', default: false },
     bucket: { type: 'string', default: 'metafarm-media' },
     dir: { type: 'string', default: 'private/import/photos' },
-    // --tree: โฟลเดอร์ที่ได้จาก `npm run snapshot:export` (private/export/media) ใช้พาธเป็น key ตรง ๆ (hives/A1/…, products/…)
+    // --tree: โฟลเดอร์ที่ได้จาก `bun run snapshot:export` (private/export/media) ใช้พาธเป็น key ตรง ๆ (hives/A1/…, products/…)
     tree: { type: 'string' },
     concurrency: { type: 'string', default: '4' },
   },

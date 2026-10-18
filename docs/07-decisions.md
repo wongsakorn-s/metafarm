@@ -14,7 +14,7 @@
 | D8 | ขายรังพันธุ์ | ขาย ใช้รังจากทะเบียนเป็นสินค้าได้โดยตรง |
 | D9 | การพัฒนา | ทำบนเครื่อง (local) ก่อน ยังไม่เสียเงิน |
 | D10 | **Stack** | **ตัวเลือก A**: Astro 7 + React + Tailwind 4 บน Cloudflare Workers, D1 + Drizzle, R2 ([08](08-stack-comparison.md)) |
-| D11 | Runtime / Package manager | **Bun 1.3** (`bun install`, `bun run`, `bunx`; lockfile `bun.lock`) ย้ายจาก Node 24 + npm เมื่อ 2026-10-18 (เดิมไม่ใช้ Bun เพราะ `bun install` ค้างในเครื่องนี้ ตอนนี้ใช้ได้แล้ว) · โค้ดยังรันบน Node 24 LTS ได้ (`.nvmrc`) และ Worker รันบน Cloudflare เหมือนเดิม · CI/deploy/backup workflow ใช้ `oven-sh/setup-bun` + `bun install --frozen-lockfile` |
+| D11 | Runtime / Package manager | **Bun 1.3** (`bun install`, `bun run`, `bunx`; lockfile `bun.lock`) ย้ายจาก Node 24 + npm เมื่อ 2026-10-18 · workflow ตรึงเวอร์ชันเป็น 1.3.11 (ตรงกับ `packageManager`) — อัปเกรดต้องแก้ทั้ง `package.json` และ `.github/workflows/*.yml` (เดิมไม่ใช้ Bun เพราะ `bun install` ค้างในเครื่องนี้ ตอนนี้ใช้ได้แล้ว) · โค้ดยังรันบน Node 24 LTS ได้ (`.nvmrc`) และ Worker รันบน Cloudflare เหมือนเดิม · CI/deploy/backup workflow ใช้ `oven-sh/setup-bun` + `bun install --frozen-lockfile` |
 | D13 | ข้อมูลติดต่อ | ใช้**ค่าตัวอย่าง**ไว้ก่อน เปลี่ยนเป็นค่าจริงทีหลัง — **แทนด้วย D19** (แก้ที่ `/admin/settings`) |
 | D14 | ข้อมูลที่ไม่รู้ | คอลัมน์ในฐานข้อมูลเป็น NULL/unknown (ไม่เดา) และใส่ `???` ในหมายเหตุ หน้าจอแสดง `???` (`UNKNOWN` ใน `thai-date.ts`) |
 | D15 | รูปชั่วคราว | SVG ใน `public/placeholder/` (hero, hive, hive-box, honey, training) ใช้จนกว่าจะมีรูปจริง |

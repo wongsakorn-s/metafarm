@@ -1,5 +1,5 @@
 // ตรวจหน้าหลังบ้านในเบราว์เซอร์จริง (Edge/Chrome ที่ติดตั้งในเครื่อง) บนจอมือถือและคอม
-//   npm run check:browser            ต้องรัน `npm run dev` ไว้ก่อน และมี private/dev-owner.txt
+//   bun run check:browser            ต้องรัน `bun run dev` ไว้ก่อน และมี private/dev-owner.txt
 // ผลลัพธ์: ภาพหน้าจอใน private/screenshots/ + ตรวจ error ใน console และการล้นจอแนวนอน
 import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';

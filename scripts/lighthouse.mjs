@@ -1,6 +1,6 @@
 // วัดคะแนน Lighthouse (มือถือ) ของหน้าสาธารณะหลัก
-//   npm run build && npx astro preview --port 4500     (วัดกับตัว build จริง ไม่ใช่ dev server ที่ไม่ย่อไฟล์)
-//   npm run check:lighthouse                            ต้องมี Chrome ติดตั้ง ใช้ npx lighthouse ไม่เพิ่มแพ็กเกจในโปรเจกต์
+//   bun run build && bunx astro preview --port 4500     (วัดกับตัว build จริง ไม่ใช่ dev server ที่ไม่ย่อไฟล์)
+//   bun run check:lighthouse                            ต้องมี Chrome ติดตั้ง ใช้ bunx lighthouse ไม่เพิ่มแพ็กเกจในโปรเจกต์
 // เกณฑ์ตาม docs/00-roadmap.md: Performance ≥ 90 บนมือถือ
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';

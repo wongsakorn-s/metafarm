@@ -1,7 +1,7 @@
 // นำรูปจาก private/import/photos เข้า R2 บนเครื่อง (local) ให้ตรงกับ hive_media.r2_key ที่ seed.sql สร้างไว้
-//   npm run media:seed:local                ข้ามไฟล์ที่มีอยู่แล้ว
-//   npm run media:seed:local -- --force     อัปโหลดทับ
-//   npm run media:seed:local -- --prune     ลบรูปใน R2 บนเครื่องที่ไม่ได้มาจากโฟลเดอร์นี้ (เช่นรูปที่อัปโหลดทดสอบ)
+//   bun run media:seed:local                ข้ามไฟล์ที่มีอยู่แล้ว
+//   bun run media:seed:local -- --force     อัปโหลดทับ
+//   bun run media:seed:local -- --prune     ลบรูปใน R2 บนเครื่องที่ไม่ได้มาจากโฟลเดอร์นี้ (เช่นรูปที่อัปโหลดทดสอบ)
 // ใช้กับ R2 ในเครื่องเท่านั้น (getPlatformProxy ไม่แตะ Cloudflare จริง)
 import { readdirSync, readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';

@@ -1,13 +1,13 @@
 // สร้าง/รีเซ็ตรหัสผ่านเจ้าของ ในฐานข้อมูลบนเครื่อง (local D1)
 //
-//   npm run user:create -- --email owner@metafarm.local --generate
+//   bun run user:create -- --email owner@metafarm.local --generate
 //       สุ่มรหัสผ่านให้ แล้วเขียนไว้ที่ private/dev-owner.txt (ไม่ขึ้น git)
-//   METAFARM_PASSWORD='รหัสผ่านของคุณ' npm run user:create -- --email you@example.com --name "ชื่อ"
+//   METAFARM_PASSWORD='รหัสผ่านของคุณ' bun run user:create -- --email you@example.com --name "ชื่อ"
 //       ใช้รหัสผ่านจากตัวแปรสภาพแวดล้อม (ไม่ใส่ในบรรทัดคำสั่ง เพราะจะค้างใน history)
-//   npm run user:create -- --email you@example.com --generate --print-sql
+//   bun run user:create -- --email you@example.com --generate --print-sql
 //       สำหรับ production: ไม่แตะฐานข้อมูลในเครื่อง เขียน SQL (มีเฉพาะ hash ไม่มีรหัสผ่านจริง) ลง private/owner.sql เป็น UTF-8
-//       (ไม่ใช้ "> ไฟล์" เพราะ PowerShell 5.1 เขียนเป็น UTF-16 และติดบรรทัดหัวของ npm มาด้วย → wrangler รันไม่ได้) แล้วนำไปรันกับ D1 จริง:
-//       npx wrangler d1 execute metafarm-db --remote --file private/owner.sql
+//       (ไม่ใช้ "> ไฟล์" เพราะ PowerShell 5.1 เขียนเป็น UTF-16 และติดบรรทัดหัวของคำสั่ง bun มาด้วย → wrangler รันไม่ได้) แล้วนำไปรันกับ D1 จริง:
+//       bunx wrangler d1 execute metafarm-db --remote --file private/owner.sql
 //       (รหัสผ่านที่สุ่มจะอยู่ใน private/prod-owner.txt ไม่แสดงบนหน้าจอ)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -42,7 +42,7 @@ if (values['print-sql']) {
       ` ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, name = excluded.name, role = excluded.role, active = 1, must_change_password = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now');\n` +
       `DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE email = ${q(email)});\n`,
   );
-  console.log('เขียน SQL ไว้ที่ private/owner.sql — รันต่อ: npx wrangler d1 execute metafarm-db --remote --file private/owner.sql');
+  console.log('เขียน SQL ไว้ที่ private/owner.sql — รันต่อ: bunx wrangler d1 execute metafarm-db --remote --file private/owner.sql');
   if (values.generate) {
     writeFileSync('private/prod-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(สำหรับระบบจริง — รหัสชั่วคราว ระบบบังคับให้เปลี่ยนตอนเข้าใช้ครั้งแรก · ลบไฟล์นี้เมื่อเปลี่ยนแล้ว)\n`);
     console.error('รหัสผ่านที่สุ่มอยู่ที่ private/prod-owner.txt (ไม่แสดงบนหน้าจอ)');
@@ -66,7 +66,7 @@ try {
 
 if (values.generate) {
   mkdirSync('private', { recursive: true });
-  writeFileSync('private/dev-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(ใช้กับเครื่องนี้เท่านั้น เปลี่ยนได้ด้วยคำสั่ง npm run user:create)\n`);
+  writeFileSync('private/dev-owner.txt', `อีเมล: ${email}\nรหัสผ่าน: ${password}\n(ใช้กับเครื่องนี้เท่านั้น เปลี่ยนได้ด้วยคำสั่ง bun run user:create)\n`);
   console.log(`สร้างผู้ใช้ ${email} แล้ว — อีเมลและรหัสผ่านอยู่ที่ private/dev-owner.txt`);
 } else {
   console.log(`ตั้งรหัสผ่านของ ${email} แล้ว`);

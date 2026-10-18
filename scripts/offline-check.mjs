@@ -1,7 +1,7 @@
 // ทดสอบคิวรอส่ง (Phase 5.5): บันทึกงานรัง/รูปตอนสัญญาณหลุด แล้วส่งเองเมื่อกลับมา — ไม่หาย ไม่ซ้ำ
-//   npm run check:offline              Chromium (Android)
-//   npm run check:offline -- --webkit  WebKit (เครื่องยนต์เดียวกับ iPhone) — ต้องติดตั้ง: npx playwright-core install webkit
-// ต้องรัน `npm run dev` ไว้ และมี private/dev-owner.txt · เขียนข้อมูลทดสอบลงฐานข้อมูลในเครื่อง (localhost เท่านั้น)
+//   bun run check:offline              Chromium (Android)
+//   bun run check:offline -- --webkit  WebKit (เครื่องยนต์เดียวกับ iPhone) — ต้องติดตั้ง: bunx playwright-core install webkit
+// ต้องรัน `bun run dev` ไว้ และมี private/dev-owner.txt · เขียนข้อมูลทดสอบลงฐานข้อมูลในเครื่อง (localhost เท่านั้น)
 import { readFileSync } from 'node:fs';
 import { chromium, webkit } from 'playwright-core';
 

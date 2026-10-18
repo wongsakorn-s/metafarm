@@ -1,7 +1,7 @@
 // นำเข้าทะเบียนรังจาก Excel ของเจ้าของฟาร์ม → SQL สำหรับ D1 + รูป + รายงาน
 //
-//   npm run import:excel                 สร้างไฟล์ใน private/import/
-//   npm run db:seed:local                นำ seed.sql เข้า D1 บนเครื่อง
+//   bun run import:excel                 สร้างไฟล์ใน private/import/
+//   bun run db:seed:local                นำ seed.sql เข้า D1 บนเครื่อง
 //
 // ⚠️ seed.sql จะ "ล้างข้อมูลรังทั้งหมด" ก่อนนำเข้า ใช้สำหรับโหลดข้อมูลครั้งแรกเท่านั้น
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';

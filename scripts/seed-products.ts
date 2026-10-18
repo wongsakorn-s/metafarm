@@ -1,5 +1,5 @@
 // ใส่สินค้าตั้งต้น (รังเปล่า, น้ำผึ้ง) ในฐานข้อมูลบนเครื่อง — ราคาเป็น "ตัวอย่าง" (price_confirmed = 0)
-//   npm run products:seed:local
+//   bun run products:seed:local
 // รันซ้ำได้อย่างปลอดภัย: ไม่ทับสินค้าที่มีอยู่แล้ว และไม่ทับราคาที่เจ้าของฟาร์มแก้ในหลังบ้านไปแล้ว
 // (รังสมบูรณ์ไม่อยู่ในตารางนี้ — ดึงจากรังที่ตั้งขายในทะเบียนรังโดยตรง)
 import { getPlatformProxy } from 'wrangler';
@@ -28,8 +28,8 @@ const PRODUCTS = [
 ] as const;
 
 // --sql: พิมพ์ SQL (รันซ้ำได้) แทนการเขียนฐานข้อมูลในเครื่อง — สำหรับ production:
-//   npm run products:seed:local -- --sql > private/products.sql
-//   npx wrangler d1 execute metafarm-db --remote --file private/products.sql
+//   bun run products:seed:local -- --sql > private/products.sql
+//   bunx wrangler d1 execute metafarm-db --remote --file private/products.sql
 // (ตัวเลือกขนาดตรวจซ้ำด้วย label จึงไม่ซ้ำถ้ารันอีก แต่ถ้าเปลี่ยนชื่อ label แล้วรันใหม่จะเพิ่มตัวเลือกใหม่)
 if (process.argv.includes('--sql')) {
   const s = (v: string | number | null) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);

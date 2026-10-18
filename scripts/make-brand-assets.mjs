@@ -1,5 +1,5 @@
 // สร้างไฟล์โลโก้ขนาดเหมาะกับเว็บจาก design/logo/*.png (ต้นฉบับใหญ่ 0.7–1.2 MB) → public/brand/
-//   npm run brand:build      (ใช้ Edge/Chrome ที่ติดตั้งในเครื่อง ไม่ต้องติดตั้งเครื่องมือเพิ่ม)
+//   bun run brand:build      (ใช้ Edge/Chrome ที่ติดตั้งในเครื่อง ไม่ต้องติดตั้งเครื่องมือเพิ่ม)
 // ถ้าได้โลโก้ใหม่ (เช่น SVG) ให้แทนที่ไฟล์ใน design/logo/ แล้วรันซ้ำ
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';

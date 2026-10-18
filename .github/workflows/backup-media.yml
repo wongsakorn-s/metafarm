@@ -30,7 +30,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         with:
-          bun-version: latest
+          bun-version: 1.3.11
       - run: bun install --frozen-lockfile
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
       - name: Copy new photos to backup bucket

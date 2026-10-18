@@ -1,6 +1,6 @@
 // เตรียมไฟล์สำรองจาก `wrangler d1 export` ให้นำกลับเข้า D1 ได้
 //
-//   npm run backup:prepare -- private/restore-test.sql        → private/restore-test.restore.sql
+//   bun run backup:prepare -- private/restore-test.sql        → private/restore-test.restore.sql
 //
 // ปัญหา: d1 export เรียงตารางตามตัวอักษร (audit_logs มาก่อน users) และ D1 ตรวจ foreign key ทันที
 // → "no such table: main.users" และ D1 ไม่ยอมให้ปิด foreign_keys
@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const src = process.argv[2];
-if (!src) throw new Error('ต้องระบุไฟล์ เช่น npm run backup:prepare -- private/restore-test.sql');
+if (!src) throw new Error('ต้องระบุไฟล์ เช่น bun run backup:prepare -- private/restore-test.sql');
 const lines = readFileSync(src, 'utf8').split('\n');
 
 const head = []; // PRAGMA บรรทัดแรก ๆ

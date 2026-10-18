@@ -1,5 +1,5 @@
 // ทดสอบแบบ "จำลองมือถือ" (ลึกกว่าแค่ย่อหน้าต่าง): โปรไฟล์เครื่องจริง + touch + เครือข่าย/CPU ช้า + หมุนจอ + สัญญาณหลุด
-//   npm run check:mobile            ต้องรัน `npm run dev` ไว้ (หรือ BASE_URL=… ชี้ preview/ระบบจริง) และมี private/dev-owner.txt
+//   bun run check:mobile            ต้องรัน `bun run dev` ไว้ (หรือ BASE_URL=… ชี้ preview/ระบบจริง) และมี private/dev-owner.txt
 //   ตัวเลือก: MOBILE_FLOWS=0 ข้ามขั้นตอนที่เขียนข้อมูล (อัปโหลดรูป) · ADMIN_EMAIL / ADMIN_PASSWORD สำหรับระบบจริง
 //
 // ⚠️ ข้อจำกัด: เป็นการ "จำลอง" บน Chromium (Edge/Chrome ที่ติดตั้ง) ไม่ใช่เครื่องจริง และไม่ใช่เอนจิน Safari (WebKit)
@@ -166,7 +166,7 @@ if (FLOWS) {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
   const [code, code2] = await page.$$eval('li[data-code]', (els) => els.slice(0, 2).map((e) => e.dataset.code));
-  if (!code2) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: npm run db:seed:local && npm run media:seed:local -- --prune');
+  if (!code2) throw new Error('คิวถ่ายรูปในเครื่องเหลือไม่พอสำหรับทดสอบ (ทุกการทดสอบเติมรูปให้รัง) — ล้างข้อมูลทดสอบ: bun run db:seed:local && bun run media:seed:local -- --prune');
   const left = async () => Number(await page.textContent('#left'));
   const before = await left();
   // รูปขนาดใหญ่แบบกล้องมือถือ (4032×3024) สร้างในหน้าแล้วเก็บเป็น Blob · ทุกครั้งที่ "เลือกรูป" สร้างชุดไฟล์ใหม่ (เหมือนผู้ใช้จริง)
@@ -211,15 +211,15 @@ if (FLOWS) {
   sess ? ok(`ล็อกอินหมดอายุระหว่างอัปโหลด → "${sess.trim()}"`) : fail('ล็อกอินหมดอายุแล้วแอปไม่บอก (อาจนับว่าสำเร็จทั้งที่ไม่ได้บันทึก)');
   (await left()) === before - 1 ? ok('ไม่นับว่ารังที่สองสำเร็จ (ตัวนับคงเดิม)') : fail('นับว่าสำเร็จทั้งที่ล็อกอินหมดอายุ');
   await ctx.close();
-  console.log(`   ℹ️ ทดสอบกับรัง ${code} (เพิ่มรูปทดสอบ 1 รูป) — ล้างด้วย: npm run db:seed:local && npm run media:seed:local -- --prune`);
+  console.log(`   ℹ️ ทดสอบกับรัง ${code} (เพิ่มรูปทดสอบ 1 รูป) — ล้างด้วย: bun run db:seed:local && bun run media:seed:local -- --prune`);
 }
 await browser.close();
 
 // ---------- เอนจิน Safari (WebKit): ช่องวันที่/ตัวเลือก — iOS มีพฤติกรรมเฉพาะที่ Chromium ไม่มี ----------
-// ต้องติดตั้งครั้งเดียว: npx playwright-core install webkit (ถ้าไม่มีจะข้าม)
+// ต้องติดตั้งครั้งเดียว: bunx playwright-core install webkit (ถ้าไม่มีจะข้าม)
 {
   let wk;
-  try { wk = await webkit.launch(); } catch { console.log('\n⏭️  ข้ามการทดสอบ WebKit (ยังไม่ได้ติดตั้ง: npx playwright-core install webkit)'); }
+  try { wk = await webkit.launch(); } catch { console.log('\n⏭️  ข้ามการทดสอบ WebKit (ยังไม่ได้ติดตั้ง: bunx playwright-core install webkit)'); }
   if (wk) {
     console.log('\n🧭 iPhone 13 บนเอนจิน Safari (WebKit): ช่องวันที่ในฟอร์ม');
     const ctx = await wk.newContext({ ...devices['iPhone 13'] });
