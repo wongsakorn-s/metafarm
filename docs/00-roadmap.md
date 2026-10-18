@@ -186,7 +186,9 @@ Phase 5  โดเมนจริง SEO ต่อยอด                 ░�
 - [ ] ยังไม่ได้ยืนยัน: workflow ที่เปลี่ยนไป Bun รันผ่านบน GitHub จริง (CI/deploy/backup) — ให้ดูผล `ci.yml` หลัง push และก่อน deploy ครั้งถัดไป
 - [x] `scripts/lighthouse.mjs` เรียก `bunx lighthouse@12` แล้ว (ทดสอบรันจริงกับ `astro preview` ผ่าน — ไม่ต้องใช้ shell บน Windows) · เคลียร์ unused import/ตัวแปร 13 จุดจาก `bun run check` (เหลือ hint ด้านสไตล์ 4 รายการ)
 - [ ] `scripts/upload-media-remote.mjs` ยังเรียก `npx wrangler` ตอนอัปโหลดจริง (ยังไม่ได้ทดสอบกับ `bunx` เพราะยิงขึ้นระบบจริง) — เปลี่ยนเมื่อผู้ดูแลได้ลองรัน
-- [ ] Lighthouse บน preview เครื่องนี้: หน้าแรก performance 87 (< 90) พบ "LCP image was lazily loaded" ควรตรวจว่ารูปแรกบนหน้าแรกใช้ `loading="lazy"` อยู่หรือไม่ · SEO 69 เพราะหน้าเป็น noindex ตามที่ออกแบบไว้จนกว่าเจ้าของยืนยันข้อมูลจริง (ไม่ใช่บั๊ก)
+- [x] หน้าแรก: รูปปกการ์ดรังขายใบแรกเดิมเป็น `loading="lazy"` ทั้งที่เป็น LCP บนมือถือ → เอา lazy ออก ใส่ `fetchpriority="high"` และ `srcset` (รูปย่อ 46 KB แทนรูปเต็ม 248 KB บนจอเล็ก) · Lighthouse ยืนยันว่า lazy/load delay หายแล้ว (load delay 0) แต่ LCP ยังเท่าเดิม (~3.9 วินาที)
+- [ ] สาเหตุที่หน้าแรก performance ยัง ~87 บน preview: วิดีโอหน้าแรกแบบ ambient (`VideoPlayer.astro`, `preload="auto"` + `autoplay`) โหลดไฟล์ ~3 MB ตั้งแต่เปิดหน้าและแย่งแบนด์วิดท์กับรูป LCP · ทางแก้ที่คิดไว้: `preload="metadata"` แล้วให้ IntersectionObserver เรียก `play()` เมื่อเห็นวิดีโอ ≥ 40% (ยังไม่ได้ทำ เพราะเปลี่ยนพฤติกรรมวิดีโอที่เจ้าของเห็นชอบแล้ว — รอตัดสินใจ) · SEO 69 เพราะหน้า noindex ตามที่ออกแบบไว้จนกว่าเจ้าของยืนยันข้อมูลจริง (ไม่ใช่บั๊ก)
+- [x] `bun run dev` เดิมไม่ขึ้นหลังอัปเดต dependency (optimizer พยายามรวม `wrangler` ผ่าน `src/server/test-d1.ts` แล้วพังที่ `blake3-wasm`) → ตั้ง `vite.optimizeDeps.exclude: ['wrangler']` ใน `astro.config.mjs` · `bun run check:leaks` ผ่านบน dev server
 
 ## ยังค้าง (2026-10-18)
 
