@@ -10,7 +10,7 @@ const { video, title, class: cls = '', ambient = false, fill = false } = Astro.p
 
 {video.key && ambient ? (
   <div class:list={['relative', fill && 'lg:absolute lg:inset-0']} data-ambient>
-    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', fill && 'lg:size-full lg:max-h-none lg:object-contain', cls].filter(Boolean).join(' ')} muted loop autoplay playsinline preload="auto" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
+    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', fill && 'lg:size-full lg:max-h-none lg:object-contain', cls].filter(Boolean).join(' ')} muted loop playsinline preload="metadata" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
       <source src={`/video/${video.key}`} type="video/mp4" />
     </video>
     <button type="button" data-sound aria-pressed="false" aria-label="เปิดเสียงวิดีโอ" class="absolute bottom-3 right-3 grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
@@ -37,7 +37,7 @@ const { video, title, class: cls = '', ambient = false, fill = false } = Astro.p
     const v = box.querySelector('video')!;
     const btn = box.querySelector<HTMLButtonElement>('[data-sound]')!;
     const showControls = () => { v.controls = true; v.removeAttribute('loop'); btn.hidden = true; };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.pause(); v.removeAttribute('autoplay'); showControls(); continue; }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.pause(); showControls(); continue; }
     const play = () => v.play().catch(showControls);
     new IntersectionObserver(([e]) => { if (userPaused) return; if (e!.isIntersecting) play(); else v.pause(); }, { threshold: 0.4 }).observe(v);
     let userPaused = false;
