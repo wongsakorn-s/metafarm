@@ -98,17 +98,18 @@ const items = rows.map((h) => ({ ...h, topics: unknownTopics(h.notes) }));
               <button class="btn-primary w-full" type="submit">บันทึกที่กรอก</button>
             </form>
 
-            <details class="rounded-xl border border-line p-2">
-              <summary class="disclosure min-h-11 text-sm text-muted">ไม่มีทางรู้ได้? ตั้งเป็น "ไม่ทราบจริง ๆ"</summary>
+            {/* เดิมซ่อนอยู่ใน <details> ตัวเล็กสีเทา เจ้าของฟาร์มหาปุ่มนี้ไม่เจอ (แจ้ง 2026-10-19) — เปลี่ยนเป็นกล่องเปิดอยู่เสมอ มองเห็นชัด */}
+            <div class="rounded-xl border border-honey-400/50 bg-honey-50 p-3">
+              <p class="text-sm font-medium text-honey-700">ไม่ทราบจริง ๆ ไม่มีทางรู้ได้? กดปุ่มด้านล่างเพื่อเลิกเตือนหัวข้อนั้น (รู้ทีหลังค่อยเติมได้)</p>
               <div class="mt-2 flex flex-wrap gap-2">
                 {h.topics.map((t) => (
                   <form method="post">
                     <input type="hidden" name="intent" value="unknown" /><input type="hidden" name="code" value={h.code} /><input type="hidden" name="topic" value={t} />
-                    <button class="btn-ghost text-sm" type="submit">ไม่ทราบ: {t}</button>
+                    <button class="btn-ghost text-sm" type="submit">ไม่ทราบจริง ๆ: {t}</button>
                   </form>
                 ))}
               </div>
-            </details>
+            </div>
           </li>
         );
       })}
