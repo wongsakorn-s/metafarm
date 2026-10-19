@@ -4,7 +4,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
-import { changeRole, createStaff, listUsers, newStaffSchema, resetStaffPassword, roleSchema, setStaffActive, unlockStaff } from '../../server/users.ts';
+import { changeRole, createStaff, listUsers, newStaffSchema, renameSchema, renameStaff, resetStaffPassword, roleSchema, setStaffActive, unlockStaff } from '../../server/users.ts';
 import { emailFailures } from '../../server/auth.ts';
 import { LIMITS } from '../../lib/auth/throttle.ts';
 import { fieldErrors } from '../../lib/validation.ts';
@@ -35,6 +35,11 @@ if (Astro.request.method === 'POST') {
     const r = p.success ? await changeRole(db, me, p.data) : { ok: false as const, error: 'เลือกบทบาท' };
     if (r.ok) return Astro.redirect('/admin/users?saved=role', 303);
     errors._ = r.error;
+  } else if (intent === 'rename') {
+    const p = renameSchema.safeParse(values);
+    const r = p.success ? await renameStaff(db, me, p.data) : { ok: false as const, error: 'กรอกชื่อ' };
+    if (r.ok) return Astro.redirect('/admin/users?saved=rename', 303);
+    errors._ = r.error;
   } else if (intent === 'unlock') {
     const r = await unlockStaff(db, me, Number(values.userId));
     if (r.ok) return Astro.redirect('/admin/users?saved=unlock', 303);
@@ -64,6 +69,7 @@ const v = (k: string) => values[k] ?? '';
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="คนใช้งานระบบ" active="users">
   {saved === 'disable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปิดบัญชีแล้ว — ผู้ใช้ถูกออกจากระบบทุกเครื่อง</p>}
   {saved === 'enable' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปิดบัญชีแล้ว</p>}
+  {saved === 'rename' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปลี่ยนชื่อแล้ว</p>}
   {saved === 'role' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">เปลี่ยนบทบาทแล้ว — ผู้ใช้นั้นต้องล็อกอินใหม่ แล้วจะเห็นเมนูตามบทบาทใหม่</p>}
   {saved === 'unlock' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ปลดล็อกแล้ว — ล็อกอินได้ทันที</p>}
   {errors._ && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{errors._}</p>}
@@ -107,6 +113,14 @@ const v = (k: string) => values[k] ?? '';
               <form method="post" class="w-full sm:w-auto" data-confirm={`ปลดล็อก ${u.name}? (ยืนยันกับเจ้าของบัญชีก่อนว่าเป็นคนพิมพ์ผิดเอง)`}>
                 <input type="hidden" name="intent" value="unlock" /><input type="hidden" name="userId" value={u.id} />
                 <button class="btn-ghost w-full whitespace-nowrap" type="submit">ปลดล็อก</button>
+              </form>
+            )}
+            {u.id !== me.id && (
+              <form method="post" class="flex w-full gap-2" data-confirm={`เปลี่ยนชื่อของ ${u.name} เป็น "{name}"?`}>
+                <input type="hidden" name="intent" value="rename" /><input type="hidden" name="userId" value={u.id} />
+                <label class="sr-only" for={`name-${u.id}`}>ชื่อของ {u.name}</label>
+                <input class="field flex-1" id={`name-${u.id}`} name="name" maxlength="60" required value={u.name} autocomplete="off" />
+                <button class="btn-ghost whitespace-nowrap" type="submit">แก้ชื่อ</button>
               </form>
             )}
             {u.id !== me.id && (

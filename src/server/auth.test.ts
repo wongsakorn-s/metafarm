@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashPassword } from '../lib/auth/password.ts';
 import { LIMITS } from '../lib/auth/throttle.ts';
-import { changePassword, emailFailures, login } from './auth.ts';
+import { changeName, changePassword, emailFailures, login } from './auth.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -82,4 +82,17 @@ describe('changePassword', () => {
     expect(checked).toBe(5);
     expect(await tries(u, PASS)).toMatchObject({ ok: false, error: expect.stringContaining('รอ 15 นาที') });
   }, 60_000);
+});
+
+describe('changeName', () => {
+  it('เปลี่ยนชื่อตัวเองได้ · ตัดช่องว่างหัวท้าย · เว้นว่างไม่ได้ · ยาวเกิน 60 ไม่ได้ · ชื่อเดิมไม่ถือเป็น error', async () => {
+    const u = await user();
+    const me = { id: u.id, email: u.email, name: `ผู้ใช้ ${u.n}`, role: 'staff' as const, mustChangePassword: false };
+    expect(await changeName(t.db, me, '  ชื่อใหม่  ')).toEqual({ ok: true });
+    expect((await t.d1.prepare('SELECT name FROM users WHERE id = ?').bind(u.id).first<{ name: string }>())!.name).toBe('ชื่อใหม่');
+    expect(await changeName(t.db, me, '')).toMatchObject({ ok: false, error: 'กรอกชื่อ' });
+    expect(await changeName(t.db, me, '   ')).toMatchObject({ ok: false, error: 'กรอกชื่อ' });
+    expect(await changeName(t.db, me, 'ก'.repeat(61))).toMatchObject({ ok: false, error: expect.stringContaining('60') });
+    expect(await changeName(t.db, me, 'ชื่อใหม่')).toEqual({ ok: true }); // ชื่อเดิม (หลัง trim) — ไม่ error แต่ไม่เขียนทับไม่จำเป็น
+  });
 });

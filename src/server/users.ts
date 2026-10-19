@@ -24,6 +24,11 @@ export const newStaffSchema = z.object({
 
 export const roleSchema = z.object({ userId: z.coerce.number().int().positive(), role: z.enum(ROLES as [Role, ...Role[]]) });
 
+export const renameSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+  name: z.preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string('กรอกชื่อ').min(1, 'กรอกชื่อ').max(60, 'ยาวเกิน 60 ตัวอักษร')),
+});
+
 export async function listUsers(db: Db) {
   return db
     .select({
@@ -56,6 +61,21 @@ export async function changeRole(db: Db, by: SessionUser, d: z.output<typeof rol
     db.update(users).set({ role: d.role, ...touch }).where(eq(users.id, d.userId)),
     db.delete(sessions).where(eq(sessions.userId, d.userId)),
     audit(db, by, 'user.role', d.userId, { from: t.user.role, to: d.role }),
+  ]);
+  return { ok: true };
+}
+
+/** เจ้าของแก้ชื่อผู้ใช้คนอื่น (แอดมิน/พนักงาน/เจ้าของคนอื่น) — ไม่กระทบรหัสผ่าน/เซสชัน แค่ชื่อที่โชว์ */
+export async function renameStaff(db: Db, by: SessionUser, d: z.output<typeof renameSchema>): Promise<Result> {
+  const name = d.name.trim();
+  if (!name) return { ok: false, error: 'กรอกชื่อ' };
+  if (name.length > 60) return { ok: false, error: 'ยาวเกิน 60 ตัวอักษร' };
+  const t = await staffTarget(db, by, d.userId, true);
+  if ('error' in t) return { ok: false, error: t.error! };
+  if (t.user.name === name) return { ok: true };
+  await db.batch([
+    db.update(users).set({ name, ...touch }).where(eq(users.id, d.userId)),
+    audit(db, by, 'user.name_change', d.userId, { from: t.user.name, to: name }),
   ]);
   return { ok: true };
 }

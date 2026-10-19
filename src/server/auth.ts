@@ -106,6 +106,19 @@ export async function changePassword(
   return { ok: true, otherSessionsEnded: true };
 }
 
+/** เปลี่ยนชื่อของตัวเอง (หน้า "บัญชีของฉัน") — ไม่กระทบรหัสผ่าน/เซสชัน แค่ชื่อที่โชว์ */
+export async function changeName(db: Db, user: SessionUser, name: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const next = name.trim();
+  if (!next) return { ok: false, error: 'กรอกชื่อ' };
+  if (next.length > 60) return { ok: false, error: 'ยาวเกิน 60 ตัวอักษร' };
+  if (next === user.name) return { ok: true };
+  await db.batch([
+    db.update(users).set({ name: next, updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))` }).where(eq(users.id, user.id)),
+    db.insert(auditLogs).values({ userId: user.id, action: 'user.name_change', entity: 'user', entityId: user.id, diff: { from: user.name, to: next } }),
+  ]);
+  return { ok: true };
+}
+
 export async function userFromToken(db: Db, token: string | undefined): Promise<SessionUser | null> {
   if (!token) return null;
   const rows = await db

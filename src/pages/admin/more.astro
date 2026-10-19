@@ -35,7 +35,7 @@ const groups = [
   {
     title: 'บัญชี',
     items: [
-      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่านของฉัน', hint: 'เปลี่ยนรหัสผ่านของคุณ' },
+      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่านของฉัน', hint: 'เปลี่ยนชื่อหรือรหัสผ่านของคุณ' },
       ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'lock', label: 'คนใช้งานระบบ', hint: 'เพิ่มคนที่เข้าระบบได้ หรือปิดบัญชีคนที่ออกแล้ว' }] : []),
     ],
   },

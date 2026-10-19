@@ -1,6 +1,6 @@
 // จัดการผู้ใช้บนฐานข้อมูล D1 จริง (ชั่วคราว): บทบาทแอดมิน และการเปลี่ยนบทบาท
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { changeRole, createStaff, setStaffActive } from './users.ts';
+import { changeRole, createStaff, renameStaff, setStaffActive } from './users.ts';
 import { testDb } from './test-d1.ts';
 import type { SessionUser } from './auth.ts';
 
@@ -50,5 +50,26 @@ describe('เปลี่ยนบทบาท', () => {
     await changeRole(t.db, t.owner, { userId: u.id, role: 'owner' });
     expect(await setStaffActive(t.db, t.owner, u.id, false)).toMatchObject({ ok: false });
     expect(await changeRole(t.db, t.owner, { userId: u.id, role: 'staff' })).toEqual({ ok: true });
+  });
+});
+
+describe('เปลี่ยนชื่อ', () => {
+  it('เจ้าของแก้ชื่อพนักงาน/แอดมิน/เจ้าของคนอื่นได้ · แอดมินแก้ไม่ได้', async () => {
+    const staff = await add('staff');
+    expect(await renameStaff(t.db, t.owner, { userId: staff.id, name: '  ชื่อใหม่  ' })).toEqual({ ok: true });
+    expect(await roleOf(staff.id)).toBe('staff'); // ไม่แตะบทบาท
+    expect((await t.d1.prepare('SELECT name FROM users WHERE id = ?').bind(staff.id).first<{ name: string }>())!.name).toBe('ชื่อใหม่');
+
+    const otherOwner = await add('admin');
+    await changeRole(t.db, t.owner, { userId: otherOwner.id, role: 'owner' });
+    expect(await renameStaff(t.db, t.owner, { userId: otherOwner.id, name: 'เจ้าของอีกคน' })).toEqual({ ok: true });
+
+    const admin = await add('admin');
+    expect(await renameStaff(t.db, admin, { userId: staff.id, name: 'x' })).toMatchObject({ ok: false });
+  });
+
+  it('แก้ชื่อตัวเองจากหน้านี้ไม่ได้ (ใช้หน้าบัญชีของฉัน) · ไม่พบผู้ใช้ก็ error', async () => {
+    expect(await renameStaff(t.db, t.owner, { userId: t.owner.id, name: 'x' })).toMatchObject({ ok: false });
+    expect(await renameStaff(t.db, t.owner, { userId: 999999, name: 'x' })).toMatchObject({ ok: false });
   });
 });
