@@ -59,6 +59,8 @@ const PRICE_WORDS = new Set(['บาท', 'ราคา']);
 const saleHives = hives.filter((h) => h.for_sale && h.status === 'active' && h.sale_price > 0);
 const pages = [
   ['/', 'หน้าแรก', 'product'], ['/passport', 'ค้นหา'], ['/passport?code=A99999', 'ค้นหาไม่พบ'], ['/passport/A99999', '404'],
+  // ตัวเลขหน้าแรกแตะแล้วเปิดรายการตามหมวด (เจ้าของขอ 2026-10-20) — ต้องไม่หลุดเหมือนหน้าค้นหารหัสปกติ
+  ['/passport?view=all', 'รังในทะเบียนทั้งหมด'], ['/passport?view=bred', 'ขยายรังโดย MetaFarm'], ['/passport?view=sold', 'ขายแล้ว'], ['/passport?view=active', 'รังปัจจุบันในสวน'],
   ...hives.map((h) => [`/passport/${h.code}`, h.code]),
   // หน้าล็อตน้ำผึ้งจาก QR บนขวด (ต้องไม่มีหมายเหตุล็อต ต้นทุน หรือข้อมูลการขาย)
   ...lots.map((l) => [`/lot/${l.code}`, `ล็อต ${l.code}`]),

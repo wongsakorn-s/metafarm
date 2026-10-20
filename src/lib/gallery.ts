@@ -9,7 +9,7 @@ export { GALLERY_CATEGORIES };
 
 /** หมวดตามที่เจ้าของฟาร์มขอ (คอมเมนต์ 2026-10-10) เรียงตามลำดับที่แสดง */
 export const galleryCategory: Record<GalleryCategory, { label: string; icon: IconName; hint: string }> = {
-  farm: { label: 'ชันโรงของ MetaFarm', icon: 'hive', hint: 'รังและชันโรงในสวนปาล์มของเรา' },
+  farm: { label: 'ชันโรงของ MetaFarm', icon: 'hive', hint: 'ชันโรงในสวนปาล์มของเรา' },
   hive_delivery: { label: 'ส่งมอบรังชันโรง', icon: 'truck', hint: 'รังที่ส่งต่อให้ผู้เลี้ยง' },
   honey_delivery: { label: 'ส่งมอบน้ำผึ้ง', icon: 'honey', hint: 'น้ำผึ้งชันโรงที่ส่งถึงลูกค้า' },
   woodshop: { label: 'ห้องงานไม้', icon: 'wood', hint: 'ออกแบบและผลิตรังเลี้ยงชันโรงขนเงินคุณภาพ' },

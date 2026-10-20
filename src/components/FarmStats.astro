@@ -2,37 +2,39 @@
 // ตัวเลขฟาร์มจากทะเบียนรัง (หน้าแรก) — แถบเดียว 4 ช่อง (มือถือ 2×2) เรียงตามที่เจ้าของขอ 2026-10-18:
 // รังในทะเบียน · ขยายรังโดย MetaFarm · ขายแล้ว · รังปัจจุบันในสวน
 // ตัวเลขชิดบนทุกช่อง จึงตรงแนวกันเสมอ แม้ป้ายช่องไหนจะตกบรรทัด (จอแคบมาก)
+// แตะตัวเลขแต่ละช่องเปิดรายการรังของหมวดนั้น (เจ้าของขอ 2026-10-20) — ช่องไหนไม่ส่ง href มาก็ไม่เป็นลิงก์
 interface Props {
   stats: { total: number; active: number; bred: number; sold: number };
-  /** ลิงก์ของทุกช่อง (หน้าแรกพาไปสมุดพก) — ไม่ใส่ = ไม่ใช่ลิงก์ */
-  href?: string;
+  hrefs?: { total?: string; bred?: string; sold?: string; active?: string };
   class?: string;
 }
-const { stats, href, class: cls } = Astro.props;
-const items: [number, string][] = [
-  [stats.total, 'รังในทะเบียน'],
-  [stats.bred, 'ขยายรังโดย MetaFarm'],
-  [stats.sold, 'ขายแล้ว'],
-  [stats.active, 'รังปัจจุบันในสวน'],
+const { stats, hrefs, class: cls } = Astro.props;
+const items: [number, string, string | undefined][] = [
+  [stats.total, 'รังในทะเบียน', hrefs?.total],
+  [stats.bred, 'ขยายรังโดย MetaFarm', hrefs?.bred],
+  [stats.sold, 'ขายแล้ว', hrefs?.sold],
+  [stats.active, 'รังปัจจุบันในสวน', hrefs?.active],
 ];
-const Tag = href ? 'a' : 'div';
 ---
 
 <section aria-label="ฟาร์มในตัวเลข" class:list={['grid grid-cols-2 overflow-hidden rounded-3xl border border-line bg-surface shadow-card md:grid-cols-4', cls]}>
-  {items.map(([n, label], i) => (
-    <Tag
-      href={href}
-      class:list={[
-        'flex flex-col items-center border-line px-2 py-4 text-center md:py-6',
-        // เส้นคั่น: มือถือ 2×2 = เส้นตั้งที่คอลัมน์ขวา + เส้นนอนใต้แถวแรก · คอม 1×4 = เส้นตั้งทุกช่องยกเว้นช่องแรก
-        i % 2 === 1 && 'border-l',
-        i < 2 && 'border-b md:border-b-0',
-        i === 2 && 'md:border-l',
-        href && 'transition-colors duration-(--duration-fast) hover:bg-palm-50',
-      ]}
-    >
-      <span data-num class="text-2xl font-bold text-palm-700 md:text-4xl">{n.toLocaleString('th-TH')}</span>
-      <span class="text-[0.8125rem] text-muted md:text-sm">{label}</span>
-    </Tag>
-  ))}
+  {items.map(([n, label, itemHref], i) => {
+    const Tag = itemHref ? 'a' : 'div';
+    return (
+      <Tag
+        href={itemHref}
+        class:list={[
+          'flex flex-col items-center border-line px-2 py-4 text-center md:py-6',
+          // เส้นคั่น: มือถือ 2×2 = เส้นตั้งที่คอลัมน์ขวา + เส้นนอนใต้แถวแรก · คอม 1×4 = เส้นตั้งทุกช่องยกเว้นช่องแรก
+          i % 2 === 1 && 'border-l',
+          i < 2 && 'border-b md:border-b-0',
+          i === 2 && 'md:border-l',
+          itemHref && 'transition-colors duration-(--duration-fast) hover:bg-palm-50',
+        ]}
+      >
+        <span data-num class="text-2xl font-bold text-palm-700 md:text-4xl">{n.toLocaleString('th-TH')}</span>
+        <span class="text-[0.8125rem] text-muted md:text-sm">{label}</span>
+      </Tag>
+    );
+  })}
 </section>

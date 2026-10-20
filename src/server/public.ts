@@ -368,6 +368,31 @@ export async function getSampleHives(db: Db, limit = 8): Promise<{ code: string;
   return rows.filter((r): r is { code: string; key: string } => !!r.key);
 }
 
+/** หมวดของตัวเลขหน้าแรก (FarmStats) — แตะตัวเลขแล้วเปิดรายการรังในหมวดนั้น (เจ้าของขอ 2026-10-20) */
+export const HIVE_CATEGORIES = ['all', 'bred', 'sold', 'active'] as const;
+export type HiveCategory = (typeof HIVE_CATEGORIES)[number];
+export const hiveCategoryTitle: Record<HiveCategory, string> = {
+  all: 'รังในทะเบียนทั้งหมด',
+  bred: 'รังที่ขยายรังโดย MetaFarm',
+  sold: 'รังที่ขายแล้ว',
+  active: 'รังปัจจุบันในสวน',
+};
+
+/**
+ * รังทุกรังในหมวด (ไม่สุ่ม ไม่กรองข้อมูลครบ/มีรูปเหมือน getSampleHives — ต้องครบทุกรังที่ตรงเงื่อนไขจริง)
+ * รูป: รูปสมุดพกแรกถ้ามี (ไม่มีก็ null ให้หน้าเว็บใช้รูปว่างแทน) · เรียงตามรหัสรัง (byCode) ไม่ใช่ id
+ */
+export async function listHivesByCategory(db: Db, category: HiveCategory): Promise<{ code: string; key: string | null; status: string }[]> {
+  const photo = sql<string | null>`(select m.r2_key from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null
+    order by (m.r2_key like '%/passport-%') desc, m.id desc limit 1)`;
+  const where =
+    category === 'bred' ? inArray(hives.origin, ['split', 'queen_bred'])
+    : category === 'sold' ? eq(hives.status, 'sold')
+    : category === 'active' ? eq(hives.status, 'active')
+    : undefined;
+  return db.select({ code: hives.code, key: photo, status: hives.status }).from(hives).where(where).orderBy(...byCode());
+}
+
 /**
  * ค้นหารหัสรัง — คืนเฉพาะรหัส
  * พิมพ์แค่เลข ("12") = รังเลข 12 ทุกชุดตัวอักษร (A12, B12) · อย่างอื่น = รหัสที่ขึ้นต้นด้วยคำค้น

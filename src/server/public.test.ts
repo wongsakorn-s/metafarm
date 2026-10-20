@@ -1,6 +1,6 @@
 // รังตัวอย่างในหน้าสมุดพก: สุ่มเฉพาะรังที่รูปและข้อมูลครบ · รังละรูปเดียว (รูปถ่ายใหม่ก่อนรูปเล็กจาก Excel)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getFarmStats, getPublicHive, getSaleHive, getSaleHives, getSampleHives } from './public.ts';
+import { getFarmStats, getPublicHive, getSaleHive, getSaleHives, getSampleHives, listHivesByCategory } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -84,5 +84,29 @@ describe('ตัวเลขฟาร์มหน้าแรก (เจ้า�
     const s = await getFarmStats(t.db);
     expect(s).toEqual({ total: await q('1'), bred: await q("origin IN ('split', 'queen_bred')"), sold: await q("status = 'sold'"), active: await q("status = 'active'") });
     expect(s.sold).toBeGreaterThan(0);
+  });
+});
+
+describe('รังตามหมวด (แตะตัวเลขหน้าแรก — เจ้าของขอ 2026-10-20)', () => {
+  it('all = ทุกรัง (เรียงตามรหัส) · bred/sold/active = เฉพาะที่ตรงเงื่อนไข · รูป = รูปสมุดพกแรกถ้ามี ไม่มีก็ null', async () => {
+    const all = await listHivesByCategory(t.db, 'all');
+    const total = (await t.d1.prepare('SELECT count(*) n FROM hives').first<{ n: number }>())!.n;
+    expect(all).toHaveLength(total);
+    expect(all.map((h) => h.code)).toEqual([...all.map((h) => h.code)].sort((a, b) => a.localeCompare(b, 'en', { numeric: true })));
+
+    const sold = await listHivesByCategory(t.db, 'sold');
+    expect(sold.every((h) => h.status === 'sold')).toBe(true);
+    expect(sold.map((h) => h.code)).toContain('A3');
+
+    const bred = await listHivesByCategory(t.db, 'bred');
+    expect(bred.map((h) => h.code).sort()).toEqual(['A30', 'A31']);
+
+    const active = await listHivesByCategory(t.db, 'active');
+    expect(active.every((h) => h.status === 'active')).toBe(true);
+
+    const a1 = all.find((h) => h.code === 'A1')!;
+    expect(a1.key).toBe('hives/A1/A1-1.jpeg'); // รังนี้มีรูปสมุดพกจาก fixture ด้านบน
+    const noPhoto = all.find((h) => h.code === 'A4')!; // A4 มีแต่รูป "sale" ไม่มีรูป "passport" ในฐานข้อมูลทดสอบ
+    expect(noPhoto.key).toBeNull();
   });
 });

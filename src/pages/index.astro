@@ -41,7 +41,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="font-medium text-palm-700">{site.tagline}</p>
-          <h1 class="mt-1 text-[2rem] font-bold leading-tight sm:text-4xl md:text-5xl">ชันโรงขนเงิน<br />เลี้ยงในสวนปาล์ม จ.ระยอง</h1>
+          <h1 class="mt-1 text-[2rem] font-bold leading-snug sm:text-4xl md:text-5xl">ชันโรงขนเงิน<br />เลี้ยงในสวนปาล์ม จ.ระยอง</h1>
         </div>
         {!hero && <img src="/brand/logo-round.webp" alt="" width="360" height="334" fetchpriority="high" class="mt-1 w-24 shrink-0 sm:w-28 md:hidden" />}
       </div>
@@ -72,7 +72,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
   </section>
 
   {/* ตัวเลขจริงจากทะเบียนรัง — ความน่าเชื่อถือก่อนเล่าเรื่อง (Trust & Authority) */}
-  <FarmStats stats={stats} href="/passport" class="mt-8" />
+  <FarmStats stats={stats} hrefs={{ total: '/passport?view=all', bred: '/passport?view=bred', sold: '/passport?view=sold', active: '/passport?view=active' }} class="mt-8" />
 
   {/* สินค้าพร้อมราคาตั้งแต่หน้าแรก (รีวิว UX: เดิมต้องกดเข้าหน้าสินค้าก่อนถึงเห็นว่าขายอะไร ราคาเท่าไร) */}
   {(products.length > 0 || saleHives.length > 0) && (

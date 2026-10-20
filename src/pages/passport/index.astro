@@ -3,8 +3,9 @@ import PageHeader from '../../components/PageHeader.astro';
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { getSampleHives, searchHiveCodes } from '../../server/public.ts';
+import { getSampleHives, hiveCategoryTitle, HIVE_CATEGORIES, listHivesByCategory, searchHiveCodes, type HiveCategory } from '../../server/public.ts';
 import { photoSrcset, thumbUrl } from '../../lib/media.ts';
+import { placeholder } from '../../lib/placeholders.ts';
 import { site } from '../../config/site.ts';
 import { normalizeHiveCode } from '../../lib/hive-code.ts';
 
@@ -21,9 +22,14 @@ if (normalized) {
   if (matches.includes(normalized)) return Astro.redirect(`/passport/${normalized}`, 302);
   if (/^\d+$/.test(normalized) && matches.length === 1) return Astro.redirect(`/passport/${matches[0]}`, 302);
 }
-// รังที่รูปและข้อมูลครบ สุ่มใหม่ทุกครั้ง (ไม่มีรังที่ครบ = ไม่แสดงส่วนนี้)
-const photoHives = await getSampleHives(db, 8);
-// ไม่ cache: รังตัวอย่างสุ่มใหม่ทุกครั้งที่เปิดหน้า
+// แตะตัวเลขหน้าแรก (?view=…) → รายการรังของหมวดนั้นทั้งหมด แทนตัวอย่างสุ่ม 8 รัง (เจ้าของขอ 2026-10-20)
+const viewParam = Astro.url.searchParams.get('view') ?? '';
+const view = (HIVE_CATEGORIES as readonly string[]).includes(viewParam) ? (viewParam as HiveCategory) : null;
+const categoryHives = view ? await listHivesByCategory(db, view) : [];
+const statusBadge = { active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['รังล่ม', 'bg-slate-200 text-slate-700'] } as const;
+// รังที่รูปและข้อมูลครบ สุ่มใหม่ทุกครั้ง (ไม่มีรังที่ครบ = ไม่แสดงส่วนนี้) — เฉพาะตอนไม่ได้เปิดด้วย ?view
+const photoHives = view ? [] : await getSampleHives(db, 8);
+// ไม่ cache: รังตัวอย่างสุ่มใหม่ทุกครั้งที่เปิดหน้า (รายการตามหมวดไม่สุ่ม แต่ก็ไม่ cache เพื่อให้ตัวเลขตรงกับหน้าแรกเสมอ)
 Astro.response.headers.set('Cache-Control', 'no-cache');
 ---
 
@@ -49,6 +55,39 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
     </form>
 
   </section>
+
+  {view && (
+    <section class="mx-auto mt-10 max-w-5xl" aria-labelledby="category-h">
+      <h2 id="category-h" class="text-center text-xl font-bold text-palm-700">{hiveCategoryTitle[view]} ({categoryHives.length})</h2>
+      <p class="mt-1 text-center text-muted">กดที่รังเพื่อเปิดสมุดพก</p>
+      {categoryHives.length > 0 ? (
+        <ul class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4">
+          {categoryHives.map((h) => {
+            const [badgeLabel, badgeClass] = statusBadge[h.status as keyof typeof statusBadge] ?? [];
+            return (
+              <li>
+                <a href={`/passport/${h.code}`} class="group block overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+                  {h.key ? (
+                    <img src={thumbUrl(`/img/${h.key}`)} srcset={photoSrcset(`/img/${h.key}`)} sizes="(min-width: 768px) 220px, 50vw" width="480" height="360" alt={`รังชันโรงขนเงิน ${h.code}`} loading="lazy" decoding="async"
+                      class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
+                  ) : (
+                    <img src={placeholder.hive} alt="" width="480" height="360" loading="lazy" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
+                  )}
+                  <span class="flex min-h-11 items-center justify-between gap-2 px-3 py-2">
+                    <span class="whitespace-nowrap font-semibold text-palm-700">รัง {h.code}</span>
+                    {badgeLabel && <span class:list={['badge', badgeClass]}>{badgeLabel}</span>}
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p class="mt-4 text-center text-muted">ยังไม่มีรังในหมวดนี้</p>
+      )}
+      <p class="mt-4 text-center"><a class="underline" href="/passport">← กลับไปค้นหาด้วยรหัสรัง</a></p>
+    </section>
+  )}
 
   {photoHives.length > 0 && (
     <section class="mx-auto mt-10 max-w-4xl" aria-labelledby="examples">

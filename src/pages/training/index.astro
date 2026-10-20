@@ -24,6 +24,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
       <li>
         <a href={`/training/${c.slug}`} class="card-link group flex h-full flex-col">
           <span class="mb-3 grid size-12 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name="training" class="size-6" /></span>
+          {/* หลักสูตรยังไม่เปิดรับสมัครจริง (เหมือนฟาร์มสเตย์) — เจ้าของขอ 2026-10-20 */}
+          <p class="mb-1"><span class="badge gap-1 bg-honey-100 text-honey-700"><Icon name="warning" class="size-4" />แผนในอนาคต · ยังไม่เปิดให้บริการ</span></p>
           <h2 class="text-xl font-bold">{c.title}</h2>
           <p class="mt-1 flex-1 text-muted">{c.summary}</p>
           <p class="mt-3 flex flex-wrap items-center gap-2 text-sm">
