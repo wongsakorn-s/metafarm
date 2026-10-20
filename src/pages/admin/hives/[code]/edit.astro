@@ -166,7 +166,8 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
           {err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}
         </div>
       </div>
-      <p class="hint">แก้ตรงนี้ไม่บันทึกการแยกในรังแม่ให้</p>
+      {/* ถ้อยคำชัดขึ้นและตรงข้ามกับ hint เดียวกันใน new.astro ให้ตั้งใจ (เจ้าของสับสนว่าทำไมสองหน้าพูดตรงข้ามกัน 2026-10-20): ที่นี่แค่แก้ข้อมูล ไม่สร้างประวัติ · การสร้างประวัติอัตโนมัติเกิดเฉพาะตอนเพิ่มรังใหม่ */}
+      <p class="hint">แก้ตรงนี้แค่แก้ข้อมูลรังแม่ ไม่สร้างประวัติในรังแม่ให้ (ประวัติจะถูกสร้างอัตโนมัติเฉพาะตอนเพิ่มรังใหม่จากหน้ารังแม่)</p>
     </fieldset>
 
     <div class:list={['grid gap-3 self-start', canManageFarm(Astro.locals.user) && 'grid-cols-2']}>
@@ -189,7 +190,8 @@ const monthOnly = hive.acquiredOnPrecision && hive.acquiredOnPrecision !== 'day'
     {manager && (
       <fieldset class="rounded-xl border border-line p-3 lg:col-span-2" data-supplier>
         <legend class="px-1 font-semibold">คู่ค้า (ข้อมูลภายใน) <Icon name="lock" class="inline-block size-[1.15em] align-[-0.2em]" /></legend>
-        <p class="hint">เฉพาะเจ้าของและแอดมินที่เห็นส่วนนี้ ลูกค้าและพนักงานไม่เห็น (จดอะไรไว้ในชื่อได้ เช่น ข้อสังเกตเกี่ยวกับผู้ขาย)</p>
+        {/* ตัดวงเล็บ "จดอะไรไว้ในชื่อได้" ออก — ล้าสมัยตั้งแต่มีช่อง "หมายเหตุ" ของคู่ค้าแยกต่างหากแล้ว (เจ้าของขอความกระชับ 2026-10-20) */}
+        <p class="hint">เฉพาะเจ้าของและแอดมินเห็นส่วนนี้ ลูกค้าและพนักงานไม่เห็น</p>
         <div class="mt-2">
           <label class="label" for="sup-choice">คู่ค้าของรังนี้</label>
           <select class="field" id="sup-choice" name="supplierChoice">

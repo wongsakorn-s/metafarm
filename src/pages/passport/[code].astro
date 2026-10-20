@@ -10,7 +10,7 @@ import { placeholder } from '../../lib/placeholders.ts';
 import { photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import NotFound from '../../components/NotFound.astro';
-import { acquiredLabel, originText as originOf, speciesLabel } from '../../lib/labels.ts';
+import { acquiredLabel, boxLabel, originText as originOf, speciesLabel } from '../../lib/labels.ts';
 import { breadcrumbLd } from '../../lib/seo.ts';
 
 export const prerender = false;
@@ -109,8 +109,7 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
             <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <dt class="text-muted">สายพันธุ์</dt><dd>{speciesLabel(hive.species)}</dd>
               {originText && <><dt class="text-muted">ที่มา</dt><dd>{originText}</dd></>}
-              {hive.acquiredOn && <><dt class="text-muted">{acquiredLabel(hive.origin)}</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd></>}
-              {hive.queenBornOn && <><dt class="text-muted">นางพญาเกิด</dt><dd>{formatThaiDate(hive.queenBornOn)}</dd></>}
+              {hive.boxType !== 'unknown' && <><dt class="text-muted">กล่องรัง</dt><dd>{boxLabel[hive.boxType]}</dd></>}
             </dl>
             {hive.publicNote && <p class="mt-3 rounded-xl bg-honey-50 p-3 text-sm">{hive.publicNote}</p>}
           </section>
@@ -126,6 +125,9 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
                   {hive.children.map((c) => <li><a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${c.code}`}>{c.code}</a></li>)}
                 </ul>
               ) : <span class="text-muted">–</span>}</dd>
+              {/* วันที่ย้ายมาอยู่ที่นี่ (เดิมอยู่ใน "ข้อมูลรัง") — จัดกลุ่มกับประวัติสายพันธุ์/การแยกรัง ตามที่เจ้าของขอ 2026-10-20 */}
+              {hive.acquiredOn && <><dt class="text-muted">{acquiredLabel(hive.origin)}</dt><dd>{formatThaiDate(hive.acquiredOn, hive.acquiredOnPrecision ?? 'day')}</dd></>}
+              {hive.queenBornOn && <><dt class="text-muted">นางพญาเกิด</dt><dd>{formatThaiDate(hive.queenBornOn)}</dd></>}
             </dl>
           </section>
         </div>

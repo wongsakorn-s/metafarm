@@ -73,7 +73,7 @@ const err = (k: string) => errors[k];
         <div><label class="label" for="qs">ไข่นางจากรัง</label><input class="field" id="qs" name="queenSourceCode" placeholder="เช่น 55" value={v('queenSourceCode')} />{err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}</div>
         <div><label class="label" for="bs">ไข่อ่อนจากรัง</label><input class="field" id="bs" name="broodSourceCode" placeholder="เช่น 89" value={v('broodSourceCode')} />{err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}</div>
       </div>
-      <p class="hint">ระบบบันทึกการแยกในรังแม่ให้เอง</p>
+      <p class="hint">บันทึกแล้ว ระบบสร้างประวัติการแยกในรังแม่ให้อัตโนมัติ</p>
     </fieldset>
 
     <div class="grid grid-cols-2 gap-3 self-start">

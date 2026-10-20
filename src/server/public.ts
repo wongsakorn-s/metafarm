@@ -34,6 +34,8 @@ export interface PublicHive {
   code: string;
   species: string;
   origin: 'purchased' | 'queen_bred' | 'split' | 'natural' | 'unknown';
+  /** กล่องที่ใช้เลี้ยง — 'unknown' ห้ามแสดงบนหน้าสาธารณะ (เป็นคำที่ใช้ภายใน "???" ตรวจโดย check:leaks) */
+  boxType: 'metafarm' | 'teak_2room' | 'log' | 'other' | 'unknown';
   /** จังหวัดที่ซื้อมา (เฉพาะรังที่ซื้อ) */
   province: string | null;
   acquiredOn: string | null;
@@ -62,6 +64,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
       species: species.nameTh,
       origin: hives.origin,
       originPlace: hives.originPlace,
+      boxType: hives.boxType,
       acquiredOn: hives.acquiredOn,
       acquiredOnPrecision: hives.acquiredOnPrecision,
       queenBornOn: hives.queenBornOn,
@@ -118,6 +121,7 @@ export async function getPublicHive(db: Db, code: string): Promise<PublicHive | 
     code: row.code,
     species: row.species,
     origin: row.origin,
+    boxType: row.boxType,
     province: row.origin === 'purchased' ? provinceOf(row.originPlace) : null,
     acquiredOn: row.acquiredOn,
     acquiredOnPrecision: row.acquiredOnPrecision,
@@ -211,6 +215,8 @@ export interface SaleHiveCard {
   coverKey: string | null;
 }
 export interface SaleHiveDetail extends SaleHiveCard {
+  /** กล่องที่ใช้เลี้ยง — 'unknown' ห้ามแสดงบนหน้าสาธารณะ */
+  boxType: PublicHive['boxType'];
   /** รูปที่แสดงในหน้ารังที่ขาย (รูปสำหรับขายตามลำดับที่เรียง รูปแรก = รูปปก; ไม่มีเลย = 3 รูปแรกของสมุดพก) */
   photos: { key: string; alt: string | null }[];
   video: PublicVideo | null;
@@ -260,6 +266,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
       species: species.nameTh,
       origin: hives.origin,
       originPlace: hives.originPlace,
+      boxType: hives.boxType,
       acquiredOn: hives.acquiredOn,
       acquiredOnPrecision: hives.acquiredOnPrecision,
       queenBornOn: hives.queenBornOn,
@@ -291,6 +298,7 @@ export async function getSaleHive(db: Db, code: string): Promise<SaleHiveDetail 
     priceThb: row.priceThb ?? 0,
     species: row.species,
     origin: row.origin,
+    boxType: row.boxType,
     province: row.origin === 'purchased' ? provinceOf(row.originPlace) : null,
     acquiredOn: row.acquiredOn,
     acquiredOnPrecision: row.acquiredOnPrecision,

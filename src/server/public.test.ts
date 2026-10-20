@@ -110,3 +110,14 @@ describe('รังตามหมวด (แตะตัวเลขหน้�
     expect(noPhoto.key).toBeNull();
   });
 });
+
+describe('กล่องรัง บนหน้าสาธารณะ (เจ้าของขอ 2026-10-20)', () => {
+  it('ส่งค่าจริงออกไป (ไม่มีกำหนดไว้ = unknown ตามค่าเริ่มต้นของตาราง — หน้าเว็บเป็นคนซ่อนเอง)', async () => {
+    await t.d1.prepare(`INSERT INTO hives (id, code, species_id, status, origin, box_type) VALUES (40, 'A40', 1, 'active', 'purchased', 'teak_2room')`).run();
+    expect((await getPublicHive(t.db, 'A40'))!.boxType).toBe('teak_2room');
+    expect((await getPublicHive(t.db, 'A1'))!.boxType).toBe('unknown'); // A1 ไม่ได้ตั้งไว้ตอน insert → ค่าเริ่มต้นของตาราง
+
+    await t.d1.prepare(`UPDATE hives SET for_sale = 1, sale_price = 900 WHERE code = 'A40'`).run();
+    expect((await getSaleHive(t.db, 'A40'))!.boxType).toBe('teak_2room');
+  });
+});
