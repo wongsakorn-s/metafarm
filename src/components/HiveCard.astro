@@ -12,7 +12,7 @@ const { hive, eager = false } = Astro.props;
 const origin = originText(hive.origin, hive.province, site.name);
 ---
 
-<a href={`/products/hives/${hive.code}`} class="card-link overflow-hidden !p-0">
+<a href={`/products/hives/${hive.code}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
   <img src={hive.coverKey ? `/img/${hive.coverKey}` : placeholder.hive} srcset={hive.coverKey ? photoSrcset(`/img/${hive.coverKey}`) : undefined} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" alt={`รังชันโรงขนเงิน ${hive.code}`} loading={eager ? 'eager' : 'lazy'} width="800" height="600" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
   <div class="p-4">
     <div class="flex items-baseline justify-between gap-2">
