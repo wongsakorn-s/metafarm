@@ -117,8 +117,9 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
           <section class="card" aria-labelledby="line-h">
             <h2 id="line-h" class="mb-3 text-lg font-semibold">สายพันธุ์รัง</h2>
             <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-              <dt class="text-muted">ไข่นางพญาจาก</dt><dd>{hive.queenSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.queenSource}`}>รัง {hive.queenSource}</a> : <span class="text-muted">–</span>}</dd>
-              <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{hive.broodSource ? <a class="font-medium text-palm-700 underline" href={`/passport/${hive.broodSource}`}>รัง {hive.broodSource}</a> : <span class="text-muted">–</span>}</dd>
+              {/* ปุ่มสีเดียวกับ "รังลูก" ด้านล่าง (เดิมเป็นลิงก์ขีดเส้นใต้ธรรมดา) — ให้ลิงก์ไปรังอื่นทั้ง 3 แบบ (นางพญาจาก/ไข่อ่อนจาก/รังลูก) หน้าตาเหมือนกัน แทนที่จะมีสองสไตล์ปนกันในการ์ดเดียว (รีวิว 2026-10-20) */}
+              <dt class="text-muted">ไข่นางพญาจาก</dt><dd>{hive.queenSource ? <a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${hive.queenSource}`}>{hive.queenSource}</a> : <span class="text-muted">–</span>}</dd>
+              <dt class="text-muted">ไข่อ่อนจาก</dt><dd>{hive.broodSource ? <a class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-palm-50 px-3 font-medium text-palm-700 hover:bg-palm-100" href={`/passport/${hive.broodSource}`}>{hive.broodSource}</a> : <span class="text-muted">–</span>}</dd>
               <dt class="text-muted">รังลูก ({hive.children.length})</dt>
               <dd>{hive.children.length ? (
                 <ul class="flex flex-wrap gap-2">
