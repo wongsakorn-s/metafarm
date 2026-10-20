@@ -7,7 +7,7 @@ import { getDb } from '../../server/db.ts';
 import { getPublicHive } from '../../server/public.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 import { placeholder } from '../../lib/placeholders.ts';
-import { photoSrcset, thumbUrl } from '../../lib/media.ts';
+import { GRID_COLS, photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import NotFound from '../../components/NotFound.astro';
 import { acquiredLabel, boxLabel, originText as originOf, speciesLabel } from '../../lib/labels.ts';
@@ -68,8 +68,9 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
                   <Icon name="search" class="size-3.5" /><span data-gallery-counter>{hive.photos.length > 1 ? `1/${hive.photos.length}` : 'ขยาย'}</span>
                 </span>
               </a>
+              {/* จำนวนคอลัมน์ = จำนวนรูปจริง (2–6) ไม่ตรึงที่ 5 — เดิมรังที่มีครบ 6 รูปจะมีรูปที่ 6 ตกไปอยู่แถวใหม่ลำพัง รังที่มีรูปน้อยก็เว้นที่ว่างเยอะเกิน (เจ้าของส่งภาพมาให้ดู 2026-10-20) */}
               {hive.photos.length > 1 && (
-                <ul class="scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:overflow-visible sm:p-0" data-gallery-thumbs>
+                <ul class:list={['scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:overflow-visible sm:p-0', GRID_COLS[hive.photos.length]]} data-gallery-thumbs>
                   {hive.photos.map((ph, i) => (
                     <li class="shrink-0 sm:w-auto">
                       <a

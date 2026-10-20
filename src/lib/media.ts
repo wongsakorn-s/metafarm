@@ -8,6 +8,15 @@ export const LIMITS = { passport: 6, sale: 6, video: 1 } as const;
 export type MediaKind = keyof typeof LIMITS;
 export type ImageKind = Exclude<MediaKind, 'video'>;
 
+/** คอลัมน์ตาราง thumbnail บนจอคอม = จำนวนรูปจริง (2–6) ไม่ตรึงที่ค่าเดียว — ต้องเป็น class ตายตัวให้ Tailwind scan เจอ */
+export const GRID_COLS: Record<number, string> = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-4',
+  5: 'sm:grid-cols-5',
+  6: 'sm:grid-cols-6',
+};
+
 export const kindLabel: Record<MediaKind, string> = {
   passport: 'รูปสมุดพก',
   sale: 'รูปสำหรับขาย',
