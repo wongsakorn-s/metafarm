@@ -8,7 +8,7 @@ const b64 = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uin
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 async function derive(password: string, salt: Uint8Array, iterations: number): Promise<ArrayBuffer> {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password.normalize('NFKC')), 'PBKDF2', false, ['deriveBits']);
   return crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations }, key, HASH_BITS);
 }
 
@@ -27,10 +27,14 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(actual, unb64(hash));
 }
 
-/** เทียบแบบเวลาคงที่ */
+/** เทียบแบบเวลาคงที่ (ใช้ crypto.subtle.timingSafeEqual ของ Cloudflare Workers ถ้ามี หรือลูปคงที่ใน Node) */
 export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
-  let diff = a.length ^ b.length;
-  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  if (a.byteLength !== b.byteLength) return false;
+  if ('timingSafeEqual' in crypto.subtle && typeof (crypto.subtle as unknown as { timingSafeEqual: (x: Uint8Array, y: Uint8Array) => boolean }).timingSafeEqual === 'function') {
+    return (crypto.subtle as unknown as { timingSafeEqual: (x: Uint8Array, y: Uint8Array) => boolean }).timingSafeEqual(a, b);
+  }
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
   return diff === 0;
 }
 
