@@ -5,7 +5,7 @@ import { getDb } from './server/db.ts';
 import { getSettings } from './server/settings.ts';
 import { passwordChangeAllowed, pathAllowed } from './lib/permissions.ts';
 
-const PUBLIC_ADMIN_PATHS = new Set(['/admin/login']);
+const PUBLIC_ADMIN_PATHS = new Set(['/admin/login', '/api/admin/login']);
 
 /**
  * ปฏิเสธคำขอที่มี body (POST) — อ่าน body ทิ้งก่อนตอบ: ตอบก่อนอ่าน body ทำให้ miniflare/undici บนเครื่อง (wrangler 4.149)
@@ -16,15 +16,23 @@ async function deny(request: Request, res: Response): Promise<Response> {
   return res;
 }
 
-/** หน้าและ API ใต้ /admin และ /media ต้องล็อกอิน (ยกเว้นหน้า login) */
+/** หน้าและ API ใต้ /admin, /api/admin, และ /media ต้องล็อกอิน (ยกเว้นหน้า login) */
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;
-  const needsAuth = (pathname === '/admin' || pathname.startsWith('/admin/') || pathname.startsWith('/media/')) && !PUBLIC_ADMIN_PATHS.has(pathname);
+  const needsAuth =
+    (pathname === '/admin' || pathname.startsWith('/admin/') || pathname.startsWith('/media/') || pathname.startsWith('/api/admin/')) &&
+    !PUBLIC_ADMIN_PATHS.has(pathname);
 
   if (needsAuth) {
     const user = await userFromToken(getDb(), ctx.cookies.get(SESSION_COOKIE)?.value);
     if (!user) {
       if (pathname.startsWith('/media/')) return new Response('Unauthorized', { status: 401 });
+      if (pathname.startsWith('/api/')) {
+        return new Response(JSON.stringify({ error: 'ต้องเข้าสู่ระบบ' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        });
+      }
       return ctx.redirect(`/admin/login?next=${encodeURIComponent(pathname + ctx.url.search)}`);
     }
     ctx.locals.user = user;
@@ -42,7 +50,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   // โหลดการตั้งค่าเว็บ (ช่องทางติดต่อ ฯลฯ) ให้หน้าสาธารณะ — ข้ามไฟล์ (มีนามสกุล), รูป, และหลังบ้านที่ไม่ใช้
-  if (!needsAuth && !pathname.startsWith('/img/') && !pathname.startsWith('/admin') && !/\.[a-z0-9]+$/i.test(pathname)) {
+  if (!needsAuth && !pathname.startsWith('/img/') && !pathname.startsWith('/admin') && !pathname.startsWith('/api/') && !/\.[a-z0-9]+$/i.test(pathname)) {
     ctx.locals.settings = await getSettings(getDb());
   }
 

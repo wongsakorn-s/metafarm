@@ -16,6 +16,17 @@ export function jsonResult(body: { ok: boolean; message: string; [k: string]: un
   return new Response(JSON.stringify(body), { status: body.ok ? 200 : 422, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
 
+/** ตอบกลับข้อมูลเป็น JSON พร้อมตั้งค่า Content-Type และ UTF-8 */
+export const jsonResponse = (data: unknown, status = 200): Response =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+  });
+
+/** ตอบกลับข้อผิดพลาดเป็น JSON ในรูปแบบ { error: message } */
+export const errorResponse = (message: string, status: number): Response =>
+  jsonResponse({ error: message }, status);
+
 /** คำขอเขียนที่ไม่ใช่ฟอร์ม (เช่น PUT ไฟล์ใหญ่) ไม่ผ่านการตรวจ Origin ของ Astro — ตรวจเองว่ามาจากหน้าเว็บเราเอง (กัน CSRF) */
 export function sameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin');
