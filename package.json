@@ -55,7 +55,7 @@
     },
     "devDependencies": {
         "@astrojs/check": "^0.9.10",
-        "@types/node": "^22.20.5",
+        "@types/node": "^24.19.2",
         "drizzle-kit": "^0.31.11",
         "fast-xml-parser": "^5.11.2",
         "fflate": "^0.8.3",
