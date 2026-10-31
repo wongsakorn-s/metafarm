@@ -23,7 +23,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
   <nav aria-label="หมวดรูป" class="mt-5 flex flex-wrap gap-2">
     {sections.map((s) => (
       <a href={`#${s.key}`} class="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 font-medium hover:bg-palm-50">
-        <Icon name={s.icon} class="size-5 text-palm-700" />{s.label}
+        <Icon name={s.icon} class="size-5 text-palm-700" />{s.navLabel ?? s.label}
       </a>
     ))}
   </nav>
