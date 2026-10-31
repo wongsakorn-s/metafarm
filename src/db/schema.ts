@@ -106,6 +106,8 @@ export const hives = sqliteTable(
     // หารังลูก (สมุดพก/หน้ารัง): WHERE queen_source_hive_id = ? OR brood_source_hive_id = ?
     index('hives_queen_src_idx').on(t.queenSourceHiveId),
     index('hives_brood_src_idx').on(t.broodSourceHiveId),
+    index('hives_supplier_idx').on(t.supplierId),
+    index('hives_customer_idx').on(t.customerId),
   ],
 );
 
@@ -191,7 +193,9 @@ export const products = sqliteTable(
   (t) => [uniqueIndex('products_slug_uq').on(t.slug), index('products_image_key_idx').on(t.imageKey)],
 );
 
-export const productVariants = sqliteTable('product_variants', {
+export const productVariants = sqliteTable(
+  'product_variants',
+  {
   id: integer('id').primaryKey({ autoIncrement: true }),
   productId: integer('product_id')
     .notNull()
@@ -209,7 +213,9 @@ export const productVariants = sqliteTable('product_variants', {
   /** ซ่อนขนาดที่เลิกขาย (ไม่ลบ — ออเดอร์/การบรรจุเก่าอ้างถึง) · ไม่แสดงบนเว็บ ในฟอร์มออเดอร์ใหม่ และการบรรจุขวด */
   hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
   ...timestamps,
-});
+  },
+  (t) => [index('product_variants_product_idx').on(t.productId)],
+);
 
 export const users = sqliteTable(
   'users',
@@ -238,7 +244,11 @@ export const sessions = sqliteTable(
     expiresAt: text('expires_at').notNull(),
     ...timestamps,
   },
-  (t) => [uniqueIndex('sessions_token_uq').on(t.tokenHash)],
+  (t) => [
+    uniqueIndex('sessions_token_uq').on(t.tokenHash),
+    index('sessions_user_idx').on(t.userId),
+    index('sessions_expires_idx').on(t.expiresAt),
+  ],
 );
 
 /** การตั้งค่าที่เจ้าของฟาร์มแก้เองจากหลังบ้าน (ช่องทางติดต่อ, หลักสูตรอบรม) — ดู src/lib/settings.ts */
@@ -268,7 +278,9 @@ export const onceKeys = sqliteTable('once_keys', {
   at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
 });
 
-export const auditLogs = sqliteTable('audit_logs', {
+export const auditLogs = sqliteTable(
+  'audit_logs',
+  {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: integer('user_id').references(() => users.id),
   action: text('action').notNull(),
@@ -276,7 +288,13 @@ export const auditLogs = sqliteTable('audit_logs', {
   entityId: integer('entity_id'),
   diff: text('diff', { mode: 'json' }),
   at: text('at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
-});
+  },
+  (t) => [
+    index('audit_logs_user_idx').on(t.userId),
+    index('audit_logs_entity_idx').on(t.entity, t.entityId),
+    index('audit_logs_at_idx').on(t.at),
+  ],
+);
 
 /**
  * สภาพอากาศรายวันที่ฟาร์ม (จาก NASA POWER — ข้อมูลย้อนหลัง ฟรีทุกการใช้งาน)
@@ -356,6 +374,7 @@ export const orderItems = sqliteTable(
   (t) => [
     index('order_items_order_idx').on(t.orderId),
     index('order_items_hive_idx').on(t.hiveId),
+    index('order_items_variant_idx').on(t.variantId),
     check('order_items_qty_pos', sql`${t.qty} > 0 and ${t.unitPrice} >= 0`),
   ],
 );
