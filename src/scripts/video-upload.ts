@@ -14,8 +14,8 @@ async function prepare(file: File, moov: { offset: number; size: number }): Prom
 
 const POSTER_MAX = 600 * 1024;
 
-/** ภาพปก: ดึงเฟรมที่ ~1 วินาทีจากไฟล์ (ไม่ได้ = ข้าม ไม่กระทบการอัปโหลด) · ลดคุณภาพจนไม่เกิน POSTER_MAX */
-async function posterOf(file: Blob): Promise<Blob | null> {
+/** ดึงเฟรมที่ ~1 วินาทีจากไฟล์ · ลดคุณภาพจนไม่เกิน POSTER_MAX · ถ้าไม่ได้จะโยน Error ที่มีข้อความบอกสาเหตุ */
+async function captureFrame(file: Blob): Promise<Blob> {
   const url = URL.createObjectURL(file);
   try {
     const v = document.createElement('video');
@@ -23,9 +23,17 @@ async function posterOf(file: Blob): Promise<Blob | null> {
     v.playsInline = true;
     v.preload = 'auto';
     v.src = url;
-    await new Promise<void>((ok, bad) => { v.onloadeddata = () => ok(); v.onerror = () => bad(new Error('load')); setTimeout(() => bad(new Error('timeout')), 15000); });
+    await new Promise<void>((ok, bad) => {
+      v.onloadeddata = () => ok();
+      v.onerror = () => bad(new Error('เบราว์เซอร์นี้เปิดภาพของวิดีโอไม่ได้ (รูปแบบวิดีโออาจไม่รองรับ)'));
+      setTimeout(() => bad(new Error('วิดีโอโหลดช้าเกินไป ลองใหม่อีกครั้ง')), 15000);
+    });
+    if (!v.videoWidth) throw new Error('เบราว์เซอร์นี้ไม่มีภาพของวิดีโอนี้ (มีแต่เสียง) — ทำภาพปกจากเครื่องนี้ไม่ได้');
     v.currentTime = Math.min(1, (v.duration || 2) / 2);
-    await new Promise<void>((ok, bad) => { v.onseeked = () => ok(); setTimeout(() => bad(new Error('timeout')), 15000); });
+    await new Promise<void>((ok, bad) => {
+      v.onseeked = () => ok();
+      setTimeout(() => bad(new Error('ย้ายไปที่เฟรมไม่ได้ ลองใหม่อีกครั้ง')), 15000);
+    });
     const scale = Math.min(1, 1280 / Math.max(v.videoWidth, 1));
     const c = document.createElement('canvas');
     c.width = Math.round(v.videoWidth * scale);
@@ -35,13 +43,14 @@ async function posterOf(file: Blob): Promise<Blob | null> {
       const jpg = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', q));
       if (jpg && jpg.size <= POSTER_MAX) return jpg;
     }
-    return null;
-  } catch {
-    return null;
+    throw new Error('ภาพปกใหญ่เกิน 600 KB แม้ลดคุณภาพแล้ว');
   } finally {
     URL.revokeObjectURL(url);
   }
 }
+
+/** ภาพปกตอนอัปโหลด: พลาดก็ข้าม ไม่กระทบการอัปโหลดวิดีโอ */
+const posterOf = (file: Blob) => captureFrame(file).catch(() => null);
 
 function put(url: string, body: Blob, onProgress: (done: number, total: number) => void): Promise<{ status: number; json: { ok?: boolean; message?: string; redirect?: string; key?: string } | null }> {
   return new Promise((resolve, reject) => {
@@ -146,13 +155,14 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-poster-mak
     note.hidden = false;
     note.textContent = 'กำลังทำภาพปก… (ใช้เวลาสักครู่)';
     try {
-      const poster = await posterOf(await (await fetch(btn.dataset.src!)).blob());
-      if (!poster) throw new Error('frame');
+      const video = await fetch(btn.dataset.src!);
+      if (!video.ok) throw new Error(`ดึงวิดีโอไม่ได้ (${video.status})`);
+      const poster = await captureFrame(await video.blob());
       const res = await put(`${btn.dataset.action}?poster=${encodeURIComponent(btn.dataset.key!)}`, poster, () => {});
-      if (!res.json?.ok) throw new Error(res.json?.message ?? 'save');
+      if (!res.json?.ok) throw new Error(res.json?.message ?? `บันทึกภาพปกไม่ได้ (${res.status})`);
       location.reload();
-    } catch {
-      note.textContent = 'ทำภาพปกไม่สำเร็จ — ลองกดอีกครั้ง';
+    } catch (e) {
+      note.textContent = `ทำภาพปกไม่สำเร็จ: ${e instanceof Error ? e.message : 'ไม่ทราบสาเหตุ'}`;
       btn.disabled = false;
     }
   });
