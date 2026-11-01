@@ -91,14 +91,15 @@ const nav = [
         <a href="/" class="flex min-h-11 min-w-11 items-center" aria-label={`${site.name} หน้าแรก`}>
           <img src="/brand/logo.webp" alt={site.name} width="140" height="38" class="h-9 w-auto" />
         </a>
-        <nav aria-label="เมนูหลัก" class="hidden md:flex md:gap-1">
+        {/* เมนูแนวนอนเริ่มที่ lg (1024px): เมนู 9 รายการกว้างกว่า 768–900px จึงล้นจอและตัด "ติดต่อเรา" (ขั้น 1.1 ของแผน) */}
+        <nav aria-label="เมนูหลัก" class="hidden lg:flex lg:gap-1">
           {nav.map((n) => (
             <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
               class:list={['flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>{n.label}</a>
           ))}
         </nav>
         {/* เมนูมือถือ: <details> เปิด/ปิดได้แม้ไม่มี JavaScript */}
-        <details class="group md:hidden" data-site-menu>
+        <details class="group lg:hidden" data-site-menu>
           <summary class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-medium transition-colors duration-(--duration-fast) hover:bg-palm-50 active:bg-palm-100 group-open:border-palm-500 group-open:bg-palm-50" data-menu-toggle>
             <span class="group-open:hidden"><Icon name="menu" class="size-5" /></span>
             <span class="hidden group-open:inline"><Icon name="close" class="size-5" /></span>
@@ -141,8 +142,9 @@ const nav = [
         </nav>
         <div>
           <h2 class="mb-2 text-sm font-semibold text-muted">ติดต่อเรา</h2>
-          <ul class="grid grid-cols-2 gap-x-4 md:block">
-            {line && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={line} rel="noopener"><Icon name="line" class="size-4" /><span class="whitespace-nowrap">LINE {c.lineId}</span></a></li>}
+          {/* มือถือ/แท็บเล็ต: คอลัมน์เดียว (เดิม 2 คอลัมน์ทำให้ "LINE @…" ทับ "Messenger" ที่ 390px) · คอม: รายการแนวตั้ง */}
+          <ul class="grid gap-x-4 md:block">
+            {line && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={line} rel="noopener"><Icon name="line" class="size-4" /><span class="break-all">LINE {c.lineId}</span></a></li>}
             {messenger && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={messenger} rel="noopener"><Icon name="messenger" class="size-4" />Messenger</a></li>}
             {tel && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={tel}><Icon name="phone" class="size-4" />โทร {c.phone}</a></li>}
             {c.facebookUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.facebookUrl} rel="noopener noreferrer"><Icon name="thumbs" class="size-4" />Facebook</a></li>}
@@ -165,7 +167,8 @@ const nav = [
       <details class="group fixed bottom-4 right-4 z-20 hidden md:block" data-contact-buttons data-contact-pop>
         {/* จอคอมทั่วไป (≤1535px) เป็นปุ่มกลมไอคอนอย่างเดียว ไม่บังข้อมูลชิดขวา เช่นวันที่ในประวัติรัง (รีวิว UX 2026-10-18) · จอกว้างมากมีที่ว่างพอ แสดงคำว่า "ติดต่อเรา" */}
         <summary aria-label="ติดต่อเรา" title="ติดต่อเรา" class="inline-flex size-14 cursor-pointer list-none items-center justify-center gap-2 rounded-full bg-palm-600 font-semibold text-white shadow-lg transition hover:bg-palm-700 2xl:size-auto 2xl:min-h-12 2xl:px-5 [&::-webkit-details-marker]:hidden">
-          <Icon name="messenger" class="size-6 2xl:size-5" /><span class="hidden 2xl:inline">ติดต่อเรา</span>
+          {/* ไอคอนของช่องทางหลักที่เจ้าของเลือก (เดิมตายตัวเป็น Messenger) */}
+          <Icon name={actions[0]!.channel} class="size-6 2xl:size-5" /><span class="hidden 2xl:inline">ติดต่อเรา</span>
           <Icon name="chevron" class="hidden size-4 -rotate-90 transition group-open:rotate-90 2xl:block" />
         </summary>
         <div class="absolute bottom-14 right-0 w-80 rounded-2xl border border-line bg-surface p-2 shadow-raised">
