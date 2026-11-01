@@ -48,7 +48,7 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
         <a class="btn-primary" href="/products"><Icon name="hive" class="inline-block size-[1.15em] align-[-0.2em]" /> ดูสินค้า</a>
         <a class="btn-ghost" href="/passport"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกรัง</a>
         {/* มือถือมีแถบติดต่อด้านล่างอยู่แล้ว */}
-        <ContactButtons class="hidden md:flex" show="primary" message={askMessage} />
+        <ContactButtons class="hidden md:flex" show="primary" ghost message={askMessage} />
       </div>
     </div>
     {/* รูปจริงจากสวน (เจ้าของเลือกในตั้งค่า) แทนโลโก้ — มือถือก็เห็น (ใต้ข้อความ) · ยังไม่เลือกรูป = โลโก้กลม (มือถือ: เล็กข้างหัวข้อ ด้านบน) */}
@@ -110,29 +110,21 @@ const homeSec = homeSecs ? (homeSecs < 60 ? `${homeSecs} วินาที` : `
   </section>
 
   <section class="mt-12" aria-labelledby="learn-h">
-    <h2 id="learn-h" class="text-2xl font-bold">เรียนรู้และเลือกซื้อ</h2>
-    <ul class="mt-4 grid gap-4 md:grid-cols-3">
-      {/* มือถือ: ไอคอนซ้าย ข้อความขวา (การ์ดเตี้ย เลื่อนน้อย) · คอม: 3 คอลัมน์ ไอคอนบน */}
+    <h2 id="learn-h" class="text-2xl font-bold">เรียนรู้เพิ่มเติม</h2>
+    <ul class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* มือถือ: ไอคอนซ้าย ข้อความขวา (การ์ดเตี้ย เลื่อนน้อย) · คอม: ไอคอนบน · สมุดพกย้ายมาเป็นการ์ดที่ 4 แทนแถบท้ายหน้า (ขั้น 3 ของ docs/14) */}
       {([
-        ['/stingless-bee', 'hive', 'รู้จักชันโรงขนเงิน', 'ลักษณะ โครงสร้างรัง กล่องเลี้ยงที่เหมาะสมและได้มาตรฐาน'],
-        ['/honey', 'honey', 'น้ำผึ้งชันโรง', 'สรรพคุณ และวิธีการบริโภค'],
-        ['/training', 'training', 'อบรม', 'การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป'],
-      ] as const).map(([href, icon, title, text]) => (
-        <li><a href={href} class="card-link group flex h-full items-center gap-4 md:block">
-          <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={icon} class="size-6" /></div>
-          <div class="flex-1"><h3 class="text-lg font-semibold md:mt-2">{title}</h3><p class="text-muted">{text}</p></div>
+        { href: '/stingless-bee', icon: 'hive', title: 'รู้จักชันโรงขนเงิน', text: 'ลักษณะ โครงสร้างรัง กล่องเลี้ยงที่เหมาะสมและได้มาตรฐาน', cta: '' },
+        { href: '/honey', icon: 'honey', title: 'น้ำผึ้งชันโรง', text: 'สรรพคุณ และวิธีการบริโภค', cta: '' },
+        { href: '/training', icon: 'training', title: 'อบรม', text: 'การแยกขยายรัง การกรองน้ำผึ้งและการแปรรูป', cta: '' },
+        { href: '/passport', icon: 'passport', title: `สมุดพกชันโรง ${site.name}`, text: 'ประวัติ และกิจกรรมต่าง ๆ ของแต่ละรัง', cta: 'เปิดสมุดพก' },
+      ] as const).map((c) => (
+        <li><a href={c.href} class="card-link group flex h-full items-center gap-4 md:block">
+          <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={c.icon} class="size-6" /></div>
+          <div class="flex-1"><h3 class="text-lg font-semibold md:mt-2">{c.title}</h3><p class="text-muted">{c.text}</p>{c.cta && <p class="mt-2 font-medium text-palm-700">{c.cta}</p>}</div>
           <Icon name="chevron" class="size-5 text-muted transition-transform duration-(--duration-fast) group-hover:translate-x-0.5 md:hidden" />
         </a></li>
       ))}
     </ul>
-  </section>
-  <section class="mt-12 rounded-3xl bg-palm-50 p-6 md:p-8" aria-labelledby="pp-h">
-    <div class="grid items-center gap-6 md:grid-cols-[1fr_auto]">
-      <div>
-        <h2 id="pp-h" class="text-2xl font-bold text-palm-900"><Icon name="passport" class="inline-block size-[1.15em] align-[-0.2em]" /> สมุดพกชันโรง {site.name}</h2>
-        <p class="mt-2 max-w-2xl">ประวัติ และกิจกรรมต่าง ๆ ของแต่ละรัง</p>
-      </div>
-      <a class="btn-primary" href="/passport">เปิดสมุดพก</a>
-    </div>
   </section>
 </PublicLayout>

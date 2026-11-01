@@ -14,9 +14,11 @@ interface Props {
   phoneHint?: string;
   /** ปุ่มหลักกว้างเต็มแถว */
   block?: boolean;
+  /** ปุ่มหลักเป็นปุ่มรอง (กรอบเส้น) — ใช้เมื่อมีปุ่มเขียวอื่นอยู่ข้างกันแล้ว (หน้าแรกคอม: ดูสินค้า) */
+  ghost?: boolean;
   class?: string;
 }
-const { message, intent = 'ask', show = 'full', phoneHint, block = false, class: className } = Astro.props;
+const { message, intent = 'ask', show = 'full', phoneHint, block = false, ghost = false, class: className } = Astro.props;
 const actions = contactActions(Astro.locals.settings!.contact, message).filter((a) => show === 'full' || a.primary);
 const icon: Record<Channel, 'line' | 'messenger' | 'phone'> = { line: 'line', messenger: 'messenger', phone: 'phone' };
 // ปุ่มหลักใช้สีเขียวแบรนด์เสมอ (เดิมเป็นสีของแอปแชต สีน้ำเงิน Messenger แย่งสายตาทั้งหน้า)
@@ -31,7 +33,7 @@ const external = (ch: Channel) => (ch === 'phone' ? {} : { rel: 'noopener' });
     <div class="flex flex-wrap gap-2">
       {actions.map((a) => a.primary ? (
         <a href={a.href} {...external(a.channel)} data-channel={a.channel} data-copy={a.channel === 'messenger' ? a.message : undefined}
-          class:list={['btn-primary font-semibold', block ? 'w-full' : 'w-full sm:w-auto']}>
+          class:list={[ghost ? 'btn-ghost' : 'btn-primary', 'font-semibold', block ? 'w-full' : 'w-full sm:w-auto']}>
           <Icon name={icon[a.channel]} class="size-5" />{actionLabel(a.channel, intent)}
         </a>
       ) : (

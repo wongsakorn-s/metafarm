@@ -19,7 +19,8 @@ const hasSample = p.variants.some((v) => v.priceIsSample);
 ---
 
 <a href={`/products/${p.slug}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
-  <img src={image} alt="" width="800" height="450" loading={eager ? 'eager' : 'lazy'} class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+  {/* ยังไม่มีรูปสินค้า: กรอบเตี้ยลง ไม่ให้ดูเป็นช่องว่างใหญ่ (ขั้น 3 ของ docs/14) */}
+  <img src={image} alt="" width="800" height="450" loading={eager ? 'eager' : 'lazy'} class:list={[p.imageKey ? 'aspect-[16/9]' : 'aspect-[2/1]', 'w-full bg-palm-50 object-cover']} />
   <div class="p-4">
     <h3 class="text-lg font-bold">{p.name}</h3>
     <p data-num class="text-xl font-bold text-palm-700">{price} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
