@@ -4,19 +4,19 @@ import { lineChatUrl, telHref, type ContactSettings } from './settings.ts';
 
 export const CHANNELS = ['messenger', 'line', 'phone'] as const;
 export type Channel = (typeof CHANNELS)[number];
-export const channelName: Record<Channel, string> = { line: 'LINE', messenger: 'Messenger', phone: 'โทรศัพท์' };
+export const channelName: Record<Channel, string> = { line: 'LINE', messenger: 'Facebook', phone: 'โทรศัพท์' };
 
 /** บริบทของปุ่ม → คำบนปุ่ม */
 export type Intent = 'ask' | 'order' | 'training' | 'queue';
 const LABELS: Record<Intent, Record<Channel, string>> = {
-  ask: { line: 'ทักไลน์สอบถาม', messenger: 'สอบถามทาง Messenger', phone: 'โทรสอบถาม' },
-  order: { line: 'สั่งทางไลน์', messenger: 'สั่งทาง Messenger', phone: 'โทรสั่งซื้อ' },
-  training: { line: 'สมัครทางไลน์', messenger: 'สมัครทาง Messenger', phone: 'โทรสมัครอบรม' },
-  queue: { line: 'จองคิวทางไลน์', messenger: 'จองคิวทาง Messenger', phone: 'โทรจองคิว' },
+  ask: { line: 'ทักไลน์สอบถาม', messenger: 'สอบถามทาง Facebook', phone: 'โทรสอบถาม' },
+  order: { line: 'สั่งทางไลน์', messenger: 'สั่งทาง Facebook', phone: 'โทรสั่งซื้อ' },
+  training: { line: 'แจ้งความสนใจทางไลน์', messenger: 'แจ้งความสนใจทาง Facebook', phone: 'โทรแจ้งความสนใจ' },
+  queue: { line: 'จองคิวทางไลน์', messenger: 'จองคิวทาง Facebook', phone: 'โทรจองคิว' },
 };
 export const actionLabel = (ch: Channel, intent: Intent = 'ask') => LABELS[intent][ch];
 /** ป้ายสั้นสำหรับปุ่มรอง */
-export const shortLabel: Record<Channel, string> = { line: 'LINE', messenger: 'Messenger', phone: 'โทร' };
+export const shortLabel: Record<Channel, string> = { line: 'LINE', messenger: 'Facebook', phone: 'โทร' };
 
 // path ของ facebook.com ที่ไม่ใช่ชื่อเพจ/โปรไฟล์ (แปลงเป็น m.me ไม่ได้)
 const NOT_A_NAME = new Set(['profile.php', 'people', 'pages', 'pg', 'groups', 'share', 'sharer', 'sharer.php', 'events', 'watch', 'marketplace', 'messages', 'login', 'home.php', 'permalink.php', 'story.php', 'photo', 'photo.php', 'reel', 'reels', 'hashtag']);

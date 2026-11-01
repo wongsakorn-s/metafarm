@@ -57,8 +57,8 @@ describe('contactActions', () => {
     expect(p).toMatchObject({ channel: 'phone', href: 'tel:0812345678', message: 'รัง A25' });
   });
   it('คำบนปุ่มตามบริบท', () => {
-    expect(actionLabel('messenger', 'order')).toBe('สั่งทาง Messenger');
-    expect(actionLabel('phone', 'training')).toBe('โทรสมัครอบรม');
+    expect(actionLabel('messenger', 'order')).toBe('สั่งทาง Facebook');
+    expect(actionLabel('phone', 'training')).toBe('โทรแจ้งความสนใจ');
     expect(actionLabel('line')).toBe('ทักไลน์สอบถาม');
   });
 });

@@ -61,15 +61,14 @@ const jsonLd = hive
     jsonLd={jsonLd}
   >
     <Breadcrumbs items={[{ label: 'หน้าแรก', href: '/' }, { label: 'สินค้า', href: '/products' }, { label: 'รังสมบูรณ์', href: '/products/hives' }, { label: `รัง ${hive.code}` }]} />
-    <div class="mb-3 md:hidden">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h1 class="text-2xl font-bold text-palm-900">รังสมบูรณ์ {hive.code}</h1>
-        <p data-num class="text-2xl font-bold text-palm-700">{formatPrice(hive.priceThb)} <span class="text-[0.8125rem] font-normal text-muted">({SHIPPING_NOTE})</span></p>
-      </div>
-    </div>
-    {/* มือถือ: หัวข้อ/ราคา → รูป → ข้อมูล/ปุ่มสั่ง → วิดีโอ  |  คอม: ซ้าย = รูป+วิดีโอ, ขวา = หัวข้อ/ราคา/ข้อมูล */}
+    {/* มือถือ: หัวข้อ/ราคา → รูป → ข้อมูล/ปุ่มสั่ง → วิดีโอ  |  คอม: ซ้าย = รูป+วิดีโอ, ขวา = หัวข้อ/ราคา/ข้อมูล
+        หัวข้อ (h1) ชุดเดียวสำหรับทั้งสองขนาด — ใช้ order ให้มือถือขึ้นก่อนรูป (ขั้น 4 ของ docs/14) */}
     <div class="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-start" data-gallery>
-      <section aria-label="รูปรัง" class="md:col-start-1 md:row-start-1" data-zoom-group>
+      <header class="order-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 md:order-none md:col-start-2 md:row-start-1 md:block">
+        <h1 class="text-2xl font-bold text-palm-900 md:text-3xl">รังสมบูรณ์ {hive.code}</h1>
+        <p data-num class="text-2xl font-bold text-palm-700 md:mt-1 md:text-3xl">{formatPrice(hive.priceThb)} <span class="text-[0.8125rem] font-normal text-muted md:text-base">({SHIPPING_NOTE})</span></p>
+      </header>
+      <section aria-label="รูปรัง" class="order-2 md:order-none md:col-start-1 md:row-span-2 md:row-start-1" data-zoom-group>
         <MediaGallery
           photos={photos.map((p, i) => ({ key: p.key, alt: photoAlt(p, i) }))}
           video={hive.video}
@@ -84,11 +83,9 @@ const jsonLd = hive
         </MediaGallery>
       </section>
 
-      <section class="md:col-start-2 md:row-start-1">
-        <h1 class="hidden text-3xl font-bold text-palm-900 md:block">รังสมบูรณ์ {hive.code}</h1>
-        <p data-num class="mt-1 hidden text-3xl font-bold text-palm-700 md:block">{formatPrice(hive.priceThb)} <span class="text-base font-normal text-muted">({SHIPPING_NOTE})</span></p>
+      <section class="order-3 md:order-none md:col-start-2 md:row-start-2">
         {/* บรรทัดตายตัว "รังไม้สัก 2 ห้องของ MetaFarm" ตัดออก (บางรังไม่ใช่ไม้สัก/ไม่ได้ทำเอง) — ใช้ "ข้อความเพิ่มเติมของรัง" ที่เจ้าของใส่แทน */}
-        {hive.publicNote && <p class="mt-2 whitespace-pre-line text-muted">{hive.publicNote}</p>}
+        {hive.publicNote && <p class="whitespace-pre-line text-muted">{hive.publicNote}</p>}
         <ContactButtons class="mt-4" intent="order" block message={msg} phoneHint={`โทรสอบถาม แล้วบอกว่าสนใจรัง ${hive.code}`} />
 
         <dl class="card mt-5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">

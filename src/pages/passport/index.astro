@@ -3,13 +3,14 @@ import PageHeader from '../../components/PageHeader.astro';
 import HiveTile from '../../components/HiveTile.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { getSampleHives, hiveCategoryTitle, HIVE_CATEGORIES, listHivesByCategory, searchHiveCodes, type HiveCategory } from '../../server/public.ts';
+import { getFarmStats, getSampleHives, hiveCategoryTitle, HIVE_CATEGORIES, listHivesByCategory, searchHiveCodes, type HiveCategory } from '../../server/public.ts';
 import { site } from '../../config/site.ts';
 import { normalizeHiveCode } from '../../lib/hive-code.ts';
 
 export const prerender = false;
 
 const db = getDb();
+const stats = await getFarmStats(db);
 const raw = (Astro.url.searchParams.get('code') ?? '').trim();
 // พิมพ์ "a25" / "B 12" / "g-108" ก็หาเจอ · พิมพ์แค่เลข "12" = รังเลข 12 ทุกชุดตัวอักษร (เจอรังเดียวก็เปิดเลย)
 const normalized = normalizeHiveCode(raw) ?? raw.toUpperCase().replace(/[\s-]+/g, '');
@@ -33,7 +34,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
 
 <PublicLayout title="สมุดพกชันโรง" description={`ตรวจสอบประวัติรังชันโรงขนเงินของ ${site.name} ด้วยรหัสรัง: ที่มา สายพันธุ์รังแม่ และประวัติการดูแล`} active="passport">
   <section class="mx-auto max-w-xl text-center">
-    <PageHeader center title="สมุดพกชันโรง" lead={`ทุกรังของ ${site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที`} />
+    <PageHeader center title="สมุดพกชันโรง" lead={`ทุกรังของ ${site.name} มีรหัสประจำรังและบันทึกประวัติ: ที่มา, นางพญา, สายพันธุ์รังแม่ และการดูแลต่าง ๆ`} />
 
     <form method="get" class="card mt-6 text-left" role="search">
       <label class="label" for="code">รหัสรัง</label>
@@ -41,6 +42,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
         <input class="field" id="code" name="code" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="เช่น A25 หรือ B12" value={raw} required />
         <button class="btn-primary shrink-0" type="submit">ค้นหา</button>
       </div>
+      <p class="hint mt-2">พิมพ์รหัสที่ติดอยู่ที่รัง หรือสแกน QR บนรังเพื่อดูได้ทันที</p>
       {normalized && matches.length === 0 && <p class="error" role="alert">ไม่พบรหัส "{raw}" ลองตรวจตัวอักษรที่ติดอยู่ที่รังอีกครั้ง</p>}
       {matches.length > 0 && (
         <div class="mt-3">
@@ -51,6 +53,19 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
         </div>
       )}
     </form>
+    <nav aria-label="หมวดรัง" class="mt-5 flex flex-wrap justify-center gap-2">
+      {([
+        ['all', 'รังในทะเบียน', stats.total],
+        ['bred', 'ขยายรังโดย MetaFarm', stats.bred],
+        ['sold', 'ขายแล้ว', stats.sold],
+        ['active', 'รังปัจจุบันในสวน', stats.active],
+      ] as const).map(([key, label, n]) => (
+        <a href={`/passport?view=${key}`} aria-current={view === key ? 'page' : undefined}
+          class:list={['inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium', view === key ? 'border-palm-500 bg-palm-50 text-palm-900' : 'border-line bg-surface hover:bg-palm-50']}>
+          {label} <span data-num class="font-bold text-palm-700">{n.toLocaleString('th-TH')}</span>
+        </a>
+      ))}
+    </nav>
 
   </section>
 
@@ -58,6 +73,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
     <section class="mx-auto mt-10 max-w-5xl" aria-labelledby="category-h">
       <h2 id="category-h" class="text-center text-xl font-bold text-palm-700">{hiveCategoryTitle[view]} ({categoryHives.length})</h2>
       <p class="mt-1 text-center text-muted">กดที่รังเพื่อเปิดสมุดพก</p>
+      <p class="mt-4 text-center"><a class="underline" href="/passport">← กลับไปค้นหาด้วยรหัสรัง</a></p>
       {categoryHives.length > 0 ? (
         <ul class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4">
           {categoryHives.map((h) => (
@@ -67,7 +83,6 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
       ) : (
         <p class="mt-4 text-center text-muted">ยังไม่มีรังในหมวดนี้</p>
       )}
-      <p class="mt-4 text-center"><a class="underline" href="/passport">← กลับไปค้นหาด้วยรหัสรัง</a></p>
     </section>
   )}
 

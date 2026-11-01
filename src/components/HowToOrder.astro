@@ -6,8 +6,8 @@ import { SHIPPING_NOTE } from '../lib/products.ts';
 // ขั้นตอนสั่งซื้อ/สมัครอบรม — ทักแชต (LINE/Messenger) หรือโทร ตามช่องทางที่เจ้าของเปิดไว้ (ช่องทางหลักก่อน)
 // kind="training" ใช้ถ้อยคำของหลักสูตร ไม่ใช่การซื้อสินค้า
 // buttons={false}: หน้าที่มีปุ่มสั่งซื้อของตัวเองอยู่แล้ว (หน้าสินค้า/รังที่ขาย) — แสดงแค่ขั้นตอน ไม่ซ้ำปุ่ม
-interface Props { message?: string; kind?: 'order' | 'training'; buttons?: boolean }
-const { kind = 'order', buttons = true, message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
+interface Props { message?: string; kind?: 'order' | 'training'; buttons?: boolean; /** หมายเหตุใต้ขั้นตอน (เช่น รอบอบรม) */ note?: string }
+const { kind = 'order', buttons = true, note, message = kind === 'training' ? 'สนใจหลักสูตรอบรม' : 'สนใจสั่งซื้อสินค้า' } = Astro.props;
 const channels = contactActions(Astro.locals.settings!.contact, message).map((a) => channelName[a.channel]);
 // เจ้าของเรียกช่องทางนี้ว่า "Facebook" (ทักข้อความหาโปรไฟล์ แล้วคุยต่อใน Messenger)
 const named = channels.map((c) => (c === channelName.messenger ? 'Facebook' : c));
@@ -46,5 +46,6 @@ const copy = {
       </li>
     ))}
   </ol>
+  {note && <p class="mt-3 text-sm text-muted">{note}</p>}
   {buttons && <ContactButtons class="mt-4" intent={kind === 'training' ? 'training' : 'order'} message={message} />}
 </section>

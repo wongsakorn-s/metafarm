@@ -8,7 +8,7 @@ import ContactButtons from '../../components/ContactButtons.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts, getSaleHives } from '../../server/public.ts';
-import { formatPrice } from '../../lib/products.ts';
+import { priceRange } from '../../lib/products.ts';
 import { site } from '../../config/site.ts';
 
 export const prerender = false;
@@ -16,19 +16,11 @@ export const prerender = false;
 const db = getDb();
 const [saleHives, products] = await Promise.all([getSaleHives(db), getPublicProducts(db)]);
 Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=120');
-const range = (p: (typeof products)[number]) => {
-  const prices = p.variants.map((v) => v.priceThb);
-  const lo = Math.min(...prices), hi = Math.max(...prices);
-  return lo === hi ? formatPrice(lo) : `${formatPrice(lo)} – ${formatPrice(hi)}`;
-};
 const queueMessage = 'สนใจจองคิวรังชันโรงขนเงินชุดถัดไป';
-// ช่องทางสั่งซื้อขณะนี้ = Facebook ของเจ้าของ (ลิงก์จากตั้งค่า ไม่เขียนตายในหน้า) · ยังไม่ใส่ลิงก์ = บอกแบบทั่วไป
-const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
 ---
 
 <PublicLayout title="สินค้า" description={`รังสมบูรณ์ชันโรงขนเงิน รังเปล่ารังไม้สัก และน้ำผึ้งชันโรง จาก ${site.name} จ.ระยอง`} active="products">
-  <PageHeader title="สินค้า">รังชันโรงขนเงินและน้ำผึ้งชันโรงขนเงิน จาก {site.name}
-    {' '}{facebookUrl ? <>· ช่องทางสั่งซื้อขณะนี้: <a class="font-medium text-palm-700 underline" href={facebookUrl} target="_blank" rel="noopener">ทักข้อความทาง Facebook</a></> : '· สั่งซื้อทางแชตหรือโทรศัพท์'}</PageHeader>
+  <PageHeader title="สินค้า">รังชันโรงขนเงินและน้ำผึ้งชันโรงขนเงิน จาก {site.name}</PageHeader>
 
   <section class="mt-8" aria-labelledby="hives-h">
     <div class="flex flex-wrap items-end justify-between gap-2">
@@ -57,7 +49,7 @@ const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
     <h2 id="more-h" class="text-2xl font-bold">สินค้าอื่น ๆ</h2>
     <ul class="mt-4 grid gap-4 sm:grid-cols-2">
       {products.map((p, i) => (
-        <li><ProductCard product={p} price={range(p)} variants eager={saleHives.length === 0 && i === 0} /></li>
+        <li><ProductCard product={p} price={priceRange(p.variants.map((v) => v.priceThb))} variants eager={saleHives.length === 0 && i === 0} /></li>
       ))}
     </ul>
   </section>

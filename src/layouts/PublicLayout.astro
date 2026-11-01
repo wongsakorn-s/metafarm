@@ -145,9 +145,9 @@ const nav = [
           {/* มือถือ/แท็บเล็ต: คอลัมน์เดียว (เดิม 2 คอลัมน์ทำให้ "LINE @…" ทับ "Messenger" ที่ 390px) · คอม: รายการแนวตั้ง */}
           <ul class="grid gap-x-4 md:block">
             {line && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={line} rel="noopener"><Icon name="line" class="size-4" /><span class="break-all">LINE {c.lineId}</span></a></li>}
-            {messenger && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={messenger} rel="noopener"><Icon name="messenger" class="size-4" />Messenger</a></li>}
+            {messenger && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={messenger} rel="noopener"><Icon name="messenger" class="size-4" />Facebook</a></li>}
             {tel && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={tel}><Icon name="phone" class="size-4" />โทร {c.phone}</a></li>}
-            {c.facebookUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.facebookUrl} rel="noopener noreferrer"><Icon name="thumbs" class="size-4" />Facebook</a></li>}
+            {c.facebookUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.facebookUrl} rel="noopener noreferrer"><Icon name="thumbs" class="size-4" />เพจ Facebook</a></li>}
             {c.mapUrl && <li><a class="inline-flex min-h-11 items-center gap-2 text-palm-700 hover:underline md:min-h-9" href={c.mapUrl} rel="noopener noreferrer"><Icon name="map" class="size-4" />แผนที่ฟาร์ม</a></li>}
           </ul>
         </div>
