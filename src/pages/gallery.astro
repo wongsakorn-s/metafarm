@@ -41,7 +41,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60');
               <figure>
                 {p.mediaType === 'video' ? (
                   <a href={`/video/${p.key}`} data-zoom data-zoom-video={`/video/${p.key}`} data-caption={p.caption ?? s.label} class="group relative block overflow-hidden rounded-2xl" aria-label={`ดูวิดีโอ: ${p.caption ?? s.label}`}>
-                    <img src={`/video/${posterKeyOf(p.key)}`} width="800" height="600" loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} class="aspect-[4/3] w-full bg-black object-cover transition-transform duration-(--duration-fast) group-hover:scale-[1.02]" />
+                    <img src={`/video/${posterKeyOf(p.key)}`} width="800" height="600" loading={si === 0 && i < 2 ? 'eager' : 'lazy'} alt={p.caption ?? `${s.label} — ${site.name}`} onerror="this.style.display='none'" class="aspect-[4/3] w-full bg-black object-cover transition-transform duration-(--duration-fast) group-hover:scale-[1.02]" />
                     <span class="pointer-events-none absolute inset-0 grid place-items-center bg-black/25 transition-colors group-hover:bg-black/35">
                       <span class="grid size-12 place-items-center rounded-full bg-white/90 text-palm-900 shadow-md backdrop-blur transition-transform group-hover:scale-110">
                         <Icon name="video" class="ml-0.5 size-6" />

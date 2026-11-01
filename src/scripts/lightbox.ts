@@ -377,7 +377,7 @@ function renderMiniThumbs() {
         : 'opacity-50 hover:opacity-90'
     }`;
     const playBadge = it.videoSrc ? '<span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40"><svg class="size-3.5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="m7 4 12 8-12 8V4z"/></svg></span>' : '';
-    btn.innerHTML = `<div class="relative size-full"><img src="${it.thumb || it.src}" alt="" class="size-full object-cover" />${playBadge}</div>`;
+    btn.innerHTML = `<div class="relative size-full"><img src="${it.thumb || it.src}" alt="" onerror="this.style.display='none'" class="size-full object-cover" />${playBadge}</div>`;
     btn.addEventListener('click', () => {
       show(i);
       btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
