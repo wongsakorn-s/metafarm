@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { auditLogs, galleryPhotos } from '../db/schema.ts';
 import { GALLERY_MAX_PER_CATEGORY, galleryCategory, galleryKey, type GalleryCategory } from '../lib/gallery.ts';
 import { detectImageType, MAX_FILES_PER_REQUEST, MAX_UPLOAD_BYTES, stripMetadata, imageKeysOf } from '../lib/media.ts';
+import { posterKeyOf } from '../lib/video.ts';
 import type { SessionUser } from './auth.ts';
 import type { Db } from './db.ts';
 import { putVariants, type Skipped } from './media.ts';
@@ -66,6 +67,47 @@ export async function uploadGalleryPhotos(
     added++; slots--; order++;
   }
   return { added, skipped };
+}
+
+
+/**
+ * บันทึกวิดีโอเข้าหมวดแกลเลอรี (ไฟล์ใน R2 อัปโหลดผ่าน receiveVideo แล้ว)
+ */
+export async function attachGalleryVideo(
+  db: Db,
+  bucket: R2Bucket,
+  user: SessionUser,
+  category: GalleryCategory,
+  key: string,
+  caption?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const [stat] = await db
+    .select({ n: sql<number>`count(*)`, top: sql<number>`coalesce(max(${galleryPhotos.sortOrder}), 0)` })
+    .from(galleryPhotos)
+    .where(eq(galleryPhotos.category, category));
+  if ((stat?.n ?? 0) >= GALLERY_MAX_PER_CATEGORY) {
+    await bucket.delete([key, posterKeyOf(key)]).catch(() => {});
+    return { ok: false, error: `หมวดนี้เต็มแล้ว (สูงสุด ${GALLERY_MAX_PER_CATEGORY} รายการ — ลบรูป/วิดีโอเก่าก่อน)` };
+  }
+  const order = (stat?.top ?? 0) + 1;
+  try {
+    await db.batch([
+      db.insert(galleryPhotos).values({
+        category,
+        mediaType: 'video',
+        r2Key: key,
+        posterKey: posterKeyOf(key),
+        caption: caption ?? null,
+        sortOrder: order,
+        createdBy: user.id,
+      }),
+      audit(db, user, 'gallery.video.add', null, { category, key, caption }),
+    ]);
+  } catch (e) {
+    await bucket.delete([key, posterKeyOf(key)]).catch(() => {});
+    throw e;
+  }
+  return { ok: true };
 }
 
 export type MoveDir = 'up' | 'down' | 'top';
@@ -140,8 +182,12 @@ export async function deleteGalleryPhoto(db: Db, bucket: R2Bucket, user: Session
   if (!row) return { ok: true }; // ลบไปแล้ว (กดซ้ำ)
   await db.batch([
     db.delete(galleryPhotos).where(and(eq(galleryPhotos.id, row.id))),
-    audit(db, user, 'gallery.delete', row.id, { category: row.category, key: row.r2Key, caption: row.caption, label: galleryCategory[row.category].label }),
+    audit(db, user, 'gallery.delete', row.id, { category: row.category, key: row.r2Key, caption: row.caption, mediaType: row.mediaType, label: galleryCategory[row.category].label }),
   ]);
-  await bucket.delete(imageKeysOf(row.r2Key)).catch(() => {});
+  if (row.mediaType === 'video') {
+    await bucket.delete([row.r2Key, posterKeyOf(row.r2Key)]).catch(() => {});
+  } else {
+    await bucket.delete(imageKeysOf(row.r2Key)).catch(() => {});
+  }
   return { ok: true };
 }

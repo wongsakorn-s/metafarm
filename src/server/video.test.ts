@@ -1,11 +1,11 @@
 // วิดีโอบน D1 + R2 ชั่วคราว: รับสตรีม · ตรวจ codec/พิกัด · ผูกกับรัง/หน้าแรก · เสิร์ฟแบบ Range · เปิดสาธารณะเฉพาะที่ผูกไว้
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getHiveDetail } from './hives.ts';
-import { getPublicHive, isPublicVideoKey } from './public.ts';
+import { getPublicHive, getPublicProducts, isPublicVideoKey } from './public.ts';
 import { getSettings } from './settings.ts';
 import { parseRange, serveVideo } from './serve-video.ts';
 import { setVideo } from './media.ts';
-import { attachHiveVideo, receivePoster, receiveVideo, setHomeVideo } from './video.ts';
+import { attachHiveVideo, attachProductVideo, receivePoster, receiveVideo, removeProductVideo, setHomeVideo, setProductYoutube } from './video.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -133,5 +133,37 @@ describe('ภาพปก', () => {
     expect((await serveVideo(t.media, poster, new Request('http://localhost/'))).headers.get('content-type')).toBe('image/jpeg');
     await setHomeVideo(t.db, t.media, t.owner, { youtube: '' });
     expect(await t.media.head(poster)).toBeNull();
+  });
+});
+
+describe('วิดีโอสินค้า', () => {
+  it('ผูกวิดีโอ MP4 และ YouTube กับสินค้า · แสดงใน getPublicProducts · ลบแล้วไฟล์ใน R2 หาย', async () => {
+    await t.d1.prepare(`INSERT INTO products (id, slug, name, category, published) VALUES (99, 'test-prod', 'สินค้าทดสอบ', 'honey', 1)`).run();
+    await t.d1.prepare(`INSERT INTO product_variants (product_id, label, price_thb) VALUES (99, 'ขวด 100ml', 150)`).run();
+
+    const r = await receiveVideo(t.media, put(mp4()), 'product-99');
+    if (!r.ok) throw new Error('upload');
+    const poster = r.key.replace(/\.mp4$/, '.jpg');
+    await t.media.put(poster, new Uint8Array([1, 2, 3]));
+
+    expect(await attachProductVideo(t.db, t.media, t.owner, 99, r.key, r.durationSec)).toEqual({ ok: true });
+
+    let prods = await getPublicProducts(t.db, 'test-prod');
+    expect(prods[0]?.video).toEqual({ key: r.key });
+    expect(await isPublicVideoKey(t.db, r.key)).toBe(true);
+    expect(await isPublicVideoKey(t.db, poster)).toBe(true);
+
+    // เปลี่ยนเป็น YouTube
+    expect(await setProductYoutube(t.db, t.media, t.owner, 99, 'https://youtu.be/test1234567')).toEqual({ ok: true });
+    prods = await getPublicProducts(t.db, 'test-prod');
+    expect(prods[0]?.video).toEqual({ youtubeId: 'test1234567' });
+    expect(await isPublicVideoKey(t.db, r.key)).toBe(false);
+    expect(await t.media.head(r.key)).toBeNull();
+    expect(await t.media.head(poster)).toBeNull();
+
+    // ลบวิดีโอ
+    expect(await removeProductVideo(t.db, t.media, t.owner, 99)).toEqual({ ok: true });
+    prods = await getPublicProducts(t.db, 'test-prod');
+    expect(prods[0]?.video).toBeNull();
   });
 });

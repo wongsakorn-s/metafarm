@@ -1,6 +1,7 @@
 ---
 import Icon from '../../components/Icon.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
+import VideoPlayer from '../../components/VideoPlayer.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
 import ContactButtons from '../../components/ContactButtons.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
@@ -84,6 +85,12 @@ const jsonLd = product
         ) : (
           // ยังไม่มีรูปสินค้า: กรอบเตี้ยลงบนมือถือ ไม่กินทั้งจอ (รีวิว UX 2026-10-18)
           <img src={image} alt="" class="aspect-[5/2] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+        )}
+        {product.video && (
+          <div class="mt-4">
+            <h2 class="mb-2 font-semibold text-palm-900"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> วิดีโอสินค้า</h2>
+            <VideoPlayer video={product.video} title={`วิดีโอ ${product.name}`} />
+          </div>
         )}
       </div>
       <section>

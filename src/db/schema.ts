@@ -29,6 +29,7 @@ export const EVENT_TYPES = [
   'status_change',
 ] as const;
 export const MEDIA_KINDS = ['passport', 'sale', 'video'] as const;
+export const GALLERY_MEDIA_TYPES = ['photo', 'video'] as const;
 /** หมวดรูปในหน้า Gallery (เจ้าของฟาร์ม 2026-10-10) — ชื่อหมวดภาษาไทยอยู่ที่ src/lib/gallery.ts */
 export const GALLERY_CATEGORIES = ['farm', 'hive_delivery', 'honey_delivery', 'woodshop'] as const;
 export const USER_ROLES = ['owner', 'admin', 'staff'] as const;
@@ -187,10 +188,13 @@ export const products = sqliteTable(
     published: integer('published', { mode: 'boolean' }).notNull().default(false),
     /** รูปสินค้าใน R2 (เจ้าของฟาร์มอัปโหลดจากหลังบ้าน) — ว่าง = เว็บแสดงรูปชั่วคราว */
     imageKey: text('image_key'),
+    /** วิดีโอหลักของสินค้า (R2 MP4 หรือ YouTube) */
+    videoKey: text('video_key'),
+    videoYoutubeId: text('video_youtube_id'),
     sortOrder: integer('sort_order').notNull().default(0),
     ...timestamps,
   },
-  (t) => [uniqueIndex('products_slug_uq').on(t.slug), index('products_image_key_idx').on(t.imageKey)],
+  (t) => [uniqueIndex('products_slug_uq').on(t.slug), index('products_image_key_idx').on(t.imageKey), index('products_video_key_idx').on(t.videoKey)],
 );
 
 export const productVariants = sqliteTable(
@@ -463,14 +467,20 @@ export const galleryPhotos = sqliteTable(
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     category: text('category', { enum: GALLERY_CATEGORIES }).notNull(),
+    mediaType: text('media_type', { enum: GALLERY_MEDIA_TYPES }).notNull().default('photo'),
     r2Key: text('r2_key').notNull(),
+    posterKey: text('poster_key'),
     caption: text('caption'),
     /** มากก่อน = แสดงก่อน (รูปใหม่ได้ค่ามากสุดของหมวด) */
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: integer('created_by').references(() => users.id),
     ...timestamps,
   },
-  (t) => [uniqueIndex('gallery_photos_key_uq').on(t.r2Key), index('gallery_photos_cat_idx').on(t.category, t.sortOrder)],
+  (t) => [
+    uniqueIndex('gallery_photos_key_uq').on(t.r2Key),
+    index('gallery_photos_cat_idx').on(t.category, t.sortOrder),
+    index('gallery_photos_media_type_idx').on(t.mediaType),
+  ],
 );
 
 /** รูปสินค้า (หลายรูปต่อสินค้า) — รูปแรก (sort_order มากสุด) ซิงก์ไปที่ products.image_key เสมอ เพื่อใช้เป็นรูปปกในการ์ด/รายการ */

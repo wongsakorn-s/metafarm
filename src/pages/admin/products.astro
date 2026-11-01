@@ -14,6 +14,9 @@ import { newVariantSchema, parseForm, productTextSchema, publishSchema, variantH
 import { jsonResult, wantsJson } from '../../lib/http.ts';
 import { differingFields, shortStamp, type FieldDiff } from '../../lib/concurrency.ts';
 import ConflictNotice from '../../components/ConflictNotice.astro';
+import VideoUploader from '../../components/VideoUploader.astro';
+import { posterKeyOf } from '../../lib/video.ts';
+import { removeProductVideo, setProductYoutube } from '../../server/video.ts';
 
 export const prerender = false;
 
@@ -106,6 +109,17 @@ if (Astro.request.method === 'POST') {
       if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'ย้ายรูปแล้ว' })}#p-${Number(form.get('productId'))}`, 303);
       error = r.error ?? 'ย้ายไม่สำเร็จ';
     }
+  } else if (intent === 'product_video_youtube') {
+    const productId = Number(form.get('productId'));
+    const youtube = String(form.get('youtube') ?? '');
+    const r = await setProductYoutube(db, getMedia(), user, productId, youtube);
+    if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'บันทึกวิดีโอ YouTube แล้ว' })}#p-${productId}`, 303);
+    error = r.error ?? 'บันทึกไม่สำเร็จ';
+  } else if (intent === 'product_video_delete') {
+    const productId = Number(form.get('productId'));
+    const r = await removeProductVideo(db, getMedia(), user, productId);
+    if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'ลบวิดีโอแล้ว' })}#p-${productId}`, 303);
+    error = r.error ?? 'ลบไม่สำเร็จ';
   } else if (intent === 'photo_delete') {
     const r = await deleteProductPhoto(db, getMedia(), user, Number(form.get('photoId')));
     if (r.ok) return Astro.redirect(`/admin/products?${new URLSearchParams({ msg: 'ลบรูปแล้ว' })}#p-${Number(form.get('productId'))}`, 303);
@@ -212,6 +226,58 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
             </div>
           );
         })()}
+
+        <div class="mt-4 rounded-xl border border-line p-3" id={`video-${p.id}`}>
+          <h3 class="flex items-center gap-2 text-sm font-medium">
+            <Icon name="video" class="size-4 text-palm-700" /> วิดีโอสินค้า (1 คลิป)
+          </h3>
+          {p.videoKey ? (
+            <div class="mt-2 space-y-2">
+              <div class="max-w-md overflow-hidden rounded-xl bg-black">
+                <video class="aspect-video w-full object-cover" controls playsinline preload="metadata" poster={`/video/${posterKeyOf(p.videoKey)}`}>
+                  <source src={`/video/${p.videoKey}`} type="video/mp4" />
+                </video>
+              </div>
+              <form method="post" data-confirm="ลบวิดีโอนี้ออกจากสินค้าใช่ไหม?">
+                <input type="hidden" name="intent" value="product_video_delete" />
+                <input type="hidden" name="productId" value={p.id} />
+                <button class="btn-danger text-sm" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบวิดีโอ</button>
+              </form>
+            </div>
+          ) : p.videoYoutubeId ? (
+            <div class="mt-2 space-y-2">
+              <div class="aspect-video max-w-md overflow-hidden rounded-xl bg-black">
+                <iframe class="size-full" src={`https://www.youtube-nocookie.com/embed/${p.videoYoutubeId}`} title={p.name} allowfullscreen></iframe>
+              </div>
+              <form method="post" data-confirm="ลบวิดีโอนี้ออกจากสินค้าใช่ไหม?">
+                <input type="hidden" name="intent" value="product_video_delete" />
+                <input type="hidden" name="productId" value={p.id} />
+                <button class="btn-danger text-sm" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบวิดีโอ</button>
+              </form>
+            </div>
+          ) : (
+            <div class="mt-2 space-y-3">
+              <details>
+                <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">อัปโหลดวิดีโอ (MP4)</summary>
+                <div class="mt-2">
+                  <VideoUploader action={`/admin/products/${p.id}/video`} id={`video-upload-${p.id}`} />
+                </div>
+              </details>
+              <details>
+                <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">หรือใช้วิดีโอจาก YouTube</summary>
+                <form method="post" class="mt-2 flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="intent" value="product_video_youtube" />
+                  <input type="hidden" name="productId" value={p.id} />
+                  <div class="min-w-[200px] flex-1">
+                    <label class="label" for={`yt-${p.id}`}>ลิงก์วิดีโอ YouTube</label>
+                    <input class="field" id={`yt-${p.id}`} name="youtube" placeholder="https://www.youtube.com/watch?v=..." required />
+                  </div>
+                  <button class="btn-primary" type="submit">บันทึก YouTube</button>
+                </form>
+              </details>
+            </div>
+          )}
+        </div>
 
         <details class="mt-3">
           <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">ชื่อและคำอธิบายสินค้าบนเว็บ</summary>

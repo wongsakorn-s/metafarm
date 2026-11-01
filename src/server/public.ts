@@ -158,6 +158,8 @@ export interface PublicProduct {
   description: string | null;
   /** รูปสินค้าจริง (ถ้าเจ้าของฟาร์มอัปโหลดแล้ว) ไม่งั้นเป็น null */
   imageKey: string | null;
+  /** วิดีโอหลักของสินค้า (ถ้ามี) */
+  video: PublicVideo | null;
   /** รูปสินค้าทั้งหมด รูปแรกก่อน (รูปแรก = imageKey) */
   photos: { key: string }[];
   variants: PublicVariant[];
@@ -166,7 +168,7 @@ export interface PublicProduct {
 /** สินค้าที่เปิดแสดง (published) พร้อมตัวเลือกขนาด/ราคา */
 export async function getPublicProducts(db: Db, slug?: string): Promise<PublicProduct[]> {
   const prods = await db
-    .select({ id: products.id, slug: products.slug, name: products.name, category: products.category, description: products.description, imageKey: products.imageKey })
+    .select({ id: products.id, slug: products.slug, name: products.name, category: products.category, description: products.description, imageKey: products.imageKey, videoKey: products.videoKey, videoYoutubeId: products.videoYoutubeId })
     .from(products)
     .where(and(eq(products.published, true), slug ? eq(products.slug, slug) : undefined))
     .orderBy(asc(products.sortOrder), asc(products.id));
@@ -191,7 +193,8 @@ export async function getPublicProducts(db: Db, slug?: string): Promise<PublicPr
     .where(and(inArray(productVariants.productId, prods.map((p) => p.id)), eq(productVariants.hidden, false))) // ขนาดที่ซ่อน (เลิกขาย) ไม่แสดง
     .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
   return prods
-    .map(({ id, ...p }) => ({
+    .map(({ id, videoKey, videoYoutubeId, ...p }) => ({
+      video: publicVideo({ key: videoKey, youtubeId: videoYoutubeId }),
       ...p,
       photos: photoRows.filter((x) => x.productId === id).map((x) => ({ key: x.key })),
       variants: variants
@@ -422,10 +425,22 @@ export async function searchHiveCodes(db: Db, q: string, limit = 12): Promise<st
 // ---------- Gallery (/gallery) ----------
 
 /** รูปในหน้า Gallery: เฉพาะหมวด คีย์รูป และคำบรรยาย (ไม่มีผู้อัปโหลด/เวลา) · ใหม่ก่อนในแต่ละหมวด */
-export interface PublicGalleryPhoto { category: (typeof galleryPhotos.$inferSelect)['category']; key: string; caption: string | null }
+export interface PublicGalleryPhoto {
+  category: (typeof galleryPhotos.$inferSelect)['category'];
+  mediaType: (typeof galleryPhotos.$inferSelect)['mediaType'];
+  key: string;
+  posterKey: string | null;
+  caption: string | null;
+}
 export async function getGallery(db: Db): Promise<PublicGalleryPhoto[]> {
   return db
-    .select({ category: galleryPhotos.category, key: galleryPhotos.r2Key, caption: galleryPhotos.caption })
+    .select({
+      category: galleryPhotos.category,
+      mediaType: galleryPhotos.mediaType,
+      key: galleryPhotos.r2Key,
+      posterKey: galleryPhotos.posterKey,
+      caption: galleryPhotos.caption,
+    })
     .from(galleryPhotos)
     .orderBy(galleryPhotos.category, desc(galleryPhotos.sortOrder), desc(galleryPhotos.id));
 }
@@ -458,7 +473,11 @@ export async function isPublicVideoKey(db: Db, rawKey: string): Promise<boolean>
   const hive = await db.select({ one: sql<number>`1` }).from(hiveMedia).where(and(eq(hiveMedia.r2Key, key), eq(hiveMedia.kind, 'video'))).limit(1);
   if (hive.length > 0) return true;
   const home = await db.select({ one: sql<number>`1` }).from(settings).where(and(eq(settings.key, 'home.videoKey'), eq(settings.value, key))).limit(1);
-  return home.length > 0;
+  if (home.length > 0) return true;
+  const prod = await db.select({ one: sql<number>`1` }).from(products).where(and(eq(products.videoKey, key), eq(products.published, true))).limit(1);
+  if (prod.length > 0) return true;
+  const gal = await db.select({ one: sql<number>`1` }).from(galleryPhotos).where(and(eq(galleryPhotos.r2Key, key), eq(galleryPhotos.mediaType, 'video'))).limit(1);
+  return gal.length > 0;
 }
 
 // ---------- ล็อตน้ำผึ้ง (หน้า /lot/[code] จาก QR บนขวด) ----------

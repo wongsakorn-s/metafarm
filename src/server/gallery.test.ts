@@ -1,8 +1,8 @@
 // Gallery บน D1 + R2 ชั่วคราว: อัปโหลดลบ GPS · ส่งซ้ำไม่บันทึกซ้ำ · ลบแล้วรูปหายจากเว็บและ R2 · หน้าสาธารณะเห็นเฉพาะคอลัมน์ที่อนุญาต
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GALLERY_MAX_PER_CATEGORY } from '../lib/gallery.ts';
-import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, reorderGalleryPhotos, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
-import { getGallery, isPublicMediaKey } from './public.ts';
+import { attachGalleryVideo, deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, reorderGalleryPhotos, updateGalleryCaption, uploadGalleryPhotos } from './gallery.ts';
+import { getGallery, isPublicMediaKey, isPublicVideoKey } from './public.ts';
 import { testDb } from './test-d1.ts';
 
 let t: Awaited<ReturnType<typeof testDb>>;
@@ -53,11 +53,37 @@ describe('อัปโหลด', () => {
 describe('หน้าสาธารณะ + แก้/ลบ', () => {
   it('getGallery ให้แค่หมวด คีย์ และคำบรรยาย · ใหม่ก่อน', async () => {
     const all = await getGallery(t.db);
-    expect(Object.keys(all[0]!).sort()).toEqual(['caption', 'category', 'key']);
+    expect(Object.keys(all[0]!).sort()).toEqual(['caption', 'category', 'key', 'mediaType', 'posterKey']);
     const farm = all.filter((p) => p.category === 'farm');
     expect(farm[0]!.key).toBe(`gallery/farm/fill-${GALLERY_MAX_PER_CATEGORY - 1}.jpg`);
   });
 
+
+  it('อัปโหลดวิดีโอแกลเลอรี · แสดงบนเว็บ · ลบแล้ววิดีโอและภาพปกหายจาก R2', async () => {
+    const videoKey = 'videos/gallery/11111111-1111-1111-1111-111111111111.mp4';
+    const posterKey = 'videos/gallery/11111111-1111-1111-1111-111111111111.jpg';
+    await t.media.put(videoKey, new Uint8Array([1, 2, 3]));
+    await t.media.put(posterKey, new Uint8Array([4, 5, 6]));
+
+    const res = await attachGalleryVideo(t.db, t.media, t.owner, 'honey_delivery', videoKey, 'คลิปฟาร์ม');
+    expect(res.ok).toBe(true);
+
+    const items = await getGallery(t.db);
+    const v = items.find((x) => x.key === videoKey);
+    expect(v).toBeDefined();
+    expect(v?.mediaType).toBe('video');
+    expect(v?.caption).toBe('คลิปฟาร์ม');
+
+    expect(await isPublicVideoKey(t.db, videoKey)).toBe(true);
+    expect(await isPublicVideoKey(t.db, posterKey)).toBe(true);
+
+    const row = (await listGalleryAdmin(t.db)).find((x) => x.r2Key === videoKey)!;
+    await deleteGalleryPhoto(t.db, t.media, t.owner, row.id);
+
+    expect(await isPublicVideoKey(t.db, videoKey)).toBe(false);
+    expect(await t.media.get(videoKey)).toBeNull();
+    expect(await t.media.get(posterKey)).toBeNull();
+  });
   it('แก้คำบรรยาย · ลบแล้วหายจากเว็บและ R2 (รวมรูปย่อ) · กดลบซ้ำไม่ error', async () => {
     const row = (await listGalleryAdmin(t.db)).find((x) => x.category === 'hive_delivery')!;
     await updateGalleryCaption(t.db, t.owner, row.id, 'ส่งมอบรังที่ระยอง');

@@ -1,10 +1,12 @@
 ---
 import Icon from '../../components/Icon.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import VideoUploader from '../../components/VideoUploader.astro';
 import { getDb, getMedia } from '../../server/db.ts';
 import { deleteGalleryPhoto, listGalleryAdmin, moveGalleryPhoto, reorderGalleryPhotos, updateGalleryCaption, uploadGalleryPhotos } from '../../server/gallery.ts';
 import { captionSchema, GALLERY_CATEGORIES, GALLERY_MAX_PER_CATEGORY, galleryCategory, isGalleryCategory } from '../../lib/gallery.ts';
 import { MAX_FILES_PER_REQUEST, thumbUrl, uploadSummary } from '../../lib/media.ts';
+import { posterKeyOf } from '../../lib/video.ts';
 import { jsonResult, wantsJson } from '../../lib/http.ts';
 
 // รูปหน้าแกลเลอรีสาธารณะ — เจ้าของ/แอดมินเท่านั้น (MANAGER_ONLY ใน permissions.ts)
@@ -81,34 +83,56 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
   {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
 
   <div class="grid gap-5 lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start">
-    <form method="post" enctype="multipart/form-data" id="upload-form" class="card space-y-3 lg:sticky lg:top-6">
-      <input type="hidden" name="intent" value="upload" />
-      <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูป</h2>
-      <fieldset>
-        <legend class="label">หมวด</legend>
-        <div class="grid gap-2">
-          {sections.map((s) => (
-            <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3">
-              <input class="size-5 accent-palm-600" type="radio" name="category" value={s.key} checked={s.key === defaultCategory} required />
-              {s.label} <span class="ml-auto text-sm text-muted">{s.photos.length}/{GALLERY_MAX_PER_CATEGORY}</span>
-            </label>
-          ))}
+    <div class="space-y-4 lg:sticky lg:top-6">
+      <form method="post" enctype="multipart/form-data" id="upload-form" class="card space-y-3">
+        <input type="hidden" name="intent" value="upload" />
+        <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูป</h2>
+        <fieldset>
+          <legend class="label">หมวด</legend>
+          <div class="grid gap-2">
+            {sections.map((s) => (
+              <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3">
+                <input class="size-5 accent-palm-600" type="radio" name="category" value={s.key} checked={s.key === defaultCategory} required />
+                {s.label} <span class="ml-auto text-sm text-muted">{s.photos.length}/{GALLERY_MAX_PER_CATEGORY}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div>
+          <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
+          <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
+          <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง</p>
         </div>
-      </fieldset>
-      <div>
-        <label class="label flex min-h-11 items-end" for="file">เลือกรูป (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
-        <input class="field-file" id="file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple />
-        <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง</p>
+        <div>
+          <label class="label" for="caption">คำบรรยาย (ไม่บังคับ ใช้กับทุกรูปที่เลือก)</label>
+          <input class="field" id="caption" name="caption" maxlength="200" placeholder="เช่น ส่งมอบรังที่ จ.ชลบุรี" />
+        </div>
+        <p class="rounded-xl bg-honey-50 p-3 text-sm">รูปขึ้นหน้าเว็บทันที · รูป<strong>ส่งมอบ</strong>ที่เห็นหน้า บ้าน หรือทะเบียนรถของลูกค้า ควรขออนุญาตลูกค้าก่อน</p>
+        <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
+        <button id="upload-btn" class="btn-primary w-full" type="submit">อัปโหลด</button>
+        <a class="inline-flex min-h-11 items-center text-sm underline" href="/gallery" target="_blank" rel="noopener">ดูหน้าแกลเลอรีบนเว็บ</a>
+      </form>
+
+      <div class="card space-y-3">
+        <h2 class="text-lg font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มวิดีโอ (MP4)</h2>
+        <fieldset>
+          <legend class="label">หมวดที่จะลงวิดีโอ</legend>
+          <div class="grid gap-2">
+            {sections.map((s) => (
+              <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3">
+                <input class="size-5 accent-palm-600" type="radio" name="category" value={s.key} checked={s.key === defaultCategory} required />
+                {s.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div>
+          <label class="label" for="video-caption">คำบรรยายวิดีโอ (ไม่บังคับ)</label>
+          <input class="field" id="video-caption" name="caption" maxlength="200" placeholder="เช่น บรรยากาศเก็บน้ำผึ้งชันโรง" />
+        </div>
+        <VideoUploader action="/admin/gallery/video" id="gallery-video-file" />
       </div>
-      <div>
-        <label class="label" for="caption">คำบรรยาย (ไม่บังคับ ใช้กับทุกรูปที่เลือก)</label>
-        <input class="field" id="caption" name="caption" maxlength="200" placeholder="เช่น ส่งมอบรังที่ จ.ชลบุรี" />
-      </div>
-      <p class="rounded-xl bg-honey-50 p-3 text-sm">รูปขึ้นหน้าเว็บทันที · รูป<strong>ส่งมอบ</strong>ที่เห็นหน้า บ้าน หรือทะเบียนรถของลูกค้า ควรขออนุญาตลูกค้าก่อน</p>
-      <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
-      <button id="upload-btn" class="btn-primary w-full" type="submit">อัปโหลด</button>
-      <a class="inline-flex min-h-11 items-center text-sm underline" href="/gallery" target="_blank" rel="noopener">ดูหน้าแกลเลอรีบนเว็บ</a>
-    </form>
+    </div>
 
     <div class="space-y-5">
       {sections.map((s) => (
@@ -121,10 +145,18 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
               {s.photos.map((p, i) => (
                 <li class="space-y-2" data-photo-id={p.id}>
                   <div class="relative">
-                  <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="relative block" target="_blank" rel="noopener">
-                    <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
-                    <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
-                  </a>
+                  {p.mediaType === 'video' ? (
+                    <a href={`/video/${p.r2Key}`} data-zoom data-zoom-video={`/video/${p.r2Key}`} data-caption={p.caption ?? s.label} aria-label={`ดูวิดีโอ: ${p.caption ?? s.label}`} class="relative block" target="_blank" rel="noopener">
+                      <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                      <img src={`/video/${posterKeyOf(p.r2Key)}`} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-black object-cover" />
+                      <span class="absolute bottom-2 left-2 rounded-full bg-black/60 px-2.5 py-0.5 text-xs font-semibold text-white backdrop-blur">วิดีโอ</span>
+                    </a>
+                  ) : (
+                    <a href={`/media/${p.r2Key}`} data-zoom data-caption={p.caption ?? s.label} aria-label={`ดูรูปขยาย: ${p.caption ?? s.label}`} class="relative block" target="_blank" rel="noopener">
+                      <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
+                      <img src={thumbUrl(`/media/${p.r2Key}`)} alt={p.caption ?? s.label} loading="lazy" width="480" height="360" class="aspect-[4/3] w-full rounded-xl bg-palm-50 object-cover" />
+                    </a>
+                  )}
                   {/* จุดจับลาก: touch-none กันหน้าเลื่อนตอนลากด้วยนิ้ว · ใช้คีย์บอร์ดได้ (Space หยิบ → ลูกศร → Space วาง) */}
                   <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${s.photos.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`} title="ลากเพื่อเรียงลำดับ"
                     class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
@@ -148,7 +180,7 @@ const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
                     <input class="field" id={`cap-${p.id}`} name="caption" maxlength="200" value={p.caption ?? ''} placeholder="คำบรรยาย" />
                     <button class="btn-ghost w-full" type="submit">บันทึกคำบรรยาย</button>
                   </form>
-                  <form method="post" data-confirm="ลบรูปนี้ออกจากหน้าแกลเลอรีใช่ไหม?">
+                  <form method="post" data-confirm={p.mediaType === 'video' ? 'ลบวิดีโอนี้ออกจากหน้าแกลเลอรีใช่ไหม?' : 'ลบรูปนี้ออกจากหน้าแกลเลอรีใช่ไหม?'}>
                     <input type="hidden" name="intent" value="delete" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
                     <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
                   </form>

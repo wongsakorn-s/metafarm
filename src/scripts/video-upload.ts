@@ -96,8 +96,18 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
     say('กำลังเตรียมไฟล์ (ลบตำแหน่งที่ถ่าย)…');
     try {
       const body = await prepare(ready.file, ready.moov);
+      let actionUrl = root.dataset.action!;
+      const form = root.closest('form') || root;
+      const cat = (form.querySelector('[name=category]:checked, select[name=category]') as HTMLInputElement | HTMLSelectElement | null)?.value;
+      const cap = form.querySelector<HTMLInputElement>('[name=caption]')?.value;
+      const params = new URLSearchParams();
+      if (cat) params.set('category', cat);
+      if (cap) params.set('caption', cap);
+      if (params.toString()) {
+        actionUrl += (actionUrl.includes('?') ? '&' : '?') + params.toString();
+      }
       say('กำลังอัปโหลด 0% — อย่าปิดหน้านี้');
-      const res = await put(root.dataset.action!, body, (done, total) => {
+      const res = await put(actionUrl, body, (done, total) => {
         bar.value = Math.round((done / total) * 100);
         say(`กำลังอัปโหลด ${bar.value}% (${mb(done)} / ${mb(total)}) — อย่าปิดหน้านี้`);
       });
@@ -106,7 +116,8 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
         const poster = res.json.key ? await posterOf(ready.file) : null;
         if (poster && poster.size <= 600 * 1024) {
           say('กำลังบันทึกภาพปก…');
-          await put(`${root.dataset.action}?poster=${encodeURIComponent(res.json.key!)}`, poster, () => {}).catch(() => {});
+          const sep = actionUrl.includes('?') ? '&' : '?';
+          await put(`${actionUrl}${sep}poster=${encodeURIComponent(res.json.key!)}`, poster, () => {}).catch(() => {});
         }
         location.href = res.json.redirect;
         return;

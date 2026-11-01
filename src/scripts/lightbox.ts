@@ -10,6 +10,7 @@ interface Item {
   caption: string;
   credit: string;
   creditHref: string;
+  videoSrc?: string;
 }
 
 const ICONS = {
@@ -28,7 +29,7 @@ const BTN =
   'grid size-11 sm:size-12 shrink-0 place-items-center rounded-full bg-black/60 text-white backdrop-blur transition-all duration-150 hover:bg-black/85 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-30 disabled:pointer-events-none';
 
 let dlg: HTMLDialogElement;
-let stage: HTMLElement, canvas: HTMLElement, img: HTMLImageElement, note: HTMLElement;
+let stage: HTMLElement, canvas: HTMLElement, img: HTMLImageElement, videoEl: HTMLVideoElement, note: HTMLElement;
 let counter: HTMLElement, cap: HTMLElement, credit: HTMLElement, thumbsContainer: HTMLElement;
 let prevBtn: HTMLButtonElement, nextBtn: HTMLButtonElement;
 let zoomInBtn: HTMLButtonElement, zoomOutBtn: HTMLButtonElement, zoomLevelBtn: HTMLButtonElement;
@@ -77,6 +78,7 @@ function build() {
       <div data-lb-stage class="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing" style="touch-action: none">
         <div data-lb-canvas class="relative flex items-center justify-center w-full h-full will-change-transform">
           <img data-lb-img alt="" class="max-h-full max-w-full select-none object-contain pointer-events-auto" draggable="false" />
+          <video data-lb-video class="hidden max-h-full max-w-full select-none object-contain pointer-events-auto rounded-lg" playsinline controls preload="metadata"></video>
         </div>
         <p data-lb-status role="status" class="pointer-events-none absolute inset-x-0 bottom-4 text-center text-sm text-white/80 drop-shadow"></p>
         <button type="button" data-lb-prev class="${BTN} absolute left-3 top-1/2 -translate-y-1/2 z-20 shadow-lg" aria-label="รูปก่อนหน้า">${svg('prev')}</button>
@@ -97,6 +99,7 @@ function build() {
   stage = q('[data-lb-stage]');
   canvas = q('[data-lb-canvas]');
   img = q<HTMLImageElement>('[data-lb-img]');
+  videoEl = q<HTMLVideoElement>('[data-lb-video]');
   note = q('[data-lb-status]');
   counter = q('[data-lb-counter]');
   cap = q('[data-lb-cap]');
@@ -130,6 +133,7 @@ function build() {
 
   // ล้อหมุนเมาส์สำหรับซูม (Desktop Wheel Zoom)
   stage.addEventListener('wheel', (e) => {
+    if (items[index]?.videoSrc) return;
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.25 : 0.8;
     zoomBy(factor, e.clientX, e.clientY);
@@ -144,6 +148,7 @@ function build() {
   dlg.addEventListener('close', () => {
     document.documentElement.classList.remove('overflow-hidden');
     img.removeAttribute('src');
+    if (videoEl) { videoEl.pause(); videoEl.removeAttribute('src'); videoEl.hidden = true; }
     resetZoom(false);
   });
 }
@@ -219,7 +224,7 @@ function resetZoom(animate = true) {
 // Gestures: Pointer Down
 function onPointerDown(e: PointerEvent) {
   // ปุ่ม ‹ › อยู่ใน stage: ถ้าจับ pointer ไว้ที่ stage เบราว์เซอร์จะส่ง click ไปที่ stage แทนปุ่ม → กดปุ่มไม่ได้บนคอม (เจ้าของแจ้ง 2026-10-18)
-  if ((e.target as Element | null)?.closest('button')) return;
+  if ((e.target as Element | null)?.closest('button, video') || items[index]?.videoSrc) return;
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   stage.setPointerCapture(e.pointerId);
 
@@ -344,7 +349,7 @@ function close() {
 
 function preload(i: number) {
   const it = items[(i + items.length) % items.length];
-  if (it) {
+  if (it && !it.videoSrc) {
     const p = new Image();
     p.decoding = 'async';
     p.src = it.src;
@@ -410,25 +415,50 @@ function show(i: number) {
     }
   }
 
-  img.alt = it.alt;
-  img.style.filter = it.thumb && it.thumb !== it.src ? 'blur(2px)' : '';
-  img.src = it.thumb || it.src;
-
-  note.textContent = 'กำลังโหลดรูป…';
-  const full = new Image();
-  full.decoding = 'async';
-  full.onload = () => {
-    if (mine !== token) return;
-    img.src = it.src;
-    img.style.filter = '';
+  if (it.videoSrc) {
+    img.hidden = true;
+    img.removeAttribute('src');
+    if (videoEl) {
+      videoEl.hidden = false;
+      videoEl.poster = it.thumb || '';
+      videoEl.src = it.videoSrc;
+      videoEl.play().catch(() => {});
+    }
     note.textContent = '';
-  };
-  full.onerror = () => {
-    if (mine !== token) return;
-    img.style.filter = '';
-    note.textContent = 'โหลดรูปเต็มไม่ได้ — แสดงรูปที่มีอยู่';
-  };
-  full.src = it.src;
+    if (zoomInBtn) zoomInBtn.style.display = 'none';
+    if (zoomOutBtn) zoomOutBtn.style.display = 'none';
+    if (zoomLevelBtn) zoomLevelBtn.style.display = 'none';
+  } else {
+    if (videoEl) {
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+      videoEl.hidden = true;
+    }
+    img.hidden = false;
+    if (zoomInBtn) zoomInBtn.style.display = '';
+    if (zoomOutBtn) zoomOutBtn.style.display = '';
+    if (zoomLevelBtn) zoomLevelBtn.style.display = '';
+
+    img.alt = it.alt;
+    img.style.filter = it.thumb && it.thumb !== it.src ? 'blur(2px)' : '';
+    img.src = it.thumb || it.src;
+
+    note.textContent = 'กำลังโหลดรูป…';
+    const full = new Image();
+    full.decoding = 'async';
+    full.onload = () => {
+      if (mine !== token) return;
+      img.src = it.src;
+      img.style.filter = '';
+      note.textContent = '';
+    };
+    full.onerror = () => {
+      if (mine !== token) return;
+      img.style.filter = '';
+      note.textContent = 'โหลดรูปเต็มไม่ได้ — แสดงรูปที่มีอยู่';
+    };
+    full.src = it.src;
+  }
 
   renderMiniThumbs();
   preload(index + 1);
@@ -456,6 +486,7 @@ function describe(el: Element): Item {
   const src = fullUrl(d.zoomSrc ?? (el instanceof HTMLAnchorElement ? el.href : inner?.currentSrc || inner?.src || ''));
   const thumb = inner?.currentSrc || inner?.src || '';
   const alt = inner?.alt ?? '';
+  const videoSrc = d.zoomVideo ?? (src.includes('/video/') && src.endsWith('.mp4') ? src : undefined);
   return {
     src,
     thumb,
@@ -463,6 +494,7 @@ function describe(el: Element): Item {
     caption: d.caption ?? alt,
     credit: d.credit ?? '',
     creditHref: d.creditHref ?? '',
+    videoSrc,
   };
 }
 

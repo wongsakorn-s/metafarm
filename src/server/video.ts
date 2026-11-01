@@ -2,7 +2,7 @@
 // ไม่อ่านไฟล์เข้าหน่วยความจำ (Worker มี 128 MB) — ตรวจโดยอ่านเป็นช่วงจาก R2
 import { and, eq, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
-import { auditLogs, hiveMedia, settings } from '../db/schema.ts';
+import { auditLogs, hiveMedia, products, settings } from '../db/schema.ts';
 import { checkVideo, hasLocation, MAX_POSTER_BYTES, MAX_VIDEO_BYTES, posterKeyOf, VIDEO_MIME, type Reader } from '../lib/video.ts';
 import { detectImageType, parseYoutubeId, stripMetadata } from '../lib/media.ts';
 import type { SessionUser } from './auth.ts';
@@ -129,5 +129,83 @@ export async function setHomeVideo(
     throw e;
   }
   if (old && old !== key) await bucket.delete([old, posterKeyOf(old)]).catch(() => {});
+  return { ok: true };
+}
+
+// ---------- วิดีโอสินค้า ----------
+
+export async function attachProductVideo(
+  db: Db,
+  bucket: R2Bucket,
+  user: SessionUser,
+  productId: number,
+  key: string,
+  durationSec: number | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const prod = await db.query.products.findFirst({ where: eq(products.id, productId) });
+  if (!prod) {
+    await bucket.delete([key, posterKeyOf(key)]).catch(() => {});
+    return { ok: false, error: 'ไม่พบสินค้านี้' };
+  }
+  const old = prod.videoKey;
+  try {
+    await db.batch([
+      db.update(products).set({
+        videoKey: key,
+        videoYoutubeId: null,
+        updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+      }).where(eq(products.id, productId)),
+      audit(db, user, 'product.video.upload', 'product', productId, { key, durationSec }),
+    ]);
+  } catch (e) {
+    await bucket.delete([key, posterKeyOf(key)]).catch(() => {});
+    throw e;
+  }
+  if (old && old !== key) await bucket.delete([old, posterKeyOf(old)]).catch(() => {});
+  return { ok: true };
+}
+
+export async function setProductYoutube(
+  db: Db,
+  bucket: R2Bucket,
+  user: SessionUser,
+  productId: number,
+  youtubeUrl: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const prod = await db.query.products.findFirst({ where: eq(products.id, productId) });
+  if (!prod) return { ok: false, error: 'ไม่พบสินค้านี้' };
+  const id = parseYoutubeId(youtubeUrl.trim());
+  if (!id) return { ok: false, error: 'ลิงก์ YouTube ไม่ถูกต้อง (วางลิงก์ youtube.com/watch?v=… หรือ youtu.be/…)' };
+  const old = prod.videoKey;
+  await db.batch([
+    db.update(products).set({
+      videoKey: null,
+      videoYoutubeId: id,
+      updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+    }).where(eq(products.id, productId)),
+    audit(db, user, 'product.video.youtube', 'product', productId, { youtubeId: id }),
+  ]);
+  if (old) await bucket.delete([old, posterKeyOf(old)]).catch(() => {});
+  return { ok: true };
+}
+
+export async function removeProductVideo(
+  db: Db,
+  bucket: R2Bucket,
+  user: SessionUser,
+  productId: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const prod = await db.query.products.findFirst({ where: eq(products.id, productId) });
+  if (!prod) return { ok: false, error: 'ไม่พบสินค้านี้' };
+  const old = prod.videoKey;
+  await db.batch([
+    db.update(products).set({
+      videoKey: null,
+      videoYoutubeId: null,
+      updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+    }).where(eq(products.id, productId)),
+    audit(db, user, 'product.video.remove', 'product', productId, { oldKey: old, oldYoutube: prod.videoYoutubeId }),
+  ]);
+  if (old) await bucket.delete([old, posterKeyOf(old)]).catch(() => {});
   return { ok: true };
 }
