@@ -53,7 +53,9 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
         </div>
       )}
     </form>
-    <nav aria-label="หมวดรัง" class="mt-5 flex flex-wrap justify-center gap-2">
+  </section>
+
+  <nav aria-label="หมวดรัง" class="mx-auto mt-5 flex max-w-4xl flex-wrap justify-center gap-2 text-center lg:flex-nowrap">
       {([
         ['all', 'รังในทะเบียน', stats.total],
         ['bred', 'ขยายรังโดย MetaFarm', stats.bred],
@@ -65,9 +67,7 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
           {label} <span data-num class="font-bold text-palm-700">{n.toLocaleString('th-TH')}</span>
         </a>
       ))}
-    </nav>
-
-  </section>
+  </nav>
 
   {view && (
     <section class="mx-auto mt-10 max-w-5xl" aria-labelledby="category-h">
