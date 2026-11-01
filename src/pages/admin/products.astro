@@ -1,5 +1,6 @@
 ---
 import Icon from '../../components/Icon.astro';
+import Notice from '../../components/Notice.astro';
 import PhotoTips from '../../components/PhotoTips.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import SalesTabs from '../../components/SalesTabs.astro';
@@ -144,11 +145,11 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
 
 <AdminLayout title="สินค้า" active="products">
   <SalesTabs active="products" />
-  {saved && savedText[saved] && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {savedText[saved]}</p>}
-  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
+  {saved && savedText[saved] && <Notice tone="ok" class="mb-4">{savedText[saved]}</Notice>}
+  {notice && <Notice tone="ok" class="mb-4">{notice}</Notice>}
   <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
   <p id="sort-live" class="sr-only" aria-live="polite"></p>
-  {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+  {error && <Notice tone="error" class="mb-4">{error}</Notice>}
 
   <nav aria-label="สินค้า" class="scroll-fade mb-4 flex gap-1.5 overflow-x-auto pb-1">
     {items.map((p) => (
@@ -157,9 +158,9 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
   </nav>
 
   {hasUnconfirmed && (
-    <p class="mb-4 rounded-xl bg-honey-50 p-3 text-sm">
-      ป้าย "ราคาตัวอย่าง" บนเว็บจะหายไปเมื่อกด <strong>บันทึก</strong> ยืนยันราคา · รังสมบูรณ์ตั้งขายที่ <a class="underline" href="/admin/hives?forSale=1">หน้ารัง</a>
-    </p>
+    <Notice tone="warn" class="mb-4">
+      ป้าย "ราคาตัวอย่าง" บนเว็บจะหายไปเมื่อกด <strong>บันทึก</strong> ยืนยันราคา · รังสมบูรณ์ตั้งขายที่ <a class="underline font-medium" href="/admin/hives?forSale=1">หน้ารัง</a>
+    </Notice>
   )}
 
   <div class="space-y-5">
@@ -180,24 +181,26 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
           <p class="hint mb-2">สต็อก 0 = เว็บขึ้น "สอบถามก่อนสั่ง" · ต้นทุนลูกค้าไม่เห็น</p>
           <ul class="space-y-3">
             {p.variants.filter((v) => !v.hidden).map((v) => (
-              <li class="rounded-xl border border-line p-3">
+              <li class="rounded-xl border border-line bg-surface p-3.5">
                 {conflict && conflictVariant === v.id && <ConflictNotice form={`variant-${v.id}`} diffs={conflict.diffs} by={null} reason="คนอื่นบันทึก หรือออเดอร์ตัด/คืนสต็อก" at={conflict.at} />}
-                <form method="post" id={`variant-${v.id}`} class="grid grid-cols-3 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
+                <form method="post" id={`variant-${v.id}`} class="space-y-3">
                   <input type="hidden" name="intent" value="variant" /><input type="hidden" name="variantId" value={v.id} />
                   <input type="hidden" name="version" value={errorVariant === v.id && posted.version ? posted.version : v.updatedAt} />
-                  <div class="col-span-3 sm:col-span-1">
-                    <p class="font-medium">{variantName(v.label, v.sizeMl)}</p>
-                    {!v.priceConfirmed && <p class="text-sm font-medium text-honey-700">ราคาตัวอย่าง — ยังไม่ได้ยืนยัน</p>}
+                  <div class="border-b border-line pb-2">
+                    <span class="font-semibold">{variantName(v.label, v.sizeMl)}</span>
+                    {!v.priceConfirmed && <span class="ml-2 inline-block rounded-md bg-honey-50 px-2 py-0.5 text-xs font-medium text-honey-700">ราคาตัวอย่าง — ยังไม่ได้ยืนยัน</span>}
                   </div>
-                  <div><label class="label" for={`pr-${v.id}`}>ราคา (บาท)</label><input class="field" id={`pr-${v.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={errorVariant === v.id ? (posted.priceThb ?? '') : v.priceThb} />{errorVariant === v.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
-                  <div><label class="label" for={`st-${v.id}`}>สต็อก (ชิ้น)</label><input class="field" id={`st-${v.id}`} name="stockQty" type="number" inputmode="numeric" min="0" required value={errorVariant === v.id ? (posted.stockQty ?? '') : v.stockQty} />{errorVariant === v.id && errorFields.stockQty && <p class="error">{errorFields.stockQty}</p>}</div>
-                  <div><label class="label" for={`co-${v.id}`}>ต้นทุน/ชิ้น</label><input class="field" id={`co-${v.id}`} name="unitCost" type="number" inputmode="numeric" min="0" placeholder="ไม่ทราบ" value={errorVariant === v.id ? (posted.unitCost ?? '') : (v.unitCost ?? '')} />{errorVariant === v.id && errorFields.unitCost && <p class="error">{errorFields.unitCost}</p>}</div>
-                  <button class="btn-primary col-span-3 sm:col-span-1" type="submit">บันทึก</button>
+                  <div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                    <div><label class="label" for={`pr-${v.id}`}>ราคา (บาท)</label><input class="field" id={`pr-${v.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={errorVariant === v.id ? (posted.priceThb ?? '') : v.priceThb} />{errorVariant === v.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
+                    <div><label class="label" for={`st-${v.id}`}>สต็อก (ชิ้น)</label><input class="field" id={`st-${v.id}`} name="stockQty" type="number" inputmode="numeric" min="0" required value={errorVariant === v.id ? (posted.stockQty ?? '') : v.stockQty} />{errorVariant === v.id && errorFields.stockQty && <p class="error">{errorFields.stockQty}</p>}</div>
+                    <div class="col-span-2 sm:col-span-1"><label class="label" for={`co-${v.id}`}>ต้นทุน/ชิ้น</label><input class="field" id={`co-${v.id}`} name="unitCost" type="number" inputmode="numeric" min="0" placeholder="ไม่ทราบ" value={errorVariant === v.id ? (posted.unitCost ?? '') : (v.unitCost ?? '')} />{errorVariant === v.id && errorFields.unitCost && <p class="error">{errorFields.unitCost}</p>}</div>
+                    <button class="btn-primary col-span-2 sm:col-span-1" type="submit">บันทึก</button>
+                  </div>
                 </form>
                 <div class="mt-2 flex justify-end">
                   <form method="post" data-confirm={`ซ่อนขนาด "${v.label}" ใช่ไหม? จะไม่แสดงบนเว็บ ในฟอร์มออเดอร์ใหม่ และการบรรจุขวด (แสดงกลับได้ภายหลัง)`}>
                     <input type="hidden" name="intent" value="variant_hidden" /><input type="hidden" name="variantId" value={v.id} /><input type="hidden" name="hidden" value="on" />
-                    <button class="inline-flex min-h-11 items-center text-sm text-muted underline" type="submit">ซ่อนขนาดนี้</button>
+                    <button class="inline-flex min-h-11 items-center text-xs text-muted hover:text-danger hover:underline" type="submit">ซ่อนขนาดนี้</button>
                   </form>
                 </div>
               </li>
@@ -205,13 +208,16 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
           </ul>
         </div>
 
-        {(() => {
-          const ph = allPhotos.filter((x) => x.productId === p.id);
-          const max = productPhotoLimit(p.category);
-          const hasVid = p.videoKey || p.videoYoutubeId;
-          return (
-            <details class="mt-4">
-              <summary class="disclosure min-h-11 font-medium text-palm-700">รูปและวิดีโอ ({ph.length}{hasVid ? ' + วิดีโอ' : ''})</summary>
+        <div class="mt-4 divide-y divide-line border-t border-line text-sm">
+          {(() => {
+            const ph = allPhotos.filter((x) => x.productId === p.id);
+            const max = productPhotoLimit(p.category);
+            const hasVid = p.videoKey || p.videoYoutubeId;
+            return (
+              <details class="py-1">
+                <summary class="disclosure min-h-11 cursor-pointer font-medium text-palm-700">
+                  <span class="inline-flex items-center gap-2"><Icon name="image" class="size-4 shrink-0 text-palm-700" />รูปและวิดีโอ ({ph.length}{hasVid ? ' + วิดีโอ' : ''})</span>
+                </summary>
               <div class="mt-3 space-y-4">
                 <div data-photos={p.id}>
                   <h3 class="text-sm font-medium">รูปสินค้า <span class="font-normal text-muted">({ph.length}/{max})</span></h3>
@@ -323,9 +329,11 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
           );
         })()}
 
-        <details class="mt-3">
-          <summary class="disclosure min-h-11 text-sm font-medium text-palm-700">ชื่อและคำอธิบายสินค้าบนเว็บ</summary>
-          <form method="post" class="mt-2 space-y-2">
+        <details class="py-1">
+          <summary class="disclosure min-h-11 cursor-pointer font-medium text-palm-700">
+            <span class="inline-flex items-center gap-2"><Icon name="edit" class="size-4 shrink-0 text-palm-700" />ชื่อและคำอธิบายสินค้าบนเว็บ</span>
+          </summary>
+          <form method="post" class="mt-3 space-y-2">
             <input type="hidden" name="intent" value="product_text" /><input type="hidden" name="productId" value={p.id} />
             <label class="label" for={`pn-${p.id}`}>ชื่อสินค้า</label>
             <input class="field" id={`pn-${p.id}`} name="name" required minlength="2" maxlength="100" value={p.name} />
@@ -336,8 +344,10 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
         </details>
 
         {p.variants.some((v) => v.hidden) && (
-          <details class="mt-3">
-            <summary class="disclosure min-h-11 text-sm text-muted">ขนาดที่ซ่อนอยู่ ({p.variants.filter((v) => v.hidden).length})</summary>
+          <details class="py-1">
+            <summary class="disclosure min-h-11 cursor-pointer text-muted">
+              <span class="inline-flex items-center gap-2"><Icon name="ban" class="size-4 shrink-0 text-muted" />ขนาดที่ซ่อนอยู่ ({p.variants.filter((v) => v.hidden).length})</span>
+            </summary>
             <ul class="mt-2 divide-y divide-line">
               {p.variants.filter((v) => v.hidden).map((v) => (
                 <li class="flex flex-wrap items-center justify-between gap-2 py-1">
@@ -352,17 +362,20 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
           </details>
         )}
 
-        <details class="mt-3" open={addFor === p.id}>
-          <summary class="disclosure min-h-11 font-medium text-palm-700">เพิ่มขนาด / ตัวเลือก</summary>
-          <form method="post" class="mt-2 grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_auto]">
+        <details class="py-1" open={addFor === p.id}>
+          <summary class="disclosure min-h-11 cursor-pointer font-medium text-palm-700">
+            <span class="inline-flex items-center gap-2"><Icon name="plus" class="size-4 shrink-0 text-palm-700" />เพิ่มขนาด / ตัวเลือก</span>
+          </summary>
+          <form method="post" class="mt-3 grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_8rem_8rem_auto]">
             <input type="hidden" name="intent" value="variant_add" /><input type="hidden" name="productId" value={p.id} />
             <div class="col-span-2 sm:col-span-1"><label class="label" for={`nv-l-${p.id}`}>ชื่อตัวเลือก</label><input class="field" id={`nv-l-${p.id}`} name="label" required maxlength="60" placeholder={p.category === 'honey' ? 'เช่น ขวด 175 มล.' : 'เช่น รังไม้สัก 2 ห้อง'} value={addFor === p.id ? (posted.label ?? '') : ''} />{addFor === p.id && errorFields.label && <p class="error">{errorFields.label}</p>}</div>
             <div><label class="label" for={`nv-s-${p.id}`}>ขนาด (มล.)</label><input class="field" id={`nv-s-${p.id}`} name="sizeMl" type="number" inputmode="numeric" min="1" required={p.category === 'honey'} placeholder={p.category === 'honey' ? '175' : 'ไม่มี'} value={addFor === p.id ? (posted.sizeMl ?? '') : ''} />{addFor === p.id && errorFields.sizeMl && <p class="error">{errorFields.sizeMl}</p>}</div>
             <div><label class="label" for={`nv-p-${p.id}`}>ราคา (บาท)</label><input class="field" id={`nv-p-${p.id}`} name="priceThb" type="number" inputmode="numeric" min="1" required value={addFor === p.id ? (posted.priceThb ?? '') : ''} />{addFor === p.id && errorFields.priceThb && <p class="error">{errorFields.priceThb}</p>}</div>
             <button class="btn-primary col-span-2 sm:col-span-1" type="submit">เพิ่ม</button>
           </form>
-          <p class="hint">ราคาที่กรอกถือว่ายืนยันแล้ว · สต็อกเริ่มที่ 0{p.category === 'honey' ? ' (จะเพิ่มเองเมื่อบรรจุขวดในหน้าล็อต)' : ''} · ขนาดที่เลิกขายแล้ว กด "ซ่อนขนาดนี้"</p>
+          <p class="hint mt-2">ราคาที่กรอกถือว่ายืนยันแล้ว · สต็อกเริ่มที่ 0{p.category === 'honey' ? ' (จะเพิ่มเองเมื่อบรรจุขวดในหน้าล็อต)' : ''} · ขนาดที่เลิกขายแล้ว กด "ซ่อนขนาดนี้"</p>
         </details>
+        </div>
       </section>
     ))}
   </div>
