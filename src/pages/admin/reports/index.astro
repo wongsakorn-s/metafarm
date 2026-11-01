@@ -9,7 +9,6 @@ import { paidYears, saleLines, shipFees, unpaidOrders } from '../../../server/re
 import { topHoneyHives } from '../../../server/production.ts';
 import { bestSellers, monthlyRevenue, parseYear, reportYears, summarize, topCustomers } from '../../../lib/reports.ts';
 import { todayBangkok } from '../../../lib/validation.ts';
-import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { fmt } from '../../../lib/chart.ts';
 import { baht } from '../../../lib/labels.ts';
 
@@ -52,9 +51,9 @@ const honeyTotal = honey.reduce((s, h) => s + h.ml, 0);
   </section>
 
   {sum.uncosted.lines > 0 && (
-    <p role="note" class="mt-3 flex gap-2 rounded-xl bg-honey-50 p-3 text-sm text-ink">
-      <Icon name="info" class="mt-0.5 size-4 shrink-0" />
-      <span>{sum.uncosted.lines} รายการ (ยอดขาย {baht(sum.uncosted.revenue)}) ยังไม่มีต้นทุน จึงไม่นับในกำไร — ใส่ต้นทุนได้ที่ <a class="underline" href="/admin/products">หน้าสินค้า</a> หรือตอนบรรจุขวดในล็อต (รังที่ซื้อมาใช้ราคาซื้อในหน้ารัง)</span>
+    <p role="note" class="mt-3 flex items-center gap-2 rounded-xl bg-honey-50 p-3 text-sm text-ink">
+      <Icon name="info" class="size-4 shrink-0" />
+      <span>{sum.uncosted.lines} รายการยังไม่มีต้นทุน (ไม่นับในกำไร) · <a class="underline" href="/admin/products">ใส่ต้นทุน</a></span>
     </p>
   )}
 
@@ -91,28 +90,19 @@ const honeyTotal = honey.reduce((s, h) => s + h.ml, 0);
     </section>
 
     <section class="card" aria-labelledby="unpaid-h">
-      <h2 id="unpaid-h" class="mb-2 font-semibold">ยังไม่ชำระ</h2>
-      {unpaid.length === 0 ? <p class="text-sm text-muted">ไม่มีออเดอร์ค้างชำระ</p> : (
-        <ul class="divide-y divide-line text-sm">
-          {unpaid.map((o) => (
-            <li class="flex items-center gap-3"><a class="inline-flex min-h-11 items-center font-semibold text-palm-700 underline" href={`/admin/orders/${o.code}`}>{o.code}</a><span class="min-w-0 flex-1 truncate">{o.customer ?? 'ไม่ระบุลูกค้า'} · <span class="text-muted">{formatThaiDate(o.orderedOn)}</span></span><span data-num>{baht(o.total)}</span></li>
-          ))}
-        </ul>
-      )}
+      <div class="flex items-center justify-between">
+        <h2 id="unpaid-h" class="font-semibold">ออเดอร์รอชำระ</h2>
+        <a class="inline-flex min-h-11 items-center text-sm font-medium text-palm-700 underline" href="/admin/orders?status=awaiting_payment">ดูทั้งหมด ({unpaid.length}) →</a>
+      </div>
+      <p class="text-sm text-muted">รวม {baht(unpaidTotal)} · ไปที่หน้ารายการออเดอร์เพื่อดูรายละเอียดและบันทึกการชำระเงิน</p>
     </section>
 
     <section class="card" aria-labelledby="honey-h">
-      <h2 id="honey-h" class="mb-2 font-semibold">น้ำผึ้งต่อรัง ปี {be(year)}</h2>
-      {honey.length === 0 ? <p class="text-sm text-muted">ยังไม่มีบันทึกการเก็บน้ำหวานในปีนี้</p> : (
-        <>
-          <ol class="divide-y divide-line text-sm">
-            {honey.map((h) => (
-              <li class="flex items-center gap-3"><a class="inline-flex min-h-11 min-w-11 items-center font-semibold text-palm-700 underline" href={`/admin/hives/${h.code}`}>{h.code}</a><span class="flex-1 text-muted">เก็บ {h.harvests} ครั้ง</span><span data-num>{fmt(h.ml)} มล.</span></li>
-            ))}
-          </ol>
-          <p class="hint mt-2">10 รังแรก รวม {fmt(honeyTotal)} มล. · ดูกราฟรายเดือนที่ <a class="underline" href="/admin/production">ผลผลิต + อากาศ</a></p>
-        </>
-      )}
+      <div class="flex items-center justify-between">
+        <h2 id="honey-h" class="font-semibold">ผลผลิตน้ำผึ้ง ปี {be(year)}</h2>
+        <a class="inline-flex min-h-11 items-center text-sm font-medium text-palm-700 underline" href="/admin/production">ดูผลผลิตและสภาพอากาศ →</a>
+      </div>
+      <p class="text-sm text-muted">ปีนี้เก็บน้ำผึ้งรวม {fmt(honeyTotal)} มล. · ดูกราฟรายเดือนและข้อมูลแยกรังได้ที่หน้าผลผลิต</p>
     </section>
 
     <section class="card lg:col-span-2" aria-labelledby="exp-h">

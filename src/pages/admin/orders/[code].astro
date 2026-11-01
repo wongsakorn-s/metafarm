@@ -58,7 +58,7 @@ const summary = orderSummaryText(o, items.map((i) => ({ ...i, label: i.lots.leng
 const saved = Astro.url.searchParams.get('saved');
 const savedText: Record<string, string> = {
   created: 'บันทึกออเดอร์แล้ว — กด "คัดลอกข้อความสรุป" เพื่อส่งให้ลูกค้าทาง LINE',
-  pay: 'บันทึกว่าชำระแล้ว — ตัดสต็อกและเปลี่ยนรังเป็น "ขายแล้ว" เรียบร้อย',
+  pay: 'บันทึกว่าชำระแล้ว',
   fulfill: 'บันทึกว่าส่งของแล้ว',
   note: 'บันทึกหมายเหตุแล้ว',
 };
@@ -95,6 +95,31 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
         </table>
       </section>
 
+      {next.includes('paid') && (
+        <form method="post" class="card space-y-3" id="pay">
+          <input type="hidden" name="intent" value="pay" />
+          <h2 class="flex items-center gap-2 font-semibold"><Icon name="wallet" class="size-5 text-palm-700" />ลูกค้าชำระเงินแล้ว</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="paidOn">วันที่ชำระ</label><input class="field" id="paidOn" name="paidOn" type="date" max={today} required value={v('paidOn', today)} />{errors.paidOn && <p class="error">{errors.paidOn}</p>}</div>
+            <div><label class="label" for="payMethodSel">ชำระทาง</label><select class="field" id="payMethodSel" name="payMethod" required><option value="">เลือก…</option>{PAY_METHODS.map((m) => <option value={m} selected={v('payMethod') === m}>{payMethodLabel[m]}</option>)}</select>{errors.payMethod && <p class="error">{errors.payMethod}</p>}</div>
+          </div>
+          <button class="btn-primary w-full" type="submit">บันทึกว่าชำระแล้ว</button>
+          <p class="hint">ระบบตัดสต็อกและเปลี่ยนรังเป็น "ขายแล้ว" ให้อัตโนมัติ</p>
+        </form>
+      )}
+
+      {next.includes('fulfilled') && (
+        <form method="post" class="card space-y-3" id="fulfill">
+          <input type="hidden" name="intent" value="fulfill" />
+          <h2 class="flex items-center gap-2 font-semibold"><Icon name="truck" class="size-5 text-palm-700" />ส่งของ / ลูกค้ารับแล้ว</h2>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="label" for="fulfilledOn">วันที่</label><input class="field" id="fulfilledOn" name="fulfilledOn" type="date" max={today} required value={v('fulfilledOn', today)} />{errors.fulfilledOn && <p class="error">{errors.fulfilledOn}</p>}</div>
+            <div><label class="label" for="trackingNo">เลขพัสดุ (ถ้ามี)</label><input class="field" id="trackingNo" name="trackingNo" maxlength="60" value={v('trackingNo')} autocomplete="off" /></div>
+          </div>
+          <button class="btn-primary w-full" type="submit">บันทึกว่าส่งแล้ว</button>
+        </form>
+      )}
+
       <section class="card" aria-labelledby="sum-h">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 id="sum-h" class="font-semibold">ข้อความสรุปสำหรับส่งให้ลูกค้า</h2>
@@ -125,31 +150,6 @@ const tel = customer?.phone ? telHref(customer.phone) : null;
           {o.trackingNo && <><dt class="text-muted">เลขพัสดุ</dt><dd data-num>{o.trackingNo}</dd></>}
         </dl>
       </section>
-
-      {next.includes('paid') && (
-        <form method="post" class="card space-y-3" id="pay">
-          <input type="hidden" name="intent" value="pay" />
-          <h2 class="flex items-center gap-2 font-semibold"><Icon name="wallet" class="size-5 text-palm-700" />ลูกค้าชำระเงินแล้ว</h2>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="paidOn">วันที่ชำระ</label><input class="field" id="paidOn" name="paidOn" type="date" max={today} required value={v('paidOn', today)} />{errors.paidOn && <p class="error">{errors.paidOn}</p>}</div>
-            <div><label class="label" for="payMethodSel">ชำระทาง</label><select class="field" id="payMethodSel" name="payMethod" required><option value="">เลือก…</option>{PAY_METHODS.map((m) => <option value={m} selected={v('payMethod') === m}>{payMethodLabel[m]}</option>)}</select>{errors.payMethod && <p class="error">{errors.payMethod}</p>}</div>
-          </div>
-          <button class="btn-primary w-full" type="submit">บันทึกว่าชำระแล้ว</button>
-          <p class="hint">ระบบจะตัดสต็อกสินค้า และเปลี่ยนรังในออเดอร์เป็น "ขายแล้ว" ให้เอง</p>
-        </form>
-      )}
-
-      {next.includes('fulfilled') && (
-        <form method="post" class="card space-y-3" id="fulfill">
-          <input type="hidden" name="intent" value="fulfill" />
-          <h2 class="flex items-center gap-2 font-semibold"><Icon name="truck" class="size-5 text-palm-700" />ส่งของ / ลูกค้ารับแล้ว</h2>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="label" for="fulfilledOn">วันที่</label><input class="field" id="fulfilledOn" name="fulfilledOn" type="date" max={today} required value={v('fulfilledOn', today)} />{errors.fulfilledOn && <p class="error">{errors.fulfilledOn}</p>}</div>
-            <div><label class="label" for="trackingNo">เลขพัสดุ (ถ้ามี)</label><input class="field" id="trackingNo" name="trackingNo" maxlength="60" value={v('trackingNo')} autocomplete="off" /></div>
-          </div>
-          <button class="btn-primary w-full" type="submit">บันทึกว่าส่งแล้ว</button>
-        </form>
-      )}
 
       <form method="post" class="card space-y-2">
         <input type="hidden" name="intent" value="note" />

@@ -33,17 +33,6 @@ const countOf: Partial<Record<Tab, number>> = { open: counts.awaiting + counts.t
   <SalesTabs active="orders" />
   {saved === 'cancelled' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ยกเลิกออเดอร์แล้ว — คืนสต็อกและคืนรังเรียบร้อย</p>}
 
-  <section aria-label="สรุป" class="mb-4 grid grid-cols-2 gap-3">
-    <a href="?status=awaiting_payment" class="card-link !p-3">
-      <p class="flex items-center gap-1.5 text-sm text-muted"><Icon name="wallet" class="size-4 text-honey-700" />รอชำระ</p>
-      <p class="font-semibold"><span data-num class="text-2xl">{counts.awaiting}</span> ออเดอร์ {counts.awaitingTotal > 0 && <span data-num class="block text-sm font-normal text-muted">รวม {baht(counts.awaitingTotal)}</span>}</p>
-    </a>
-    <a href="?status=paid" class="card-link !p-3">
-      <p class="flex items-center gap-1.5 text-sm text-muted"><Icon name="truck" class="size-4 text-palm-700" />ชำระแล้ว รอส่ง</p>
-      <p class="font-semibold"><span data-num class="text-2xl">{counts.toShip}</span> ออเดอร์</p>
-    </a>
-  </section>
-
   <div class="mb-3 flex flex-wrap items-center gap-2">
     <a class="btn-primary" href="/admin/orders/new"><Icon name="plus" class="size-5" />ออเดอร์ใหม่</a>
     <form method="get" role="search" class="flex min-w-0 flex-1 gap-2">
