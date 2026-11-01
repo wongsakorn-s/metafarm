@@ -2,13 +2,15 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import { getDb } from '../../server/db.ts';
-import { getDashboard } from '../../server/hives.ts';
+import { getDashboard, countHivesWithoutPhoto } from '../../server/hives.ts';
 import { orderCounts } from '../../server/orders.ts';
-import { baht, eventIcon, eventLabel, originLabel, statusLabel } from '../../lib/labels.ts';
+import { getReadiness } from '../../server/readiness.ts';
+import { getSettings } from '../../server/settings.ts';
+import { baht, eventIcon, eventLabel, statusLabel } from '../../lib/labels.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 import { canManageFarm } from '../../lib/permissions.ts';
 import MonthChart from '../../components/MonthChart.astro';
-import { monthlyProduction, topHoneyHives } from '../../server/production.ts';
+import { monthlyProduction } from '../../server/production.ts';
 import { saleLines } from '../../server/reports.ts';
 import { monthlyRevenue } from '../../lib/reports.ts';
 import { todayBangkok } from '../../lib/validation.ts';
@@ -17,11 +19,24 @@ export const prerender = false;
 
 // พนักงาน: ไม่ดึง/ไม่แสดงตัวเลขออเดอร์และยอดเงิน
 const owner = canManageFarm(Astro.locals.user);
-const d = await getDashboard(getDb());
-const oc = owner ? await orderCounts(getDb()) : { awaiting: 0, awaitingTotal: 0, toShip: 0 };
+const db = getDb();
+const [d, oc, photoCount, readiness] = await Promise.all([
+  getDashboard(db),
+  owner ? orderCounts(db) : Promise.resolve({ awaiting: 0, awaitingTotal: 0, toShip: 0 }),
+  countHivesWithoutPhoto(db),
+  owner ? getReadiness(db, Astro.locals.settings ?? (await getSettings(db))) : Promise.resolve(null),
+]);
+
 const count = (s: string) => d.byStatus.find((x) => x.status === s)?.n ?? 0;
 const total = d.byStatus.reduce((n, x) => n + x.n, 0);
-const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+const readinessLeft = readiness ? readiness.total - readiness.done : 0;
+
+const hasPending =
+  (owner && oc.awaiting > 0) ||
+  (owner && oc.toShip > 0) ||
+  d.incomplete > 0 ||
+  photoCount > 0 ||
+  (owner && readinessLeft > 0);
 
 const stats = [
   { label: 'ทั้งหมด', value: total, href: '/admin/hives' },
@@ -30,7 +45,6 @@ const stats = [
   { label: 'ขายแล้ว', value: count('sold'), href: '/admin/hives?status=sold' },
   { label: 'ล่ม', value: count('collapsed'), href: '/admin/hives?status=collapsed' },
 ];
-const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
 
 // ---------- แดชบอร์ด: เดือนนี้เทียบเดือนก่อน + กราฟ 12 เดือน (เจ้าของ/แอดมินเห็นยอดขายด้วย) ----------
 const today = todayBangkok();
@@ -40,10 +54,8 @@ const months = Array.from({ length: 12 }, (_, i) => {
   const d = new Date(Date.UTC(ty, tm - 1 - (11 - i), 1));
   return d.toISOString().slice(0, 7);
 });
-const db = getDb();
-const [prod, top, linesNow, linesPrev] = await Promise.all([
+const [prod, linesNow, linesPrev] = await Promise.all([
   monthlyProduction(db, months[0]!),
-  topHoneyHives(db, `${ty}-01-01`, 5),
   owner ? saleLines(db, ty) : Promise.resolve([]),
   owner && months[0]!.slice(0, 4) !== String(ty) ? saleLines(db, ty - 1) : Promise.resolve([]),
 ]);
@@ -72,12 +84,13 @@ const cards = [
 
 <AdminLayout title="ภาพรวม" active="dashboard">
   {Astro.url.searchParams.get('welcome') && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ตั้งรหัสผ่านใหม่แล้ว — ยินดีต้อนรับ {Astro.locals.user?.name}</p>}
-  {/* ตัวเลข 5 ตัวในการ์ดเดียว (เดิม 5 การ์ดใหญ่เต็มจอแรกของมือถือ) — แตะแต่ละตัวเพื่อดูรายการ */}
+
+  {/* ตัวเลข 5 ตัวในการ์ดเดียว — แตะแต่ละตัวเพื่อดูรายการ */}
   <section aria-label="สรุปจำนวนรัง" class="card grid grid-cols-5 divide-x divide-line !p-0">
     {stats.map((s) => (
       <a href={s.href} class="flex min-h-20 flex-col items-center justify-center px-1 py-3 text-center transition first:rounded-l-2xl last:rounded-r-2xl hover:bg-palm-50 active:bg-palm-50">
-        <span data-num class="text-2xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
-        <span class="text-[0.8125rem] leading-snug text-muted md:text-sm">{s.label}</span>
+        <span data-num class="text-xl font-bold leading-tight text-palm-700 md:text-3xl">{s.value.toLocaleString('th-TH')}</span>
+        <span class="text-xs leading-snug text-muted md:text-sm">{s.label}</span>
       </a>
     ))}
   </section>
@@ -93,16 +106,16 @@ const cards = [
     ))}
   </section>
 
-  {/* งานที่ค้าง: แถวสั้น ๆ แตะได้ทั้งแถว */}
-  <ul class="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
-    {oc.awaiting > 0 && (
+  {/* สิ่งที่ต้องทำ: แสดงเฉพาะแถวที่มีงานค้าง */}
+  <ul class="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface" aria-label="สิ่งที่ต้องทำ">
+    {owner && oc.awaiting > 0 && (
       <li><a href="/admin/orders?status=awaiting_payment" class="flex min-h-14 items-center gap-3 bg-honey-50 px-4 py-2 active:bg-honey-100">
         <Icon name="wallet" class="size-6 text-honey-700" />
         <span class="flex-1"><strong>{oc.awaiting} ออเดอร์</strong> รอชำระ <span data-num class="text-sm text-muted">· {baht(oc.awaitingTotal)}</span></span>
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
-    {oc.toShip > 0 && (
+    {owner && oc.toShip > 0 && (
       <li><a href="/admin/orders?status=paid" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
         <Icon name="truck" class="size-6 text-palm-700" />
         <span class="flex-1"><strong>{oc.toShip} ออเดอร์</strong> ชำระแล้ว รอส่ง</span>
@@ -116,21 +129,29 @@ const cards = [
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
-    {owner ? (
-      <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
-        <Icon name="checklist" class="size-6 text-palm-700" />
-        <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">สิ่งที่ยังต้องเติม</span></span>
-        <Icon name="chevron" class="size-5 text-muted" />
-      </a></li>
-    ) : (
+    {photoCount > 0 && (
       <li><a href="/admin/photos" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
         <Icon name="camera" class="size-6 text-palm-700" />
-        <span class="flex-1"><strong>รังรอถ่ายรูป</strong> <span class="text-sm text-muted">รังที่ยังไม่มีรูป</span></span>
+        <span class="flex-1"><strong>{photoCount} รัง</strong> รอถ่ายรูป</span>
         <Icon name="chevron" class="size-5 text-muted" />
       </a></li>
     )}
+    {owner && readinessLeft > 0 && (
+      <li><a href="/admin/readiness" class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+        <Icon name="checklist" class="size-6 text-palm-700" />
+        <span class="flex-1"><strong>เตรียมเปิดเว็บ</strong> <span class="text-sm text-muted">เหลืออีก {readinessLeft} รายการ</span></span>
+        <Icon name="chevron" class="size-5 text-muted" />
+      </a></li>
+    )}
+    {!hasPending && (
+      <li class="flex min-h-14 items-center justify-center gap-2 px-4 py-3 text-muted">
+        <Icon name="check" class="size-5 text-palm-700" />
+        <span>ไม่มีงานค้าง</span>
+      </li>
+    )}
   </ul>
 
+  {/* กราฟ 2 อัน */}
   <div class="mt-6 grid gap-6 lg:grid-cols-2">
     <section class="card" aria-label="กราฟน้ำผึ้ง 12 เดือน">
       <MonthChart title="น้ำผึ้งที่เก็บได้ 12 เดือนล่าสุด" unit="มล./เดือน" months={months} series={[{ label: 'น้ำผึ้ง', color: '#e0a800', values: honey }]}
@@ -148,75 +169,14 @@ const cards = [
     )}
   </div>
 
-  {top.length > 0 && (
-    <section class="card mt-6" aria-labelledby="top-h">
-      <h2 id="top-h" class="mb-3 text-lg font-semibold">รังที่ให้น้ำผึ้งมากที่สุด ปี {ty + 543}</h2>
-      <ol class="divide-y divide-line">
-        {top.map((h, i) => (
-          <li><a href={`/admin/hives/${h.code}`} class="flex min-h-12 items-center gap-3 py-2 hover:bg-palm-50">
-            <span data-num class="grid size-8 shrink-0 place-items-center rounded-full bg-honey-50 font-bold text-honey-700">{i + 1}</span>
-            <span class="flex-1 font-semibold text-palm-700">{h.code}</span>
-            <span data-num class="text-honey-700">{h.ml.toLocaleString('th-TH')} มล.</span>
-            <span class="w-16 text-right text-sm text-muted">{h.harvests} ครั้ง</span>
-          </a></li>
-        ))}
-      </ol>
-    </section>
-  )}
-
-  <div class="mt-6 grid gap-6 lg:grid-cols-2">
-    <section class="card" aria-labelledby="honey-h">
-      {/* หัวข้อ → ตัวเลข → ลิงก์กราฟ (เดิมปุ่มกราฟคั่นระหว่างหัวข้อกับตัวเลขบนมือถือ) */}
-      <h2 id="honey-h" class="mb-3 text-lg font-semibold"><Icon name="honey" class="inline-block size-[1.15em] align-[-0.2em]" /> ผลผลิตปี {Number(d.year) + 543}</h2>
-      {d.honey && d.honey.n > 0 ? (
-        <p class="text-3xl font-bold text-honey-700">{d.honey.ml.toLocaleString('th-TH')} <span class="text-base font-medium">มล.</span>
-          {d.honey.g > 0 && <span class="ml-3 text-xl">+ ชัน {d.honey.g.toLocaleString('th-TH')} กรัม</span>}</p>
-        <p class="hint">จากการเก็บ {d.honey.n} ครั้ง</p>
-      ) : (
-        <p class="text-muted">ยังไม่มีการบันทึกเก็บน้ำหวานในปีนี้ เปิดหน้ารังแล้วกด "เก็บน้ำหวาน" ได้เลย</p>
-      )}
-      <a class="mt-2 inline-flex min-h-11 items-center gap-1 font-medium text-palm-700 underline" href="/admin/production"><Icon name="chart" class="size-4" />ดูหน้าผลผลิตและอากาศ</a>
-      {owner && (
-        <>
-          <h3 class="mt-5 text-sm font-semibold text-muted">การขายรัง</h3>
-          <p>ขายแล้ว {count('sold')} รัง รวม <strong>{baht(d.sale?.soldTotal)}</strong>
-            {(d.sale?.avgSold ?? 0) > 0 && <span class="text-muted"> (เฉลี่ย {baht(Math.round(d.sale!.avgSold))}/รัง)</span>}</p>
-        </>
-      )}
-    </section>
-
-    <section class="card" aria-labelledby="surv-h">
-      <h2 id="surv-h" class="mb-1 text-lg font-semibold">อัตรารอดตามที่มา</h2>
-      <p class="hint mb-3">นับเฉพาะรังที่ล่มเทียบกับทั้งหมด (ไม่รวมรังที่ขายแล้ว)</p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm">
-          <thead class="text-muted"><tr><th class="py-1 pr-2 font-medium">ที่มา</th><th class="px-2 font-medium">รัง</th><th class="px-2 font-medium">ล่ม</th><th class="pl-2 font-medium">รอด</th></tr></thead>
-          <tbody>
-            {originOrder.map((o) => {
-              const r = d.byOrigin.find((x) => x.origin === o);
-              const t = (r?.total ?? 0) - (r?.sold ?? 0);
-              return (
-                <tr class="border-t border-line">
-                  <td class="py-2 pr-2">{originLabel[o]}</td>
-                  <td class="px-2">{r?.total ?? 0}</td>
-                  <td class="px-2">{r?.collapsed ?? 0}</td>
-                  <td class="pl-2 font-semibold">{t ? `${100 - pct(r?.collapsed ?? 0, t)}%` : '–'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
+  {/* เหตุการณ์ล่าสุด (ลดเหลือ 5 รายการ) */}
   <section class="card mt-6" aria-labelledby="recent-h">
     <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
       <h2 id="recent-h" class="text-lg font-semibold">เหตุการณ์ล่าสุด</h2>
-      <a class="inline-flex min-h-11 items-center text-sm font-medium text-palm-700 underline" href="/admin/hives?sort=recent">ดูรังที่บันทึกล่าสุดทั้งหมด</a>
+      <a class="inline-flex min-h-11 items-center text-sm font-medium text-palm-700 underline" href="/admin/hives?sort=recent">ดูทั้งหมด →</a>
     </div>
     <ul class="divide-y divide-line">
-      {d.recent.map(({ e, code }) => (
+      {d.recent.slice(0, 5).map(({ e, code }) => (
         <li class="flex items-center gap-3 py-2">
           <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventIcon[e.type]} class="size-4" /></span>
           <div class="min-w-0 flex-1">

@@ -32,7 +32,7 @@ const honeyTabs = [
       {pending.length > 0 ? (
         <p><strong>น้ำผึ้งที่ยังไม่อยู่ในล็อต: <span data-num>{fmt(pendingMl)}</span> มล.</strong> <span class="text-muted">จากการเก็บ {pending.length} ครั้ง</span></p>
       ) : (
-        <p class="text-muted">การเก็บน้ำหวานทั้งหมดอยู่ในล็อตแล้ว — เก็บเพิ่มได้ที่ ➕ บันทึก → เก็บน้ำหวาน</p>
+        <p class="text-muted">การเก็บน้ำหวานทั้งหมดอยู่ในล็อตแล้ว</p>
       )}
       {lots.length === 0 && <p class="hint">ล็อต = น้ำผึ้งที่กรองและบรรจุขวดพร้อมกันหนึ่งรอบ · ลูกค้าสแกน QR ดูได้ว่าเก็บเมื่อไรจากรังไหน</p>}
     </div>

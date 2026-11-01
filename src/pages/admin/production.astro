@@ -4,6 +4,7 @@ import Icon from '../../components/Icon.astro';
 import MonthChart from '../../components/MonthChart.astro';
 import SubTabs from '../../components/SubTabs.astro';
 import { getDb } from '../../server/db.ts';
+import { getDashboard } from '../../server/hives.ts';
 import { getSettings } from '../../server/settings.ts';
 import { ensureWeather, monthlyWeather } from '../../server/weather.ts';
 import { firstDataDate, monthlyProduction, topHoneyHives } from '../../server/production.ts';
@@ -11,6 +12,7 @@ import { compareDryWet, DRY_MONTH_MM, isDryMonth, monthRange, POWER_ATTRIBUTION 
 import { fmt, monthLabel } from '../../lib/chart.ts';
 import { todayBangkok } from '../../lib/validation.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
+import { originLabel } from '../../lib/labels.ts';
 import { canManageFarm } from '../../lib/permissions.ts';
 
 // ผลผลิต + สภาพอากาศ (สิ่งที่เจ้าของฟาร์มอยากได้มากที่สุดจากแบบสอบถาม Phase 4)
@@ -33,7 +35,14 @@ const months = monthRange(fromMonth, thisMonth);
 
 // ข้อมูลอากาศ: ดึงเฉพาะที่ยังไม่มี (ครั้งแรกรอ ~ไม่กี่วินาที ครั้งต่อไปอ่านจากฐานข้อมูล)
 const status = await ensureWeather(db, settings.farm, `${startAll}-01`, today, { force: Astro.url.searchParams.get('refresh') === '1' });
-const [prod, weather, top] = await Promise.all([monthlyProduction(db, fromMonth), monthlyWeather(db, fromMonth), topHoneyHives(db, `${fromMonth}-01`)]);
+const [prod, weather, top, d] = await Promise.all([
+  monthlyProduction(db, fromMonth),
+  monthlyWeather(db, fromMonth),
+  topHoneyHives(db, `${fromMonth}-01`),
+  getDashboard(db),
+]);
+const originOrder = ['purchased', 'queen_bred', 'split', 'natural'] as const;
+const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
 
 const P = months.map((m) => prod.get(m));
 const W = months.map((m) => weather.get(m));
@@ -100,10 +109,9 @@ const honeyTabs = [
   </section>
 
   {cmp && (
-    <section class="mb-5 rounded-2xl border border-line bg-surface p-4" aria-labelledby="obs-h">
-      <h2 id="obs-h" class="flex items-center gap-2 font-semibold"><Icon name="info" class="size-5 text-palm-700" />ข้อสังเกตจากข้อมูล</h2>
-      <p class="mt-1">เดือนแล้ง (ฝน &lt; {DRY_MONTH_MM} มม.) ขยายรังเฉลี่ย <strong data-num>{fmt(cmp.dryAvg, 1)}</strong> ครั้ง/เดือน เทียบกับเดือนปกติ <strong data-num>{fmt(cmp.wetAvg, 1)}</strong> ครั้ง/เดือน</p>
-      {honeyCmp && <p class="mt-1">น้ำผึ้ง: เดือนแล้งเฉลี่ย <strong data-num>{fmt(honeyCmp.dryAvg)}</strong> มล. · เดือนปกติ <strong data-num>{fmt(honeyCmp.wetAvg)}</strong> มล.</p>}
+    <section class="mb-5 rounded-2xl border border-line bg-surface p-4 text-sm" aria-labelledby="obs-h">
+      <h2 id="obs-h" class="flex items-center gap-2 text-base font-semibold"><Icon name="info" class="size-5 text-palm-700" />ข้อสังเกต</h2>
+      <p class="mt-1 text-muted">เดือนแล้ง (ฝน &lt; {DRY_MONTH_MM} มม.) ขยายรังเฉลี่ย <strong class="text-ink" data-num>{fmt(cmp.dryAvg, 1)}</strong> ครั้ง/เดือน (ปกติ <strong class="text-ink" data-num>{fmt(cmp.wetAvg, 1)}</strong>){honeyCmp && <> · น้ำผึ้งเฉลี่ย <strong class="text-ink" data-num>{fmt(honeyCmp.dryAvg)}</strong> มล. (ปกติ <strong class="text-ink" data-num>{fmt(honeyCmp.wetAvg)}</strong>)</>}</p>
     </section>
   )}
 
@@ -113,7 +121,7 @@ const honeyTabs = [
       <span>ชี้หรือแตะที่เดือน เพื่อดูค่าของเดือนนั้นในทุกกราฟ</span>
     </p>
     <MonthChart title="น้ำผึ้งที่เก็บได้" unit="มล./เดือน" months={months} shade={dry} series={[{ label: 'น้ำผึ้ง', color: C.honey, values: honey }]}
-      empty="ยังไม่มีบันทึกการเก็บน้ำหวาน — บันทึกได้ที่ ➕ บันทึก" />
+      empty="ยังไม่มีบันทึกการเก็บน้ำหวาน" />
     <MonthChart title="การขยายรัง" unit="ครั้ง/เดือน" months={months} shade={dry}
       series={[{ label: 'แยกไข่อ่อน/ตัวงาน', color: C.split, values: splits }, { label: 'เก็บไข่นางพญา', color: C.queen, values: queens }]} />
     <MonthChart title="ฝนรวม" unit="มม./เดือน" months={months} shade={dry} series={[{ label: 'ฝน', color: C.rain, values: rain }]}
@@ -155,6 +163,30 @@ const honeyTabs = [
       </div>
     </details>
   </div>
+
+  <section class="card mt-6" aria-labelledby="surv-h">
+    <h2 id="surv-h" class="mb-1 text-lg font-semibold">อัตรารอดตามที่มา</h2>
+    <p class="hint mb-3">นับเฉพาะรังที่ล่มเทียบกับทั้งหมด (ไม่รวมรังที่ขายแล้ว)</p>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="text-muted"><tr><th class="py-1 pr-2 font-medium">ที่มา</th><th class="px-2 font-medium">รัง</th><th class="px-2 font-medium">ล่ม</th><th class="pl-2 font-medium">รอด</th></tr></thead>
+        <tbody>
+          {originOrder.map((o) => {
+            const r = d.byOrigin.find((x) => x.origin === o);
+            const t = (r?.total ?? 0) - (r?.sold ?? 0);
+            return (
+              <tr class="border-t border-line">
+                <td class="py-2 pr-2">{originLabel[o]}</td>
+                <td class="px-2">{r?.total ?? 0}</td>
+                <td class="px-2">{r?.collapsed ?? 0}</td>
+                <td class="pl-2 font-semibold">{t ? `${100 - pct(r?.collapsed ?? 0, t)}%` : '–'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   <p class="mt-5 text-xs text-muted">{POWER_ATTRIBUTION} · ข้อมูลถึง {status.latest ? formatThaiDate(status.latest) : '–'} (ช้ากว่าวันจริงไม่กี่วัน)</p>
 </AdminLayout>
