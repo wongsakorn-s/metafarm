@@ -22,6 +22,7 @@
         "user:create": "node --no-warnings scripts/create-owner.ts",
         "media:seed:local": "node --no-warnings scripts/upload-media.ts",
         "check:browser": "node scripts/browser-check.mjs",
+        "check:public": "node scripts/public-snapshot.mjs",
         "brand:build": "node scripts/make-brand-assets.mjs",
         "check:leaks": "node scripts/check-leaks.mjs",
         "products:seed:local": "node --no-warnings scripts/seed-products.ts",
