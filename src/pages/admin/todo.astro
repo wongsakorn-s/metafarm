@@ -102,8 +102,7 @@ const hiveTabs = [
               )}
               {needs('สถานะรัง') && (
                 <div><label class="label" for={`st-${h.code}`}>สถานะรัง</label>
-                  <select class="field" id={`st-${h.code}`} name="status"><option value="">เลือก…</option>{statusTargets(Astro.locals.user!.role, h.status).map((s) => <option value={s} selected={val('status') === s}>{statusLabel[s]}</option>)}</select>
-                  <p class="hint">บันทึกเป็นเหตุการณ์ "เปลี่ยนสถานะ" วันนี้</p></div>
+                  <select class="field" id={`st-${h.code}`} name="status"><option value="">เลือก…</option>{statusTargets(Astro.locals.user!.role, h.status).map((s) => <option value={s} selected={val('status') === s}>{statusLabel[s]}</option>)}</select></div>
               )}
               <button class="btn-primary w-full" type="submit">บันทึกที่กรอก</button>
             </form>

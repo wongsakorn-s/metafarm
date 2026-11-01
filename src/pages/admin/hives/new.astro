@@ -62,21 +62,21 @@ const err = (k: string) => errors[k];
       {err('origin') && <p class="error">{err('origin')}</p>}
     </div>
 
-    <div class="grid grid-cols-2 gap-3 self-start">
+    <div class="grid sm:grid-cols-2 gap-3 self-start">
       <div><label class="label" for="acq">วันที่ได้มา / วันที่ขยาย</label><input class="field" id="acq" name="acquiredOn" type="date" max={today} value={v('acquiredOn', today)} />{err('acquiredOn') && <p class="error">{err('acquiredOn')}</p>}</div>
       <div><label class="label" for="qb">วันเกิดนางพญา</label><input class="field" id="qb" name="queenBornOn" type="date" max={today} value={v('queenBornOn')} />{err('queenBornOn') && <p class="error">{err('queenBornOn')}</p>}<p class="hint">ไม่ทราบ เว้นว่างได้</p></div>
     </div>
 
     <fieldset class="rounded-xl border border-line p-3">
       <legend class="px-1 text-sm font-medium">รังแม่ (ถ้าขยายเอง)</legend>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid sm:grid-cols-2 gap-3">
         <div><label class="label" for="qs">ไข่นางจากรัง</label><input class="field" id="qs" name="queenSourceCode" placeholder="เช่น 55" value={v('queenSourceCode')} />{err('queenSourceCode') && <p class="error">{err('queenSourceCode')}</p>}</div>
         <div><label class="label" for="bs">ไข่อ่อนจากรัง</label><input class="field" id="bs" name="broodSourceCode" placeholder="เช่น 89" value={v('broodSourceCode')} />{err('broodSourceCode') && <p class="error">{err('broodSourceCode')}</p>}</div>
       </div>
       <p class="hint">บันทึกแล้ว ระบบสร้างประวัติการแยกในรังแม่ให้อัตโนมัติ</p>
     </fieldset>
 
-    <div class="grid grid-cols-2 gap-3 self-start">
+    <div class="grid sm:grid-cols-2 gap-3 self-start">
       <div>
         <label class="label" for="box">กล่องรัง</label>
         <select class="field" id="box" name="boxType">

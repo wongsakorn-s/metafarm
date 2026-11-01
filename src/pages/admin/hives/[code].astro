@@ -156,7 +156,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
         <a class="btn-ghost" href={`/admin/hives/${hive.code}/media`}><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> รูป <span class="text-muted">{photos.length + salePhotos.length + (video ? 1 : 0)}</span></a>
         <a class="btn-ghost" href={`/admin/hives/${hive.code}/edit`}><Icon name="pencil" class="inline-block size-[1.15em] align-[-0.2em]" /> แก้ไขข้อมูล</a>
       </div>
-      {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint">รังนี้ตั้งขายอยู่ ควรเพิ่ม{salePhotos.length < 3 ? ` รูปสำหรับขายอีก ${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' และ' : ''}{!video ? ' วิดีโอ 1 คลิป' : ''} · เพิ่มได้ที่หน้า "รูป"</p>}
+      {hive.forSale && (salePhotos.length < 3 || !video) && <p class="hint text-honey-700">ยังขาดรูปขาย {salePhotos.length < 3 ? `${3 - salePhotos.length} รูป` : ''}{salePhotos.length < 3 && !video ? ' + ' : ''}{!video ? 'วิดีโอ' : ''} · <a class="underline" href={`/admin/hives/${hive.code}/media`}>เพิ่มรูป</a></p>}
       {noteLines.some((l) => l.startsWith('???')) && <p class="hint text-honey-700">มีข้อมูลที่ยังไม่ทราบ (???) — แตะ "แก้ไขข้อมูล" เพื่อเติม</p>}
     </section>
 
@@ -191,7 +191,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
     </section>
 
     {/* ไทม์ไลน์ */}
-    <section class="order-5 xl:order-none card" id="timeline" aria-labelledby="tl-h">
+    <section class="order-4 xl:order-none card" id="timeline" aria-labelledby="tl-h">
       <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติ ({events.length})</h2>
       {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติ</p> : (
         <ol class="divide-y divide-line">
@@ -212,11 +212,11 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
               </div>
               <div class="flex shrink-0 flex-col items-end">
                 <time class="text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.occurredOnPrecision)}</time>
-                {/* บันทึกผิด → ลบแล้วบันทึกใหม่ (การเปลี่ยนสถานะ และการเก็บที่อยู่ในล็อตแล้ว ลบไม่ได้) · ปุ่มมีกรอบ+ไอคอน ให้เห็นชัดว่าเป็นปุ่ม (รีวิว UX 2026-10-18) */}
+                {/* บันทึกผิด → ลบแล้วบันทึกใหม่ */}
                 {deletableEvent(e) && !lotCode && canDeleteRecord(user, e) && (
                   <form method="post" data-confirm={`ลบบันทึก "${eventLabel[e.type]}" วันที่ ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)} ใช่ไหม?`}>
                     <input type="hidden" name="intent" value="delete-event" /><input type="hidden" name="eventId" value={e.id} />
-                    <button class="btn-danger mt-1 min-h-11 gap-1 px-3 text-sm" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}><Icon name="trash" class="size-4" />ลบ</button>
+                    <button class="btn-ghost size-11 p-0 text-muted hover:text-danger active:text-danger" type="submit" aria-label={`ลบบันทึก ${eventLabel[e.type]} ${formatThaiDate(e.occurredOn, e.occurredOnPrecision)}`}><Icon name="trash" class="size-5" /></button>
                   </form>
                 )}
               </div>
@@ -227,15 +227,15 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
     </section>
     </div>
     <div class="contents xl:sticky xl:top-6 xl:flex xl:max-h-[calc(100dvh-3rem)] xl:flex-col xl:gap-5 xl:overflow-y-auto xl:pb-2 xl:[&>section]:mb-0 xl:[&>section]:shrink-0">
-    {/* ปุ่มบันทึกเร็ว */}
-    <section aria-labelledby="act-h" class="order-2 xl:order-none mb-5 space-y-3" data-hive-active={hive.status === 'active' ? '1' : undefined}>
+    {/* ปุ่มบันทึก */}
+    <section aria-labelledby="act-h" class="card order-2 xl:order-none mb-5 space-y-3" data-hive-active={hive.status === 'active' ? '1' : undefined}>
       <h2 id="act-h" class="text-lg font-semibold">บันทึก</h2>
-      {/* รังที่ล่ม/ขายแล้ว: ยังบันทึกได้ (เช่นบันทึกย้อนหลังที่บ้าน) แต่บอกให้ชัดว่ารังไม่ได้อยู่แล้ว */}
-      {hive.status !== 'active' && <p class="rounded-xl bg-honey-50 p-3 text-sm">รังนี้สถานะ <strong>{statusLabel[hive.status]}</strong> — บันทึกได้ถ้าเป็นงานที่ทำก่อนหน้านั้น (บันทึกย้อนหลัง)</p>}
+      {/* รังที่ล่ม/ขายแล้ว: ยังบันทึกได้ (เช่นบันทึกย้อนหลังที่บ้าน) */}
+      {hive.status !== 'active' && <p class="rounded-xl bg-honey-50 p-3 text-sm">รังนี้สถานะ <strong>{statusLabel[hive.status]}</strong> — บันทึกย้อนหลังได้</p>}
 
-      <details id="form-honey" class="card group scroll-mt-20" open={isOpen('honey')}>
-        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
-        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บน้ำหวาน`}>
+      <details id="form-honey" name="record" class="group rounded-2xl border border-line scroll-mt-20 overflow-hidden" open={isOpen('honey')}>
+        <summary class="disclosure flex min-h-12 cursor-pointer items-center gap-3 bg-canvas px-4 font-semibold text-ink group-open:bg-surface group-open:border-b group-open:border-line hover:bg-palm-50 active:bg-palm-100"><Icon name="honey" class="size-6 text-palm-700" />เก็บน้ำหวาน</summary>
+        <form method="post" class="p-4 space-y-3 bg-surface" data-outbox={`${hive.code} · เก็บน้ำหวาน`}>
           {formError('honey') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('honey')}</p>}
           <input type="hidden" name="intent" value="honey" /><input type="hidden" name="idem" value={f.honey.v('idem') || idem()} />
           <div><label class="label" for="h-date">วันที่</label><input class="field" id="h-date" name="occurredOn" type="date" max={today} value={f.honey.v('occurredOn', today)} required />{f.honey.err('occurredOn') && <p class="error">{f.honey.err('occurredOn')}</p>}</div>
@@ -248,9 +248,9 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
         </form>
       </details>
 
-      <details id="form-queen" class="card scroll-mt-20" open={isOpen('queen')}>
-        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
-        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · เก็บไข่นางพญา`}>
+      <details id="form-queen" name="record" class="group rounded-2xl border border-line scroll-mt-20 overflow-hidden" open={isOpen('queen')}>
+        <summary class="disclosure flex min-h-12 cursor-pointer items-center gap-3 bg-canvas px-4 font-semibold text-ink group-open:bg-surface group-open:border-b group-open:border-line hover:bg-palm-50 active:bg-palm-100"><Icon name="queen" class="size-6 text-palm-700" />เก็บไข่นางพญา</summary>
+        <form method="post" class="p-4 space-y-3 bg-surface" data-outbox={`${hive.code} · เก็บไข่นางพญา`}>
           {formError('queen') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('queen')}</p>}
           <input type="hidden" name="intent" value="queen" /><input type="hidden" name="idem" value={f.queen.v('idem') || idem()} />
           <div><label class="label" for="q-date">วันที่</label><input class="field" id="q-date" name="occurredOn" type="date" max={today} value={f.queen.v('occurredOn', today)} required />{f.queen.err('occurredOn') && <p class="error">{f.queen.err('occurredOn')}</p>}</div>
@@ -264,23 +264,25 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
         </form>
       </details>
 
-      <details id="form-brood" class="card scroll-mt-20" open={isOpen('brood')}>
-        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
-        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · แยกรัง`}>
+      <details id="form-brood" name="record" class="group rounded-2xl border border-line scroll-mt-20 overflow-hidden" open={isOpen('brood')}>
+        <summary class="disclosure flex min-h-12 cursor-pointer items-center gap-3 bg-canvas px-4 font-semibold text-ink group-open:bg-surface group-open:border-b group-open:border-line hover:bg-palm-50 active:bg-palm-100"><Icon name="brood" class="size-6 text-palm-700" />แยกไข่อ่อน/ตัวงาน</summary>
+        <form method="post" class="p-4 space-y-3 bg-surface" data-outbox={`${hive.code} · แยกรัง`}>
           {formError('brood') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('brood')}</p>}
           <input type="hidden" name="intent" value="brood" /><input type="hidden" name="idem" value={f.brood.v('idem') || idem()} />
           <div><label class="label" for="b-date">วันที่</label><input class="field" id="b-date" name="occurredOn" type="date" max={today} value={f.brood.v('occurredOn', today)} required />{f.brood.err('occurredOn') && <p class="error">{f.brood.err('occurredOn')}</p>}</div>
-          <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น 148" value={f.brood.v('targetCode')} autofocus={focusOn('brood') || !!f.brood.err('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}<p class="hint">พิมพ์แค่เลขก็ได้ (ชุด {splitHiveCode(hive.code).prefix}) · ถ้าแยกไปรังใหม่ที่ยังไม่มีในทะเบียน ให้กดปุ่ม "แยกไปรังใหม่" ด้านล่าง</p></div>
+          <div><label class="label" for="b-t">แยกไปทำรัง (ถ้ามี)</label><input class="field" id="b-t" name="targetCode" placeholder="เช่น 148" value={f.brood.v('targetCode')} autofocus={focusOn('brood') || !!f.brood.err('targetCode')} />{f.brood.err('targetCode') && <p class="error">{f.brood.err('targetCode')}</p>}<p class="hint">พิมพ์แค่เลขก็ได้</p></div>
           <CreateTarget t={createTarget('brood')} from={hive.code} />
           <div><label class="label" for="b-note">หมายเหตุ</label><input class="field" id="b-note" name="note" maxlength="1000" value={f.brood.v('note')} /></div>
           <button class="btn-primary w-full" type="submit">บันทึกการแยกรัง</button>
         </form>
-        <a class="btn-ghost mt-3 w-full" href={`/admin/hives/new?${new URLSearchParams({ origin: 'split', broodSourceCode: hive.code })}`}><Icon name="plus" class="size-5" />แยกไปรังใหม่ (ลงทะเบียนกล่องใหม่)</a>
+        <div class="px-4 pb-4">
+          <a class="btn-ghost w-full" href={`/admin/hives/new?${new URLSearchParams({ origin: 'split', broodSourceCode: hive.code })}`}><Icon name="plus" class="size-5" />แยกไปรังใหม่ (ลงทะเบียนกล่องใหม่)</a>
+        </div>
       </details>
 
-      <details id="form-note" class="card scroll-mt-20" open={isOpen('note')}>
-        <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
-        <form method="post" class="mt-3 space-y-3" data-outbox={`${hive.code} · หมายเหตุ`}>
+      <details id="form-note" name="record" class="group rounded-2xl border border-line scroll-mt-20 overflow-hidden" open={isOpen('note')}>
+        <summary class="disclosure flex min-h-12 cursor-pointer items-center gap-3 bg-canvas px-4 font-semibold text-ink group-open:bg-surface group-open:border-b group-open:border-line hover:bg-palm-50 active:bg-palm-100"><Icon name="note" class="size-6 text-palm-700" />หมายเหตุ</summary>
+        <form method="post" class="p-4 space-y-3 bg-surface" data-outbox={`${hive.code} · หมายเหตุ`}>
           {formError('note') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('note')}</p>}
           <input type="hidden" name="intent" value="note" /><input type="hidden" name="idem" value={f.note.v('idem') || idem()} />
           <div><label class="label" for="n-date">วันที่</label><input class="field" id="n-date" name="occurredOn" type="date" max={today} value={f.note.v('occurredOn', today)} required />{f.note.err('occurredOn') && <p class="error">{f.note.err('occurredOn')}</p>}</div>
@@ -292,7 +294,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
     </section>
 
     {/* ตั้งขาย / เปลี่ยนสถานะ */}
-    <section class="order-4 xl:order-none mb-5 space-y-3" aria-label="จัดการรัง">
+    <section class="order-5 xl:order-none mb-5 space-y-3" aria-label="จัดการรัง">
       {owner && hive.status === 'active' && (
         <details id="form-sale" class="card scroll-mt-20" open={isOpen('sale')}>
           <summary class="disclosure min-h-11 text-lg font-semibold"><Icon name="tag" class="size-6 text-palm-700" />ตั้งขาย {hive.forSale && <span class="badge bg-honey-400 text-ink">กำลังขาย</span>}</summary>
@@ -300,10 +302,9 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
             {formError('sale') && <p role="alert" class="rounded-xl bg-red-50 p-3 text-sm font-medium text-danger">ยังไม่ได้บันทึก — {formError('sale')}</p>}
             <input type="hidden" name="intent" value="sale" /><input type="hidden" name="seen" value={saleSeen(hive)} />
             <label class="flex min-h-11 items-center gap-2"><input class="size-5 accent-palm-600" type="checkbox" name="forSale" checked={isOpen('sale') && 'intent' in values ? values.forSale === 'on' : hive.forSale} /> ตั้งขายรังนี้ (แสดงในหน้าสินค้า/รังสมบูรณ์)</label>
-            <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}<p class="hint">ราคาขายเฉลี่ยที่ผ่านมา ประมาณ 1,545 บาท/รัง</p></div>
+            <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}</div>
             <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>
           </form>
-          <a class="btn-ghost mt-3 w-full" href={`/admin/orders/new?hive=${hive.code}`}><Icon name="receipt" class="size-5" />มีลูกค้าสั่งรังนี้ — จดออเดอร์</a>
         </details>
       )}
       {targets.length > 0 && (
@@ -318,7 +319,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
               <option value="" disabled selected={!f.status.v('status') && !(openIntent === 'collapse' && targets.includes('collapsed'))}>เลือกสถานะ…</option>
               {targets.map((s) => <option value={s} selected={f.status.v('status') === s || (openIntent === 'collapse' && !f.status.v('status') && s === 'collapsed')}>{statusLabel[s]}</option>)}
             </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}
-            {owner && targets.includes('sold') && <p class="hint" data-when="sold">ถ้าขายให้ลูกค้าที่ทักมา ให้กด <a class="underline" href={`/admin/orders/new?hive=${hive.code}`}>จดออเดอร์</a> แทน (ยอดขายจะเข้ารายงาน) · ใช้ "ขายแล้ว" ตรงนี้เฉพาะรังที่ขายไปโดยไม่ได้จดในระบบ</p>}</div>
+            {owner && targets.includes('sold') && <p class="hint" data-when="sold">ขายให้ลูกค้าที่ทักมา → กด <a class="underline" href={`/admin/orders/new?hive=${hive.code}`}>จดออเดอร์</a></p>}</div>
           <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
           {targets.includes('sold') && <div data-when="sold"><label class="label" for="st-p">ราคาขายจริง (บาท)</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>}
           <div data-when="collapsed"><label class="label" for="st-r">สาเหตุที่ล่ม</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} autofocus={focusOn('collapse')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}
