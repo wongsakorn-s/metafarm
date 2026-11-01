@@ -8,18 +8,21 @@ export function initGalleryPreview() {
 
     const rawLink = gallery.querySelector<HTMLAnchorElement>('[data-gallery-main]');
     const rawImg = gallery.querySelector<HTMLImageElement>('[data-gallery-img]');
+    const rawVideo = gallery.querySelector<HTMLElement>('[data-gallery-video]');
+    const iconSearch = gallery.querySelector<HTMLElement>('[data-gallery-icon-search]');
+    const iconVideo = gallery.querySelector<HTMLElement>('[data-gallery-icon-video]');
     const counter = gallery.querySelector<HTMLElement>('[data-gallery-counter]');
+    const expandBtn = gallery.querySelector<HTMLElement>('[data-gallery-expand]');
     const thumbs = [...gallery.querySelectorAll<HTMLElement>('[data-gallery-thumb]')];
 
-    if (!rawLink || !rawImg || !thumbs.length) return;
-    const link: HTMLAnchorElement = rawLink;
-    const img: HTMLImageElement = rawImg;
+    if (!thumbs.length) return;
 
     function select(index: number, smoothScroll = true) {
       if (index < 0 || index >= thumbs.length) return;
       const thumb = thumbs[index];
       if (!thumb) return;
 
+      const isVideo = thumb.dataset.isVideo === 'true';
       const src = thumb.dataset.src;
       const srcset = thumb.dataset.srcset;
       const alt = thumb.dataset.alt;
@@ -42,27 +45,47 @@ export function initGalleryPreview() {
         thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
 
-      // เปลี่ยนรูปหลักแบบนุ่มนวล
-      if (src && img.getAttribute('src') !== src) {
-        img.style.opacity = '0.7';
-        const imgLoader = new Image();
-        imgLoader.src = src;
-        imgLoader.onload = () => {
-          img.src = src;
-          if (srcset) img.srcset = srcset;
-          if (alt) img.alt = alt;
-          img.style.opacity = '1';
-        };
-        imgLoader.onerror = () => {
-          img.src = src;
-          img.style.opacity = '1';
-        };
+      if (isVideo) {
+        if (rawLink) rawLink.classList.add('hidden');
+        if (rawVideo) rawVideo.classList.remove('hidden');
+        if (iconSearch) iconSearch.classList.add('hidden');
+        if (iconVideo) iconVideo.classList.remove('hidden');
+      } else {
+        if (rawVideo) {
+          rawVideo.classList.add('hidden');
+          const vid = rawVideo.querySelector('video');
+          if (vid && !vid.paused) vid.pause();
+        }
+        if (rawLink) {
+          rawLink.classList.remove('hidden');
+          if (src) rawLink.href = src;
+          if (caption) rawLink.dataset.caption = caption;
+          rawLink.dataset.zoomIndex = String(index);
+        }
+        if (iconSearch) iconSearch.classList.remove('hidden');
+        if (iconVideo) iconVideo.classList.add('hidden');
+
+        // เปลี่ยนรูปหลักแบบนุ่มนวล
+        if (rawImg && src && rawImg.getAttribute('src') !== src) {
+          rawImg.style.opacity = '0.7';
+          const imgLoader = new Image();
+          imgLoader.src = src;
+          imgLoader.onload = () => {
+            rawImg.src = src;
+            if (srcset) rawImg.srcset = srcset;
+            if (alt) rawImg.alt = alt;
+            rawImg.style.opacity = '1';
+          };
+          imgLoader.onerror = () => {
+            rawImg.src = src;
+            rawImg.style.opacity = '1';
+          };
+        }
       }
 
-      // ปรับปรุงลิงก์ดูขยาย (Lightbox)
-      if (src) link.href = src;
-      if (caption) link.dataset.caption = caption;
-      link.dataset.zoomIndex = String(index);
+      if (expandBtn) {
+        expandBtn.dataset.zoomIndex = String(index);
+      }
 
       // ปรับปรุงตัวบอกจำนวนรูป
       if (counter && thumbs.length > 1) {
@@ -95,4 +118,3 @@ if (typeof document !== 'undefined') {
     initGalleryPreview();
   }
 }
-

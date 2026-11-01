@@ -4,13 +4,14 @@ import type { PublicVideo } from '../server/public.ts';
 import { posterKeyOf } from '../lib/video.ts';
 
 /** ambient = เล่นเองแบบไม่มีเสียง วนซ้ำ ไม่มีแถบควบคุม มีปุ่มเปิด/ปิดเสียงปุ่มเดียว (ใช้กับวิดีโอแนะนำหน้าแรก; YouTube ใช้แบบปกติ) */
-interface Props { video: PublicVideo; title: string; class?: string; ambient?: boolean; fill?: boolean }
-const { video, title, class: cls = '', ambient = false, fill = false } = Astro.props;
+interface Props { video: PublicVideo; title: string; class?: string; ambient?: boolean; fill?: boolean; poster?: string }
+const { video, title, class: cls = '', ambient = false, fill = false, poster } = Astro.props;
+const resolvedPoster = poster || (video.key ? `/video/${posterKeyOf(video.key)}` : undefined);
 ---
 
 {video.key && ambient ? (
   <div class:list={['relative', fill && 'lg:absolute lg:inset-0']} data-ambient>
-    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', fill && 'lg:size-full lg:max-h-none lg:object-contain', cls].filter(Boolean).join(' ')} muted loop playsinline preload="metadata" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
+    <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', fill && 'lg:size-full lg:max-h-none lg:object-contain', cls].filter(Boolean).join(' ')} muted loop playsinline preload="metadata" poster={resolvedPoster} aria-label={title}>
       <source src={`/video/${video.key}`} type="video/mp4" />
     </video>
     <button type="button" data-sound aria-pressed="false" aria-label="เปิดเสียงวิดีโอ" class="absolute bottom-3 right-3 grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
@@ -20,16 +21,18 @@ const { video, title, class: cls = '', ambient = false, fill = false } = Astro.p
   </div>
 ) : video.key ? (
   // วิดีโอไฟล์: คงสัดส่วนจริงของคลิป (แนวตั้ง/จัตุรัสไม่โดนบีบหรือมีแถบดำใหญ่) แต่ไม่สูงเกินจอ
-  <video class={['block w-full max-h-[75svh] rounded-2xl bg-black', cls].join(' ')} controls playsinline preload="metadata" poster={`/video/${posterKeyOf(video.key)}`} aria-label={title}>
-    <source src={`/video/${video.key}`} type="video/mp4" />
-    เบราว์เซอร์นี้เล่นวิดีโอไม่ได้
-  </video>
+  <div class:list={['relative flex items-center justify-center bg-black', fill ? 'size-full' : 'w-full max-h-[75svh] rounded-2xl overflow-hidden', cls]}>
+    <video class={['block size-full object-contain bg-black', !fill && 'rounded-2xl'].filter(Boolean).join(' ')} controls playsinline preload="metadata" poster={resolvedPoster} aria-label={title}>
+      <source src={`/video/${video.key}`} type="video/mp4" />
+      เบราว์เซอร์นี้เล่นวิดีโอไม่ได้
+    </video>
+  </div>
 ) : (
-  <div class:list={['aspect-video overflow-hidden rounded-2xl bg-black', cls]}>
+  <div class:list={['overflow-hidden bg-black', fill ? 'size-full' : 'aspect-video rounded-2xl', cls]}>
     <iframe class="size-full" src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}`} title={title} loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
 )}
-{video.youtubeId && <p class="hint"><a class="underline" href={`https://www.youtube.com/watch?v=${video.youtubeId}`} target="_blank" rel="noopener noreferrer">เปิดใน YouTube</a></p>}
+{video.youtubeId && !fill && <p class="hint"><a class="underline" href={`https://www.youtube.com/watch?v=${video.youtubeId}`} target="_blank" rel="noopener noreferrer">เปิดใน YouTube</a></p>}
 
 <script>
   // วิดีโอเล่นเอง (ไม่มีเสียง): เล่นเฉพาะตอนเห็นบนจอ · แตะที่ภาพเพื่อหยุด/เล่น · ถ้าเบราว์เซอร์ห้ามเล่นเอง หรือผู้ใช้ตั้งลดการเคลื่อนไหว → แสดงแถบควบคุมปกติแทน

@@ -15,6 +15,7 @@ export const GRID_COLS: Record<number, string> = {
   4: 'sm:grid-cols-4',
   5: 'sm:grid-cols-5',
   6: 'sm:grid-cols-6',
+  7: 'sm:grid-cols-7',
 };
 
 export const kindLabel: Record<MediaKind, string> = {
