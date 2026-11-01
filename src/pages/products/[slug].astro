@@ -139,13 +139,13 @@ const jsonLd = product
                       data-caption={`วิดีโอ ${product.name}`}
                       data-alt={`วิดีโอ ${product.name}`}
                       class:list={[
-                        'group relative block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
+                        'group relative block aspect-square w-[72px] overflow-hidden rounded-xl bg-black transition-all duration-150 sm:w-full focus-visible:outline-2 focus-visible:outline-palm-600',
                         product.photos.length === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100',
                       ]}
                       aria-label={`ดูวิดีโอ ${product.name}`}
                       aria-current={product.photos.length === 0 ? 'true' : 'false'}
                     >
-                      <img src={videoPoster} width="160" height="160" alt="" loading="lazy" onerror="this.style.display='none'" class="aspect-square w-[72px] rounded-xl bg-black object-cover transition-transform duration-(--duration-base) group-hover:scale-105 sm:w-full" />
+                      <img src={videoPoster} width="160" height="160" alt="" loading="lazy" onerror="this.style.display='none'" class="absolute inset-0 size-full rounded-xl object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
                       <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
                         <span class="grid size-6 place-items-center rounded-full bg-black/60 text-white backdrop-blur sm:size-7">
                           <Icon name="video" class="ml-0.5 size-3.5 sm:size-4" />
