@@ -2,6 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import Icon from '../../components/Icon.astro';
 import MonthChart from '../../components/MonthChart.astro';
+import SubTabs from '../../components/SubTabs.astro';
 import { getDb } from '../../server/db.ts';
 import { getSettings } from '../../server/settings.ts';
 import { ensureWeather, monthlyWeather } from '../../server/weather.ts';
@@ -63,9 +64,15 @@ const tiles = [
   { label: 'เดือนแล้งในช่วงนี้', value: fmt(dry.filter(Boolean).length), unit: `จาก ${months.length} เดือน`, icon: 'warning' as const },
 ];
 const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3', temp: '#5b6a61' };
+
+const honeyTabs = [
+  { key: 'lots', href: '/admin/lots', icon: 'honey', short: 'ล็อต', label: 'น้ำผึ้ง (ล็อต)' },
+  { key: 'production', href: '/admin/production', icon: 'chart', short: 'ผลผลิต', label: 'ผลผลิตและอากาศ' },
+] as const;
 ---
 
-<AdminLayout back={{ href: '/admin', label: 'ภาพรวม' }} title="ผลผลิตและอากาศ" active="production">
+<AdminLayout title="ผลผลิตและอากาศ" active="production">
+  <SubTabs label="หมวดน้ำผึ้ง" active="production" tabs={honeyTabs} />
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
     <nav aria-label="ช่วงเวลา" class="inline-flex rounded-xl border border-line bg-surface p-1">
       {([['12', '12 เดือน'], ['24', '24 เดือน'], ['all', 'ทั้งหมด']] as const).map(([k, l]) => (
@@ -73,7 +80,7 @@ const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3
           class:list={['inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium', range === k ? 'bg-palm-600 text-white' : 'text-ink hover:bg-palm-50']}>{l}</a>
       ))}
     </nav>
-    <p class="text-sm text-muted">{monthLabel(months[0]!)} – {monthLabel(months.at(-1)!)} · พิกัด {settings.farm.lat}, {settings.farm.lng}{settings.farm.isDefault && (canManageFarm(Astro.locals.user) ? <> (ประมาณ · <a class="underline" href="/admin/settings#location">ตั้งพิกัดจริง</a>)</> : <> (ประมาณ)</>)}</p>
+    <p class="text-sm text-muted">{monthLabel(months[0]!)} – {monthLabel(months.at(-1)!)} · {canManageFarm(Astro.locals.user) ? <a class="underline" href="/admin/settings#location">ตำแหน่งฟาร์ม · แก้ไข</a> : 'ตำแหน่งฟาร์ม'}</p>
   </div>
 
   {status.error && (
@@ -95,9 +102,8 @@ const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3
   {cmp && (
     <section class="mb-5 rounded-2xl border border-line bg-surface p-4" aria-labelledby="obs-h">
       <h2 id="obs-h" class="flex items-center gap-2 font-semibold"><Icon name="info" class="size-5 text-palm-700" />ข้อสังเกตจากข้อมูล</h2>
-      <p class="mt-1">ในช่วงที่มีการขยายรัง เดือนแล้ง (ฝน &lt; {DRY_MONTH_MM} มม.) ขยายรังเฉลี่ย <strong data-num>{fmt(cmp.dryAvg, 1)}</strong> ครั้ง/เดือน เทียบกับเดือนที่ฝนปกติ <strong data-num>{fmt(cmp.wetAvg, 1)}</strong> ครั้ง/เดือน ({cmp.dryMonths} กับ {cmp.wetMonths} เดือน)</p>
-      <p class="hint">เป็นการเทียบตัวเลขเฉย ๆ ไม่ได้พิสูจน์ว่าฝนเป็นสาเหตุ — การขยายรังขึ้นกับการตัดสินใจของฟาร์มด้วย</p>
-      {honeyCmp && <p class="mt-2">น้ำผึ้ง: เดือนแล้งเฉลี่ย <strong data-num>{fmt(honeyCmp.dryAvg)}</strong> มล. · เดือนปกติ <strong data-num>{fmt(honeyCmp.wetAvg)}</strong> มล.</p>}
+      <p class="mt-1">เดือนแล้ง (ฝน &lt; {DRY_MONTH_MM} มม.) ขยายรังเฉลี่ย <strong data-num>{fmt(cmp.dryAvg, 1)}</strong> ครั้ง/เดือน เทียบกับเดือนปกติ <strong data-num>{fmt(cmp.wetAvg, 1)}</strong> ครั้ง/เดือน</p>
+      {honeyCmp && <p class="mt-1">น้ำผึ้ง: เดือนแล้งเฉลี่ย <strong data-num>{fmt(honeyCmp.dryAvg)}</strong> มล. · เดือนปกติ <strong data-num>{fmt(honeyCmp.wetAvg)}</strong> มล.</p>}
     </section>
   )}
 
@@ -107,7 +113,7 @@ const C = { honey: '#e0a800', split: '#0b7a3e', queen: '#c98a00', rain: '#2f6fb3
       <span>ชี้หรือแตะที่เดือน เพื่อดูค่าของเดือนนั้นในทุกกราฟ</span>
     </p>
     <MonthChart title="น้ำผึ้งที่เก็บได้" unit="มล./เดือน" months={months} shade={dry} series={[{ label: 'น้ำผึ้ง', color: C.honey, values: honey }]}
-      empty="ยังไม่มีบันทึกการเก็บน้ำหวานในช่วงนี้ — บันทึกได้ที่ปุ่ม ➕ บันทึก → เก็บน้ำหวาน แล้วกราฟนี้จะเริ่มมีข้อมูล" />
+      empty="ยังไม่มีบันทึกการเก็บน้ำหวาน — บันทึกได้ที่ ➕ บันทึก" />
     <MonthChart title="การขยายรัง" unit="ครั้ง/เดือน" months={months} shade={dry}
       series={[{ label: 'แยกไข่อ่อน/ตัวงาน', color: C.split, values: splits }, { label: 'เก็บไข่นางพญา', color: C.queen, values: queens }]} />
     <MonthChart title="ฝนรวม" unit="มม./เดือน" months={months} shade={dry} series={[{ label: 'ฝน', color: C.rain, values: rain }]}

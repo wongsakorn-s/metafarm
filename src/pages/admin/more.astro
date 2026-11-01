@@ -4,42 +4,44 @@ import Icon from '../../components/Icon.astro';
 import type { IconName } from '../../lib/icons.ts';
 import { canManageFarm, canManageUsers, roleLabel } from '../../lib/permissions.ts';
 
-// "เมนู" ของมือถือ: หน้ารองทั้งหมดรวมไว้ที่เดียว (เดิมตั้งค่า/บัญชี/ออกจากระบบ อัดอยู่แถบบนจนตัวอักษรตกบรรทัด)
 export const prerender = false;
 const user = Astro.locals.user!;
 const owner = canManageFarm(user);
 
 const groups = [
   {
-    title: 'งานที่ฟาร์ม',
+    title: 'งาน',
     items: [
-      { href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง (ล็อต)', hint: 'จดน้ำผึ้งที่กรองแล้ว บรรจุขวด พิมพ์ฉลาก' },
-      { href: '/admin/production', icon: 'chart', label: 'ผลผลิตและอากาศ', hint: 'ดูน้ำผึ้งที่เก็บได้ เทียบกับฝนและอากาศ' },
-      { href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่', hint: 'ลงทะเบียนรังที่เพิ่งได้มาหรือเพิ่งแยก' },
-      { href: '/admin/photos', icon: 'camera', label: 'รังรอถ่ายรูป', hint: 'รังเหล่านี้รอให้ไปถ่ายรูป' },
-      { href: '/admin/todo', icon: 'note', label: 'รังข้อมูลไม่ครบ', hint: 'รังที่ยังมีเรื่องที่ไม่ทราบ รอเติมให้ครบ' },
-      { href: '/admin/outbox', icon: 'status', label: 'รายการค้างส่ง', hint: 'ที่จดไว้ตอนสัญญาณไม่ดี และยังส่งไม่ได้' },
+      { href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
+      { href: '/admin/photos', icon: 'camera', label: 'รังรอถ่ายรูป' },
+      { href: '/admin/todo', icon: 'note', label: 'รังข้อมูลไม่ครบ' },
+      { href: '/admin/production', icon: 'chart', label: 'ผลผลิตและอากาศ' },
+      { href: '/admin/outbox', icon: 'status', label: 'รายการค้างส่ง' },
+      ...(owner ? [{ href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' }] : []),
     ],
   },
   ...(owner ? [{
-    title: 'แก้หน้าเว็บ',
+    title: 'หน้าเว็บ',
     items: [
-      { href: '/admin/settings', icon: 'settings', label: 'ติดต่อและชำระเงิน', hint: 'เบอร์โทร LINE Facebook แผนที่ เลขบัญชี' },
-      { href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตร', hint: 'รูปและวิดีโอหน้าแรก ราคาหลักสูตรอบรม' },
-      { href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี', hint: 'เพิ่มรูปฟาร์ม รูปส่งมอบรัง/น้ำผึ้ง' },
-      { href: '/admin/products', icon: 'cart', label: 'สินค้าและราคา', hint: 'แก้ชื่อ ราคา และรูปของรังเปล่ากับน้ำผึ้ง' },
-      { href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ', hint: 'ดูว่ายังเหลืออะไรที่ต้องกรอกก่อนเปิดเว็บ' },
-      { href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', hint: 'เปิดดูเว็บอย่างที่ลูกค้าเห็น', external: true },
+      { href: '/admin/settings', icon: 'settings', label: 'ติดต่อและชำระเงิน' },
+      { href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตร' },
+      { href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี' },
+      { href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', external: true },
     ],
-  }] : [{ title: 'เว็บไซต์', items: [{ href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', hint: 'เปิดดูเว็บอย่างที่ลูกค้าเห็น', external: true }] }]),
+  }] : [{
+    title: 'หน้าเว็บ',
+    items: [
+      { href: '/', icon: 'globe', label: 'ดูหน้าเว็บจริง', external: true },
+    ],
+  }]),
   {
     title: 'บัญชี',
     items: [
-      { href: '/admin/account', icon: 'key', label: 'บัญชีและรหัสผ่านของฉัน', hint: 'เปลี่ยนชื่อหรือรหัสผ่านของคุณ' },
-      ...(canManageUsers(Astro.locals.user) ? [{ href: '/admin/users', icon: 'lock', label: 'คนใช้งานระบบ', hint: 'เพิ่มคนที่เข้าระบบได้ หรือปิดบัญชีคนที่ออกแล้ว' }] : []),
+      { href: '/admin/account', icon: 'key', label: 'บัญชีของฉัน' },
+      ...(canManageUsers(user) ? [{ href: '/admin/users', icon: 'lock', label: 'คนใช้งานระบบ' }] : []),
     ],
   },
-] as { title: string; items: { href: string; icon: string; label: string; hint?: string; external?: boolean }[] }[];
+] as { title: string; items: { href: string; icon: string; label: string; external?: boolean }[] }[];
 ---
 
 <AdminLayout title="เมนู" active="more">
@@ -51,9 +53,9 @@ const groups = [
         <ul class="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {g.items.map((it) => (
             <li>
-              <a href={it.href} target={it.external ? '_blank' : undefined} rel={it.external ? 'noopener' : undefined} class="flex min-h-16 items-center gap-3 px-4 py-2.5 active:bg-canvas">
-                <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={it.icon as IconName} class="size-6" /></span>
-                <span class="min-w-0 flex-1"><span class="block text-base font-semibold">{it.label}</span>{it.hint && <span class="line-clamp-2 text-sm text-muted">{it.hint}</span>}</span>
+              <a href={it.href} target={it.external ? '_blank' : undefined} rel={it.external ? 'noopener' : undefined} class="flex min-h-14 items-center gap-3 px-4 py-2 active:bg-canvas">
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name={it.icon as IconName} class="size-5" /></span>
+                <span class="min-w-0 flex-1 text-base font-semibold">{it.label}</span>
                 <Icon name="chevron" class="size-5 shrink-0 text-muted" />
               </a>
             </li>
@@ -62,11 +64,10 @@ const groups = [
       </section>
     ))}
     <details id="install" class="rounded-2xl border border-line bg-surface md:hidden">
-      <summary class="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2 text-base font-semibold"><span class="grid size-11 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name="phone" class="size-6" /></span>ติดตั้งเป็นแอปบนหน้าจอมือถือ</summary>
-      <div class="space-y-3 border-t border-line p-4 text-sm">
-        <p>ติดตั้งแล้วเปิดได้เร็วจากไอคอน และเวลาสัญญาณไม่ดี รายการที่บันทึกไว้จะรอส่งในเครื่องได้นานขึ้น (สำคัญสำหรับ iPhone)</p>
-        <p><strong>iPhone:</strong> เปิดด้วย Safari → กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรชี้ขึ้น) → เลือก "เพิ่มไปยังหน้าจอโฮม"<br /><span class="text-muted">ถ้ามีรายการ "ค้างส่ง" อยู่ ให้ส่งให้หมดก่อนติดตั้ง และล็อกอินใหม่ในแอปหนึ่งครั้ง</span></p>
-        <p><strong>Android:</strong> เปิดด้วย Chrome → กดจุดสามจุดมุมขวาบน → เลือก "เพิ่มลงในหน้าจอหลัก" หรือ "ติดตั้งแอป"</p>
+      <summary class="flex min-h-14 cursor-pointer items-center gap-3 px-4 py-2 text-base font-semibold"><span class="grid size-10 shrink-0 place-items-center rounded-xl bg-palm-50 text-palm-700"><Icon name="phone" class="size-5" /></span>ติดตั้งเป็นแอปบนหน้าจอมือถือ</summary>
+      <div class="space-y-2 border-t border-line p-4 text-sm">
+        <p><strong>iPhone:</strong> เปิดด้วย Safari → กดปุ่มแชร์ → เลือก "เพิ่มไปยังหน้าจอโฮม"</p>
+        <p><strong>Android:</strong> เปิดด้วย Chrome → กดจุดสามจุดมุมขวาบน → เลือก "เพิ่มลงในหน้าจอหลัก"</p>
       </div>
     </details>
     <form method="post" action="/admin/logout" data-confirm="ออกจากระบบใช่ไหม?" class="md:hidden">

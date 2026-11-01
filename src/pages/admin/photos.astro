@@ -1,22 +1,34 @@
 ---
 import Icon from '../../components/Icon.astro';
+import SubTabs from '../../components/SubTabs.astro';
 import Val from '../../components/Val.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { listHivesWithoutPhoto } from '../../server/hives.ts';
+import { countHivesWithoutPhoto, countIncompleteHives, listHivesWithoutPhoto } from '../../server/hives.ts';
 import { originLabel, statusClass, statusLabel } from '../../lib/labels.ts';
 import { provinceOf } from '../../lib/place.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
-import { canManageFarm as isOwnerUser } from '../../lib/permissions.ts';
 
 export const prerender = false;
 
+const db = getDb();
 const includeAll = Astro.url.searchParams.get('all') === '1';
-const rows = await listHivesWithoutPhoto(getDb(), includeAll);
+const [rows, photoCount, incompleteCount] = await Promise.all([
+  listHivesWithoutPhoto(db, includeAll),
+  countHivesWithoutPhoto(db),
+  countIncompleteHives(db),
+]);
 const msg = Astro.url.searchParams.get('msg');
+
+const hiveTabs = [
+  { key: 'hives', href: '/admin/hives', icon: 'hive', short: 'รัง', label: 'รังทั้งหมด' },
+  { key: 'photos', href: '/admin/photos', icon: 'camera', short: 'รอถ่ายรูป', label: 'รอถ่ายรูป', count: photoCount },
+  { key: 'todo', href: '/admin/todo', icon: 'note', short: 'ข้อมูลไม่ครบ', label: 'ข้อมูลไม่ครบ', count: incompleteCount },
+] as const;
 ---
 
-<AdminLayout back={isOwnerUser(Astro.locals.user) ? { href: '/admin/readiness', label: 'เตรียมเปิดเว็บ' } : { href: '/admin/more', label: 'เมนู' }} title="รังรอถ่ายรูป" active="photos">
+<AdminLayout title="รังรอถ่ายรูป" active="photos">
+  <SubTabs label="หมวดรัง" active="photos" tabs={hiveTabs} />
   {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {msg}</p>}
 
   <section class="card mb-4">

@@ -16,10 +16,6 @@ interface Props {
 const { title, active, back, column } = Astro.props;
 const user = Astro.locals.user;
 const owner = canManageFarm(user);
-// พนักงานไม่มีหมวดขาย/ตั้งค่าเว็บ (middleware กันไว้แล้ว ที่นี่แค่ไม่แสดงลิงก์ที่เข้าไม่ได้)
-const OWNER_KEYS = new Set<string>(['orders', 'customers', 'products', 'reports', 'readiness', 'settings', 'settingsHome', 'gallery']);
-// จัดการผู้ใช้: เจ้าของเท่านั้น (แอดมินไม่เห็นเมนูนี้)
-const allowed = (k: string) => (k === 'users' ? canManageUsers(user) : owner || !OWNER_KEYS.has(k));
 
 // แถบล่างบนมือถือ: 5 ปุ่ม — ปุ่มกลาง "จดบันทึก" เป็นงานที่ทำบ่อยที่สุดในสวน (ชื่อเดียวกับเมนูข้างบนคอม)
 // หน้ารองทั้งหมด (ตั้งค่า บัญชี คิวถ่ายรูป ฯลฯ) อยู่ใต้ "เมนู" เพื่อให้ปุ่มหลักใหญ่และไม่แน่น
@@ -31,39 +27,52 @@ const tabs = [
   owner ? ({ key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ขาย' } as const) : ({ key: 'lots', href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง' } as const),
   { key: 'more', href: '/admin/more', icon: 'menu', label: 'เมนู' },
 ] as const;
-// หน้าที่อยู่ใต้ "เมนู" → ให้แท็บเมนูสว่างเมื่ออยู่ในหน้าเหล่านี้
-const underMore: Key[] = ['more', 'new', 'readiness', 'settings', 'settingsHome', 'account', 'photos', 'todo', 'users', 'gallery', 'outbox', ...(owner ? (['lots'] as Key[]) : [])];
-const tabActive = (k: string) => active === k || (k === 'orders' && (active === 'customers' || active === 'products' || active === 'reports')) || (k === 'dashboard' && active === 'production') || (k === 'more' && !!active && underMore.includes(active) && active !== 'new') || (k === 'hives' && active === 'new');
 
-// แถบข้างบนคอม (ที่กว้างพอ แสดงทุกหน้า)
-// เมนูข้างบนคอม: แบ่งกลุ่มมีหัวข้อ (เดิม 15 รายการเรียงยาวไม่มีหัวกลุ่ม หาเมนูยาก)
-// พนักงานเห็นเฉพาะที่เข้าได้ — กลุ่มขายเหลือแค่ล็อต จึงเรียกว่า "น้ำผึ้ง" · กลุ่มที่ว่างไม่แสดง
-const sideGroups = [
-  { title: 'งานที่ฟาร์ม', items: [
-    { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
-    { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รังทั้งหมด' },
-    { key: 'quick', href: '/admin/quick', icon: 'edit', label: 'จดบันทึก' },
-    { key: 'new', href: '/admin/hives/new', icon: 'plus', label: 'เพิ่มรังใหม่' },
-    { key: 'lots', href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง (ล็อต)' },
-    { key: 'production', href: '/admin/production', icon: 'chart', label: 'ผลผลิตและอากาศ' },
-    { key: 'photos', href: '/admin/photos', icon: 'camera', label: 'รังรอถ่ายรูป' },
-    { key: 'todo', href: '/admin/todo', icon: 'note', label: 'รังข้อมูลไม่ครบ' },
-    { key: 'outbox', href: '/admin/outbox', icon: 'status', label: 'รายการค้างส่ง' },
-  ] },
-  { title: 'ขาย', items: [
-    { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ออเดอร์' },
-    { key: 'customers', href: '/admin/customers', icon: 'users', label: 'ลูกค้า' },
-    { key: 'products', href: '/admin/products', icon: 'cart', label: 'สินค้าและราคา' },
-    { key: 'reports', href: '/admin/reports', icon: 'report', label: 'รายงาน' },
-  ] },
-  { title: 'แก้หน้าเว็บ', items: [
-    { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'ติดต่อและชำระเงิน' },
-    { key: 'settingsHome', href: '/admin/settings/home', icon: 'globe', label: 'หน้าแรกและหลักสูตร' },
-    { key: 'gallery', href: '/admin/gallery', icon: 'image', label: 'รูปแกลเลอรี' },
-    { key: 'readiness', href: '/admin/readiness', icon: 'checklist', label: 'เตรียมเปิดเว็บ' },
-  ] },
+const tabActive = (k: string) => {
+  if (k === 'dashboard') return active === 'dashboard';
+  if (k === 'hives') return active === 'hives' || active === 'new' || active === 'photos' || active === 'todo';
+  if (k === 'quick') return active === 'quick';
+  if (k === 'orders') return active === 'orders' || active === 'customers' || active === 'products' || active === 'reports';
+  if (k === 'lots') return active === 'lots' || active === 'production';
+  if (k === 'more') {
+    return (
+      active === 'more' ||
+      active === 'readiness' ||
+      active === 'outbox' ||
+      active === 'account' ||
+      active === 'users' ||
+      active === 'settings' ||
+      active === 'settingsHome' ||
+      active === 'gallery' ||
+      (owner && (active === 'lots' || active === 'production'))
+    );
+  }
+  return false;
+};
+
+// เมนูข้าง (คอม): เหลือ 6 รายการข้างบน ไม่มีหัวกลุ่ม ลบ sideGroups ทิ้ง ใช้ list เดียว
+const sideItems = [
+  { key: 'dashboard', href: '/admin', icon: 'dashboard', label: 'ภาพรวม' },
+  { key: 'hives', href: '/admin/hives', icon: 'hive', label: 'รัง' },
+  { key: 'quick', href: '/admin/quick', icon: 'edit', label: 'จดบันทึก' },
+  { key: 'lots', href: '/admin/lots', icon: 'honey', label: 'น้ำผึ้ง' },
+  ...(owner
+    ? ([
+        { key: 'orders', href: '/admin/orders', icon: 'receipt', label: 'ขาย' },
+        { key: 'settings', href: '/admin/settings', icon: 'settings', label: 'หน้าเว็บ' },
+      ] as const)
+    : []),
 ] as const;
-const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.filter((n) => allowed(n.key)) })).filter((g) => g.items.length > 0);
+
+const isSideActive = (k: string) => {
+  if (k === 'dashboard') return active === 'dashboard';
+  if (k === 'hives') return active === 'hives' || active === 'new' || active === 'photos' || active === 'todo';
+  if (k === 'quick') return active === 'quick';
+  if (k === 'lots') return active === 'lots' || active === 'production';
+  if (k === 'orders') return active === 'orders' || active === 'customers' || active === 'products' || active === 'reports';
+  if (k === 'settings') return active === 'settings' || active === 'settingsHome' || active === 'gallery';
+  return false;
+};
 ---
 
 <!doctype html>
@@ -87,30 +96,21 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
     {/* เมนูข้าง (คอม): รายการเลื่อนได้ในตัว · ชื่อผู้ใช้ + ออกจากระบบติดล่างเห็นตลอด */}
     <aside class="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-surface md:flex">
       <a href="/admin" class="flex items-center gap-2 px-4 pb-4 pt-4 text-xl font-bold text-palm-700"><img src="/brand/logo-round-sm.webp" alt="" width="32" height="30" class="size-8 object-contain" />{site.name}</a>
-      {/* จอคอมเตี้ย (เช่นสูง 800px) เมนูยาวกว่าจอ: แถบจางท้ายรายการ + ข้อความ "เลื่อนดูเมนูเพิ่ม" บอกว่ามีเมนูต่อ (กดแล้วเลื่อนลง) · เปิดหน้าไหนก็เลื่อนให้เห็นเมนูของหน้านั้น — รีวิว UX 2026-10-18 */}
-      <div class="relative flex min-h-0 flex-1 flex-col">
-      <nav class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3" aria-label="เมนูหลัก" data-side-nav>
-        {visibleGroups.map((g) => (
-          <div>
-            <p class="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted">{g.title}</p>
-            <div class="flex flex-col gap-0.5">
-              {g.items.map((n) => (
-                <a href={n.href} aria-current={active === n.key ? 'page' : undefined}
-                  class:list={['flex min-h-9 items-center gap-3 rounded-xl px-3 font-medium', active === n.key ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
-                  <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
-                </a>
-              ))}
-            </div>
-          </div>
-        ))}
+      <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-3" aria-label="เมนูหลัก">
+        {sideItems.map((n) => {
+          const on = isSideActive(n.key);
+          return (
+            <a href={n.href} aria-current={on ? 'page' : undefined}
+              class:list={['flex min-h-9 items-center gap-3 rounded-xl px-3 font-medium', on ? 'bg-palm-50 text-palm-700' : 'text-ink hover:bg-canvas']}>
+              <Icon name={n.icon} class="size-5 text-palm-700" />{n.label}
+            </a>
+          );
+        })}
       </nav>
-      <button type="button" data-side-more hidden class="absolute inset-x-0 bottom-0 flex min-h-11 items-end justify-center gap-1 bg-gradient-to-t from-surface via-surface/90 to-transparent pb-1.5 text-sm font-medium text-palm-700">
-        <Icon name="chevronDown" class="size-4" />เลื่อนดูเมนูเพิ่ม
-      </button>
-      </div>
       <form method="post" action="/admin/logout" class="border-t border-line p-4" data-confirm="ออกจากระบบใช่ไหม?">
         <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 truncate text-sm text-muted underline"><Icon name="key" class="size-4" />{user?.name} · {user ? roleLabel[user.role] : ''}</a>
         {canManageUsers(user) && <a href="/admin/users" aria-current={active === 'users' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="lock" class="size-4" />คนใช้งานระบบ</a>}
+        <a href="/admin/more" aria-current={active === 'more' || active === 'readiness' || active === 'outbox' ? 'page' : undefined} class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="menu" class="size-4" />เมนูอื่น ๆ</a>
         <a href="/" target="_blank" rel="noopener" class="mb-0.5 flex min-h-9 items-center gap-2 text-sm text-muted underline"><Icon name="globe" class="size-4" />ดูหน้าเว็บจริง</a>
         <button class="btn-ghost w-full" type="submit">ออกจากระบบ</button>
       </form>
@@ -177,16 +177,4 @@ const visibleGroups = sideGroups.map((g) => ({ title: g.title, items: g.items.fi
   import '../scripts/gallery-preview';
   import { init as initOutbox } from '../scripts/outbox';
   initOutbox();
-
-  // เมนูข้าง (คอม): ถ้ายังมีเมนูอยู่ใต้จอ แสดงปุ่ม "เลื่อนดูเมนูเพิ่ม" · เลื่อนให้เห็นเมนูของหน้าที่เปิดอยู่
-  const sideNav = document.querySelector<HTMLElement>('[data-side-nav]');
-  const more = document.querySelector<HTMLButtonElement>('[data-side-more]');
-  if (sideNav && more) {
-    const update = () => { more.hidden = sideNav.scrollTop + sideNav.clientHeight >= sideNav.scrollHeight - 4; };
-    sideNav.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
-    more.addEventListener('click', () => sideNav.scrollBy({ top: sideNav.clientHeight * 0.6, behavior: 'smooth' }));
-    sideNav.addEventListener('scroll', update, { passive: true });
-    addEventListener('resize', update);
-    update();
-  }
 </script>

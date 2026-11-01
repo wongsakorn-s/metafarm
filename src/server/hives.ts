@@ -479,6 +479,21 @@ export async function listHivesWithoutPhoto(db: Db, includeAll = false) {
     .orderBy(...byCode());
 }
 
+/** จำนวนรังที่ยังไม่มีรูปสมุดพก (ค่าเริ่มต้น: เฉพาะรังที่ยังอยู่) */
+export async function countHivesWithoutPhoto(db: Db, includeAll = false): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(hives)
+    .where(and(includeAll ? undefined : eq(hives.status, 'active'), sql`not exists (select 1 from hive_media m where m.hive_id = hives.id and m.kind = 'passport' and m.r2_key is not null)`));
+  return row?.n ?? 0;
+}
+
+/** จำนวนรังที่ยังมีข้อมูล ??? ค้างอยู่ */
+export async function countIncompleteHives(db: Db): Promise<number> {
+  const [row] = await db.select({ n: sql<number>`count(*)` }).from(hives).where(hasUnknownNote);
+  return row?.n ?? 0;
+}
+
 /** รังที่ยังมีข้อมูล ??? ค้างอยู่ พร้อมสิ่งที่ต้องใช้ตัดสินว่าหัวข้อไหนเติมแล้ว */
 export async function listIncompleteHives(db: Db) {
   const queenSrc = alias(hives, 'q');

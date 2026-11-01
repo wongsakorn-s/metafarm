@@ -1,9 +1,10 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
+import SubTabs from '../../../components/SubTabs.astro';
 import Val from '../../../components/Val.astro';
 import { getDb } from '../../../server/db.ts';
-import { HIVE_SORTS, listHives, type HiveSort } from '../../../server/hives.ts';
+import { HIVE_SORTS, listHives, countHivesWithoutPhoto, countIncompleteHives, type HiveSort } from '../../../server/hives.ts';
 import { baht, originLabel, statusClass, statusLabel } from '../../../lib/labels.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
 import { placeholder } from '../../../lib/placeholders.ts';
@@ -24,7 +25,17 @@ const filter = {
   page: Math.max(1, Number(sp.get('page')) || 1),
   sort: (HIVE_SORTS as readonly string[]).includes(sp.get('sort') ?? '') ? (sp.get('sort') as HiveSort) : 'new',
 };
-const { rows, total, page, pages } = await listHives(getDb(), filter);
+const db = getDb();
+const [{ rows, total, page, pages }, photoCount, incompleteCount] = await Promise.all([
+  listHives(db, filter),
+  countHivesWithoutPhoto(db),
+  countIncompleteHives(db),
+]);
+const hiveTabs = [
+  { key: 'hives', href: '/admin/hives', icon: 'hive', short: 'รัง', label: 'รังทั้งหมด' },
+  { key: 'photos', href: '/admin/photos', icon: 'camera', short: 'รอถ่ายรูป', label: 'รอถ่ายรูป', count: photoCount },
+  { key: 'todo', href: '/admin/todo', icon: 'note', short: 'ข้อมูลไม่ครบ', label: 'ข้อมูลไม่ครบ', count: incompleteCount },
+] as const;
 const activeFilters = [filter.status, filter.origin, filter.forSale, filter.incomplete].filter(Boolean).length;
 
 const link = (p: number) => {
@@ -61,6 +72,13 @@ const quickOn = (set: Record<string, string>) =>
 ---
 
 <AdminLayout title="รังทั้งหมด" active="hives">
+  <SubTabs label="หมวดรัง" active="hives" tabs={hiveTabs} />
+
+  <div class="mb-4 flex items-center justify-between gap-3">
+    <p class="text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {activeFilters + (filter.q ? 1 : 0) > 0 && <a class="ml-1 inline-flex min-h-11 items-center underline" href="/admin/hives">ล้างตัวกรอง</a>}</p>
+    <a class="btn-primary shrink-0" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>
+  </div>
+
   {/* มือถือ: เห็นช่องค้นหาก่อน ตัวกรองอื่นพับไว้ (เดิมฟอร์มเต็มจอแรก ต้องเลื่อนก่อนเห็นรังแรก) */}
   <form method="get" class="mb-3 space-y-2" role="search">
     <div class="flex gap-2">
@@ -75,35 +93,19 @@ const quickOn = (set: Record<string, string>) =>
       ))}
     </nav>
     <details class="group rounded-2xl border border-line bg-surface" open={!!filter.origin}>
-      <summary class="disclosure min-h-11 px-4 font-medium">ตัวกรองเพิ่มเติม (ที่มา){activeFilters > 0 && <span class="badge bg-palm-100 text-palm-900">{activeFilters}</span>}</summary>
-      <div class="grid gap-3 px-4 pb-4 sm:grid-cols-[1fr_1fr_auto]">
-        <div>
-          <label class="label" for="status">สถานะ</label>
-          <select class="field" id="status" name="status">
-            <option value="">ทั้งหมด</option>
-            {(['active', 'sold', 'collapsed', 'unknown'] as const).map((st) => <option value={st} selected={filter.status === st}>{statusLabel[st]}</option>)}
-          </select>
-        </div>
-        <div>
+      <summary class="disclosure min-h-11 px-4 font-medium">ตัวกรองเพิ่มเติม (ที่มา){filter.origin ? <span class="badge bg-palm-100 text-palm-900">1</span> : ''}</summary>
+      <div class="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:items-end">
+        <div class="flex-1">
           <label class="label" for="origin">ที่มา</label>
           <select class="field" id="origin" name="origin">
             <option value="">ทั้งหมด</option>
             {(['purchased', 'queen_bred', 'split', 'natural'] as const).map((o) => <option value={o} selected={filter.origin === o}>{originLabel[o]}</option>)}
           </select>
         </div>
-        <div class="flex flex-wrap items-end gap-x-4">
-          <label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="forSale" value="1" checked={filter.forSale} class="size-5 accent-palm-600" /> ตั้งขาย</label>
-          <label class="flex min-h-11 items-center gap-2"><input type="checkbox" name="incomplete" value="1" checked={filter.incomplete} class="size-5 accent-palm-600" /> ไม่ครบ ???</label>
-        </div>
-        <button class="btn-primary sm:col-span-3" type="submit">ใช้ตัวกรอง</button>
+        <button class="btn-primary" type="submit">ใช้ตัวกรอง</button>
       </div>
     </details>
   </form>
-
-  <div class="mb-3 flex items-center justify-between gap-2">
-    <p class="text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {activeFilters + (filter.q ? 1 : 0) > 0 && <a class="ml-1 inline-flex min-h-11 items-center underline" href="/admin/hives">ล้าง</a>}</p>
-    <a class="btn-ghost shrink-0" href="/admin/hives/new"><Icon name="plus" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรังใหม่</a>
-  </div>
 
   {rows.length === 0 ? (
     <div class="card text-center text-muted">ไม่พบรังที่ตรงกับเงื่อนไข</div>

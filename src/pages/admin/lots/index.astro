@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
+import SubTabs from '../../../components/SubTabs.astro';
 import { getDb } from '../../../server/db.ts';
 import { listLots, unassignedHarvests } from '../../../server/lots.ts';
 import { formatThaiDate } from '../../../lib/thai-date.ts';
@@ -14,9 +15,15 @@ const [lots, pending] = await Promise.all([listLots(db), unassignedHarvests(db)]
 const pendingMl = pending.reduce((s, e) => s + (e.ml ?? 0), 0);
 // พนักงาน: ไม่มีแถบหมวดขาย และไม่เห็นยอดขายต่อล็อต
 const owner = canManageFarm(Astro.locals.user);
+
+const honeyTabs = [
+  { key: 'lots', href: '/admin/lots', icon: 'honey', short: 'ล็อต', label: 'น้ำผึ้ง (ล็อต)' },
+  { key: 'production', href: '/admin/production', icon: 'chart', short: 'ผลผลิต', label: 'ผลผลิตและอากาศ' },
+] as const;
 ---
 
 <AdminLayout title="น้ำผึ้ง (ล็อต)" active="lots">
+  <SubTabs label="หมวดน้ำผึ้ง" active="lots" tabs={honeyTabs} />
   {Astro.url.searchParams.get('saved') === 'deleted' && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900">ลบล็อตแล้ว — การเก็บน้ำหวานในล็อตนั้นกลับมาให้เลือกใหม่ (หรือลบในหน้ารัง ถ้าบันทึกผิด)</p>}
 
   <section class="card mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -27,7 +34,7 @@ const owner = canManageFarm(Astro.locals.user);
       ) : (
         <p class="text-muted">การเก็บน้ำหวานทั้งหมดอยู่ในล็อตแล้ว — เก็บเพิ่มได้ที่ ➕ บันทึก → เก็บน้ำหวาน</p>
       )}
-      <p class="hint">ล็อต = น้ำผึ้งที่กรองและบรรจุขวดพร้อมกันหนึ่งรอบ · ลูกค้าสแกน QR บนฉลากแล้วดูได้ว่าเก็บเมื่อไรจากรังไหน</p>
+      {lots.length === 0 && <p class="hint">ล็อต = น้ำผึ้งที่กรองและบรรจุขวดพร้อมกันหนึ่งรอบ · ลูกค้าสแกน QR ดูได้ว่าเก็บเมื่อไรจากรังไหน</p>}
     </div>
     {pending.length > 0 && <a class="btn-primary shrink-0" href="/admin/lots/new"><Icon name="plus" class="size-5" />สร้างล็อต</a>}
   </section>
@@ -35,7 +42,7 @@ const owner = canManageFarm(Astro.locals.user);
   {lots.length === 0 ? (
     <div class="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-line bg-surface px-5 py-8 text-center">
       <p class="font-semibold">ยังไม่มีล็อตน้ำผึ้ง</p>
-      <p class="max-w-sm text-sm text-muted">หลังเก็บน้ำหวานและกรองแล้ว สร้างล็อตจากการเก็บเหล่านั้น แล้วบันทึกการบรรจุขวด สต็อกในหน้าสินค้าจะเพิ่มให้เอง</p>
+      <p class="max-w-sm text-sm text-muted">สร้างล็อตจากการเก็บน้ำหวาน แล้วบันทึกการบรรจุขวดเพื่อเพิ่มสต็อกสินค้า</p>
     </div>
   ) : (
     <ul class="grid gap-3 lg:grid-cols-2">

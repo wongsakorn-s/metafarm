@@ -1,5 +1,6 @@
 ---
 import Icon from '../../components/Icon.astro';
+import SubTabs from '../../components/SubTabs.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import VideoUploader from '../../components/VideoUploader.astro';
 import { getDb, getMedia } from '../../server/db.ts';
@@ -74,9 +75,16 @@ if (Astro.request.method === 'POST') {
 const rows = await listGalleryAdmin(db);
 const sections = GALLERY_CATEGORIES.map((c) => ({ key: c, ...galleryCategory[c], photos: rows.filter((r) => r.category === c) }));
 const defaultCategory = isGalleryCategory(picked) ? picked : 'farm';
+
+const settingsTabs = [
+  { key: 'settings', href: '/admin/settings', icon: 'settings', short: 'ติดต่อ', label: 'ติดต่อและชำระเงิน' },
+  { key: 'settingsHome', href: '/admin/settings/home', icon: 'globe', short: 'หน้าแรก', label: 'หน้าแรกและหลักสูตร' },
+  { key: 'gallery', href: '/admin/gallery', icon: 'image', short: 'แกลเลอรี', label: 'รูปแกลเลอรี' },
+] as const;
 ---
 
-<AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="รูปแกลเลอรี" active="gallery">
+<AdminLayout title="รูปแกลเลอรี" active="gallery">
+  <SubTabs label="หมวดหน้าเว็บ" active="gallery" tabs={settingsTabs} />
   {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
   <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
   <p id="sort-live" class="sr-only" aria-live="polite"></p>

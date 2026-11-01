@@ -1,7 +1,6 @@
 ---
-// แถบย่อยของหมวด "ขาย": ออเดอร์ · ลูกค้า · สินค้า · รายงาน (ล็อตน้ำผึ้งเป็นงานที่ฟาร์ม อยู่ในเมนูหลัก ไม่อยู่ที่นี่) (มือถือเข้าจากแท็บล่าง "ขาย")
-// มือถือ: 5 ช่องเท่ากัน ไอคอน + ชื่อสั้น เห็นครบไม่ต้องเลื่อน (เดิมเลื่อนแนวนอน "รายงาน" ตกขอบจนมองไม่เห็น) · คอม: ชื่อเต็ม
-import Icon from './Icon.astro';
+// แถบย่อยของหมวด "ขาย": ออเดอร์ · ลูกค้า · สินค้าและราคา · รายงาน (มือถือเข้าจากแท็บล่าง "ขาย")
+import SubTabs from './SubTabs.astro';
 
 interface Props { active: 'orders' | 'customers' | 'products' | 'reports' }
 const { active } = Astro.props;
@@ -13,12 +12,4 @@ const tabs = [
 ] as const;
 ---
 
-<nav aria-label="หมวดขาย" class="-mt-1 mb-4 grid grid-cols-4 border-b border-line md:flex md:gap-1">
-  {tabs.map((t) => (
-    <a href={t.href} aria-current={active === t.key ? 'page' : undefined}
-      class:list={['-mb-px flex min-h-14 flex-col items-center justify-center gap-0.5 border-b-2 px-1 text-xs font-medium md:min-h-11 md:flex-row md:gap-2 md:px-3 md:text-base', active === t.key ? 'border-palm-600 text-palm-700' : 'border-transparent text-muted hover:text-ink']}>
-      <Icon name={t.icon} class="size-5 md:size-4" />
-      <span class="md:hidden">{t.short}</span><span class="hidden md:inline">{t.label}</span>
-    </a>
-  ))}
-</nav>
+<SubTabs label="หมวดขาย" active={active} tabs={tabs} />
