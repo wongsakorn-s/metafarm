@@ -30,3 +30,4 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   const message = 'อัปโหลดวิดีโอสินค้าแล้ว';
   return jsonResult({ ok: true, message, key: r.key, redirect: `/admin/products?msg=${encodeURIComponent(message)}#p-${productId}` });
 };
+

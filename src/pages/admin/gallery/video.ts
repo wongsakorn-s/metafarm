@@ -38,3 +38,4 @@ export const PUT: APIRoute = async ({ request, locals }) => {
   const message = 'อัปโหลดวิดีโอแล้ว';
   return jsonResult({ ok: true, message, key: r.key, redirect: `/admin/gallery?msg=${encodeURIComponent(message)}&c=${category}#${category}` });
 };
+
