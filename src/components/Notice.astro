@@ -1,0 +1,40 @@
+---
+import Icon from './Icon.astro';
+import type { IconName } from '../lib/icons.ts';
+
+interface Props {
+  tone?: 'ok' | 'warn' | 'error';
+  class?: string;
+  role?: 'status' | 'alert' | 'note';
+  icon?: boolean;
+}
+
+const { tone = 'ok', class: className, role: explicitRole, icon = true } = Astro.props;
+
+const styles: Record<'ok' | 'warn' | 'error', { role: 'status' | 'alert'; cls: string; icon: IconName | null }> = {
+  ok: {
+    role: 'status',
+    cls: 'bg-palm-100 text-palm-900',
+    icon: 'check',
+  },
+  warn: {
+    role: 'status',
+    cls: 'bg-honey-50 text-ink',
+    icon: 'info',
+  },
+  error: {
+    role: 'alert',
+    cls: 'bg-red-50 text-danger',
+    icon: null,
+  },
+};
+
+const current = styles[tone];
+const role = explicitRole ?? current.role;
+const showIcon = icon && current.icon;
+---
+
+<p role={role} class:list={['rounded-xl p-3 font-medium', current.cls, className]}>
+  {showIcon && current.icon && <Icon name={current.icon} class="inline-block size-[1.15em] align-[-0.2em]" />}{' '}
+  <slot />
+</p>

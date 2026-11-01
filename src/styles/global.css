@@ -255,6 +255,11 @@
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
+/* แถบปุ่มบันทึกติดล่างจอบนมือถือ */
+@utility sticky-save {
+  @apply sticky bottom-0 z-20 -mx-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none;
+}
+
 /* ป้าย "รอส่ง" และข้อความแจ้ง (AdminLayout): หน้าที่มีแถบบันทึกติดล่างจอบนมือถือ ([data-sticky-save]) ยกขึ้นเหนือแถบ
    เดิมป้ายอยู่ระดับเดียวกับแถบ → แตะกลางปุ่ม "สร้างรัง"/"บันทึก" แล้วไปหน้ารอส่งแทน ข้อมูลที่กรอกหาย */
 @media (width < 48rem) {

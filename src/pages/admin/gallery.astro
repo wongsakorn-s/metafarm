@@ -2,6 +2,7 @@
 import Icon from '../../components/Icon.astro';
 import PhotoTips from '../../components/PhotoTips.astro';
 import SubTabs from '../../components/SubTabs.astro';
+import Notice from '../../components/Notice.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import VideoUploader from '../../components/VideoUploader.astro';
 import { getDb, getMedia } from '../../server/db.ts';
@@ -86,16 +87,16 @@ const settingsTabs = [
 
 <AdminLayout title="รูปแกลเลอรี" active="gallery">
   <SubTabs label="หมวดหน้าเว็บ" active="gallery" tabs={settingsTabs} />
-  {notice && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {notice}</p>}
+  {notice && <Notice tone="ok" class="mb-4">{notice}</Notice>}
   <p id="sort-status" role="status" class="mb-4 hidden rounded-xl p-3 font-medium"></p>
   <p id="sort-live" class="sr-only" aria-live="polite"></p>
-  {error && <p role="alert" class="mb-4 rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+  {error && <Notice tone="error" class="mb-4">{error}</Notice>}
 
   <div class="grid gap-5 lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start">
-    <div class="space-y-4 lg:sticky lg:top-6">
+    <div class="order-2 space-y-4 lg:order-1 lg:sticky lg:top-6">
       <form method="post" enctype="multipart/form-data" id="upload-form" class="card space-y-3">
         <input type="hidden" name="intent" value="upload" />
-        <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูป</h2>
+        <h2 class="text-lg font-semibold"><Icon name="camera" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มรูปหรือวิดีโอ</h2>
         <fieldset>
           <legend class="label">หมวด</legend>
           <div class="grid gap-2">
@@ -113,37 +114,24 @@ const settingsTabs = [
           <p class="hint">ครั้งละไม่เกิน {MAX_FILES_PER_REQUEST} รูป · ระบบย่อรูปและลบตำแหน่งที่ถ่ายให้เอง</p>
         </div>
         <div>
-          <label class="label" for="caption">คำบรรยาย (ไม่บังคับ ใช้กับทุกรูปที่เลือก)</label>
+          <label class="label" for="caption">คำบรรยาย (ไม่บังคับ ใช้กับทุกรูป/วิดีโอที่เลือก)</label>
           <input class="field" id="caption" name="caption" maxlength="200" placeholder="เช่น ส่งมอบรังที่ จ.ชลบุรี" />
         </div>
         <p class="rounded-xl bg-honey-50 p-3 text-sm">รูปขึ้นหน้าเว็บทันที · รูป<strong>ส่งมอบ</strong>ที่เห็นหน้า บ้าน หรือทะเบียนรถของลูกค้า ควรขออนุญาตลูกค้าก่อน</p>
         <p id="upload-status" class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
-        <button id="upload-btn" class="btn-primary w-full" type="submit">อัปโหลด</button>
+        <button id="upload-btn" class="btn-primary w-full" type="submit">อัปโหลดรูป</button>
+
+        <details class="border-t border-line pt-3">
+          <summary class="disclosure min-h-11 font-medium text-palm-700">หรือเพิ่มวิดีโอ (MP4)</summary>
+          <div class="mt-2 space-y-2">
+            <VideoUploader action="/admin/gallery/video" id="gallery-video-file" />
+          </div>
+        </details>
         <a class="inline-flex min-h-11 items-center text-sm underline" href="/gallery" target="_blank" rel="noopener">ดูหน้าแกลเลอรีบนเว็บ</a>
       </form>
-
-      <div class="card space-y-3">
-        <h2 class="text-lg font-semibold"><Icon name="video" class="inline-block size-[1.15em] align-[-0.2em]" /> เพิ่มวิดีโอ (MP4)</h2>
-        <fieldset>
-          <legend class="label">หมวดที่จะลงวิดีโอ</legend>
-          <div class="grid gap-2">
-            {sections.map((s) => (
-              <label class="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3">
-                <input class="size-5 accent-palm-600" type="radio" name="category" value={s.key} checked={s.key === defaultCategory} required />
-                {s.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div>
-          <label class="label" for="video-caption">คำบรรยายวิดีโอ (ไม่บังคับ)</label>
-          <input class="field" id="video-caption" name="caption" maxlength="200" placeholder="เช่น บรรยากาศเก็บน้ำผึ้งชันโรง" />
-        </div>
-        <VideoUploader action="/admin/gallery/video" id="gallery-video-file" />
-      </div>
     </div>
 
-    <div class="space-y-5">
+    <div class="order-1 space-y-5 lg:order-2">
       <PhotoTips kind="sort" class="card !p-3" />
       {sections.map((s) => (
         <section id={s.key} class="card scroll-mt-20" aria-labelledby={`h-${s.key}`}>
@@ -186,12 +174,17 @@ const settingsTabs = [
                       );
                     })}
                   </div></noscript>
-                  <form method="post" class="space-y-1">
-                    <input type="hidden" name="intent" value="caption" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
-                    <label class="sr-only" for={`cap-${p.id}`}>คำบรรยายรูป</label>
-                    <input class="field" id={`cap-${p.id}`} name="caption" maxlength="200" value={p.caption ?? ''} placeholder="คำบรรยาย" />
-                    <button class="btn-ghost w-full" type="submit">บันทึกคำบรรยาย</button>
-                  </form>
+                  <details class="text-xs">
+                    <summary class="disclosure min-h-11 cursor-pointer py-2 text-muted hover:text-ink">
+                      {p.caption ? `คำบรรยาย: ${p.caption}` : 'เพิ่มคำบรรยาย'}
+                    </summary>
+                    <form method="post" class="mt-1 space-y-1">
+                      <input type="hidden" name="intent" value="caption" /><input type="hidden" name="photoId" value={p.id} /><input type="hidden" name="category" value={s.key} />
+                      <label class="sr-only" for={`cap-${p.id}`}>คำบรรยายรูป</label>
+                      <input class="field text-sm" id={`cap-${p.id}`} name="caption" maxlength="200" value={p.caption ?? ''} placeholder="คำบรรยาย" />
+                      <button class="btn-ghost w-full" type="submit">บันทึกคำบรรยาย</button>
+                    </form>
+                  </details>
                 </li>
               ))}
             </ul>

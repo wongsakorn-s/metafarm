@@ -1,5 +1,5 @@
 ---
-import Icon from '../../components/Icon.astro';
+import Notice from '../../components/Notice.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { changeName, changePassword, SESSION_COOKIE } from '../../server/auth.ts';
 import { getDb } from '../../server/db.ts';
@@ -38,18 +38,17 @@ if (Astro.request.method === 'POST') {
 <AdminLayout back={{ href: '/admin/more', label: 'เมนู' }} title="บัญชีของฉัน" active="account">
   <section class="card mb-5 max-w-xl">
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-      <dt class="text-muted">ชื่อ</dt><dd>{user.name}</dd>
       <dt class="text-muted">อีเมล</dt><dd>{user.email}</dd>
       <dt class="text-muted">บทบาท</dt><dd>{roleLabel[user.role]}</dd>
     </dl>
   </section>
 
   {user.mustChangePassword && (
-    <p role="alert" class="mb-4 max-w-xl rounded-xl bg-honey-50 p-3 font-medium">ตอนนี้ใช้รหัสผ่านชั่วคราวอยู่ — ตั้งรหัสผ่านใหม่ของคุณเองก่อน แล้วจึงใช้งานหน้าอื่นได้ (ช่อง "รหัสผ่านเดิม" ใส่รหัสชั่วคราวที่ได้รับ)</p>
+    <Notice tone="warn" class="mb-4 max-w-xl">ตอนนี้ใช้รหัสผ่านชั่วคราวอยู่ — ตั้งรหัสผ่านใหม่ของคุณเองก่อน แล้วจึงใช้งานหน้าอื่นได้ (ช่อง "รหัสผ่านเดิม" ใส่รหัสชั่วคราวที่ได้รับ)</Notice>
   )}
-  {done === 'password' && <p role="status" class="mb-4 max-w-xl rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> เปลี่ยนรหัสผ่านแล้ว อุปกรณ์อื่นที่ล็อกอินอยู่ถูกออกจากระบบทั้งหมด</p>}
-  {done === 'name' && <p role="status" class="mb-4 max-w-xl rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> เปลี่ยนชื่อแล้ว</p>}
-  {error && <p role="alert" class="mb-4 max-w-xl rounded-xl bg-red-50 p-3 font-medium text-danger">{error}</p>}
+  {done === 'password' && <Notice tone="ok" class="mb-4 max-w-xl">เปลี่ยนรหัสผ่านแล้ว อุปกรณ์อื่นที่ล็อกอินอยู่ถูกออกจากระบบทั้งหมด</Notice>}
+  {done === 'name' && <Notice tone="ok" class="mb-4 max-w-xl">เปลี่ยนชื่อแล้ว</Notice>}
+  {error && <Notice tone="error" class="mb-4 max-w-xl">{error}</Notice>}
 
   <form method="post" class="card mb-5 max-w-xl space-y-4">
     <h2 class="text-lg font-semibold">เปลี่ยนชื่อ</h2>
