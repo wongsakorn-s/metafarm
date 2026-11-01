@@ -3,14 +3,13 @@ import PageHeader from '../../components/PageHeader.astro';
 import HiveTile from '../../components/HiveTile.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
-import { getFarmStats, getSampleHives, hiveCategoryTitle, HIVE_CATEGORIES, listHivesByCategory, searchHiveCodes, type HiveCategory } from '../../server/public.ts';
+import { getSampleHives, hiveCategoryTitle, HIVE_CATEGORIES, listHivesByCategory, searchHiveCodes, type HiveCategory } from '../../server/public.ts';
 import { site } from '../../config/site.ts';
 import { normalizeHiveCode } from '../../lib/hive-code.ts';
 
 export const prerender = false;
 
 const db = getDb();
-const stats = await getFarmStats(db);
 const raw = (Astro.url.searchParams.get('code') ?? '').trim();
 // พิมพ์ "a25" / "B 12" / "g-108" ก็หาเจอ · พิมพ์แค่เลข "12" = รังเลข 12 ทุกชุดตัวอักษร (เจอรังเดียวก็เปิดเลย)
 const normalized = normalizeHiveCode(raw) ?? raw.toUpperCase().replace(/[\s-]+/g, '');
@@ -54,20 +53,6 @@ Astro.response.headers.set('Cache-Control', 'no-cache');
       )}
     </form>
   </section>
-
-  <nav aria-label="หมวดรัง" class="mx-auto mt-5 flex max-w-4xl flex-wrap justify-center gap-2 text-center lg:flex-nowrap">
-      {([
-        ['all', 'รังในทะเบียน', stats.total],
-        ['bred', 'ขยายรังโดย MetaFarm', stats.bred],
-        ['sold', 'ขายแล้ว', stats.sold],
-        ['active', 'รังปัจจุบันในสวน', stats.active],
-      ] as const).map(([key, label, n]) => (
-        <a href={`/passport?view=${key}`} aria-current={view === key ? 'page' : undefined}
-          class:list={['inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium', view === key ? 'border-palm-500 bg-palm-50 text-palm-900' : 'border-line bg-surface hover:bg-palm-50']}>
-          {label} <span data-num class="font-bold text-palm-700">{n.toLocaleString('th-TH')}</span>
-        </a>
-      ))}
-  </nav>
 
   {view && (
     <section class="mx-auto mt-10 max-w-5xl" aria-labelledby="category-h">

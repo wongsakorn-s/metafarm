@@ -284,6 +284,8 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
                           <source src={`/video/${p.videoKey}`} type="video/mp4" />
                         </video>
                       </div>
+                      <button type="button" class="btn-ghost text-sm" data-poster-make data-action={`/admin/products/${p.id}/video`} data-key={p.videoKey} data-src={`/video/${p.videoKey}`}>ทำภาพปกใหม่จากวิดีโอ</button>
+                      <p data-poster-status role="status" aria-live="polite" class="hint" hidden></p>
                       <form method="post" data-confirm="ลบวิดีโอนี้ออกจากสินค้าใช่ไหม?">
                         <input type="hidden" name="intent" value="product_video_delete" />
                         <input type="hidden" name="productId" value={p.id} />
@@ -378,6 +380,7 @@ const savedText: Record<string, string> = { product_text: 'บันทึกช
 
 <script>
   import '../../scripts/gallery-sort';
+  import '../../scripts/video-upload';
   import { appendPrepared, resizeAll } from '../../scripts/resize-image';
   import { describeUploadError, newBatchId } from '../../scripts/upload';
   import { fieldsOf, QUEUED_MSG, SESSION_QUEUED_MSG, sendOrQueue, UNSAVED_MSG } from '../../scripts/outbox';

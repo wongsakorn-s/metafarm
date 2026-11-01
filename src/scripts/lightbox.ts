@@ -78,7 +78,7 @@ function build() {
       <div data-lb-stage class="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing" style="touch-action: none">
         <div data-lb-canvas class="relative flex items-center justify-center w-full h-full will-change-transform">
           <img data-lb-img alt="" class="max-h-full max-w-full select-none object-contain pointer-events-auto" draggable="false" />
-          <video data-lb-video class="hidden max-h-full max-w-full select-none object-contain pointer-events-auto rounded-lg" playsinline controls preload="metadata"></video>
+          <video data-lb-video hidden class="max-h-full max-w-full select-none object-contain pointer-events-auto rounded-lg" playsinline controls preload="metadata"></video>
         </div>
         <p data-lb-status role="status" class="pointer-events-none absolute inset-x-0 bottom-4 text-center text-sm text-white/80 drop-shadow"></p>
         <button type="button" data-lb-prev class="${BTN} absolute left-3 top-1/2 -translate-y-1/2 z-20 shadow-lg" aria-label="รูปก่อนหน้า">${svg('prev')}</button>

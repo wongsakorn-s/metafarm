@@ -12,8 +12,10 @@ async function prepare(file: File, moov: { offset: number; size: number }): Prom
   return new Blob([file.slice(0, moov.offset), patched, file.slice(moov.offset + moov.size)], { type: VIDEO_MIME });
 }
 
-/** ภาพปก: ดึงเฟรมที่ ~1 วินาทีจากไฟล์ในเครื่อง (ไม่ได้ = ข้าม ไม่กระทบการอัปโหลด) */
-async function posterOf(file: File): Promise<Blob | null> {
+const POSTER_MAX = 600 * 1024;
+
+/** ภาพปก: ดึงเฟรมที่ ~1 วินาทีจากไฟล์ (ไม่ได้ = ข้าม ไม่กระทบการอัปโหลด) · ลดคุณภาพจนไม่เกิน POSTER_MAX */
+async function posterOf(file: Blob): Promise<Blob | null> {
   const url = URL.createObjectURL(file);
   try {
     const v = document.createElement('video');
@@ -29,7 +31,11 @@ async function posterOf(file: File): Promise<Blob | null> {
     c.width = Math.round(v.videoWidth * scale);
     c.height = Math.round(v.videoHeight * scale);
     c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height);
-    return await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', 0.8));
+    for (const q of [0.8, 0.65, 0.5]) {
+      const jpg = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', q));
+      if (jpg && jpg.size <= POSTER_MAX) return jpg;
+    }
+    return null;
   } catch {
     return null;
   } finally {
@@ -114,7 +120,7 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
       if (res.json?.ok && res.json.redirect) {
         // ภาพปกส่งตามหลัง (พลาดก็ไม่เป็นไร วิดีโอบันทึกแล้ว)
         const poster = res.json.key ? await posterOf(ready.file) : null;
-        if (poster && poster.size <= 600 * 1024) {
+        if (poster) {
           say('กำลังบันทึกภาพปก…');
           const sep = actionUrl.includes('?') ? '&' : '?';
           await put(`${actionUrl}${sep}poster=${encodeURIComponent(res.json.key!)}`, poster, () => {}).catch(() => {});
@@ -129,5 +135,25 @@ for (const root of document.querySelectorAll<HTMLElement>('[data-video-upload]')
     input.disabled = false;
     btn.disabled = false;
     bar.hidden = true;
+  });
+}
+
+// ทำภาพปกใหม่ให้วิดีโอที่มีอยู่แล้ว (วิดีโอเก่าที่ยังไม่มีภาพปก) — ดึงเฟรมจากวิดีโอที่เล่นบนเว็บ แล้วส่งเป็นภาพปกเท่านั้น
+for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-poster-make]')) {
+  const note = btn.parentElement!.querySelector<HTMLElement>('[data-poster-status]')!;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    note.hidden = false;
+    note.textContent = 'กำลังทำภาพปก… (ใช้เวลาสักครู่)';
+    try {
+      const poster = await posterOf(await (await fetch(btn.dataset.src!)).blob());
+      if (!poster) throw new Error('frame');
+      const res = await put(`${btn.dataset.action}?poster=${encodeURIComponent(btn.dataset.key!)}`, poster, () => {});
+      if (!res.json?.ok) throw new Error(res.json?.message ?? 'save');
+      location.reload();
+    } catch {
+      note.textContent = 'ทำภาพปกไม่สำเร็จ — ลองกดอีกครั้ง';
+      btn.disabled = false;
+    }
   });
 }
