@@ -5,11 +5,10 @@ import PublicLayout from '../../layouts/PublicLayout.astro';
 import HiveCard from '../../components/HiveCard.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
 import ContactButtons from '../../components/ContactButtons.astro';
-import SampleBadge from '../../components/SampleBadge.astro';
+import ProductCard from '../../components/ProductCard.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicProducts, getSaleHives } from '../../server/public.ts';
-import { formatPrice, SHIPPING_NOTE, variantName } from '../../lib/products.ts';
-import { placeholder } from '../../lib/placeholders.ts';
+import { formatPrice } from '../../lib/products.ts';
 import { site } from '../../config/site.ts';
 
 export const prerender = false;
@@ -58,19 +57,7 @@ const facebookUrl = Astro.locals.settings!.contact.facebookUrl.trim();
     <h2 id="more-h" class="text-2xl font-bold">สินค้าอื่น ๆ</h2>
     <ul class="mt-4 grid gap-4 sm:grid-cols-2">
       {products.map((p, i) => (
-        <li>
-          <a href={`/products/${p.slug}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
-            <img src={p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox} alt="" loading={saleHives.length === 0 && i === 0 ? 'eager' : 'lazy'} width="800" height="450" class="aspect-[16/9] w-full bg-palm-50 object-cover" />
-            <div class="p-4">
-              <h3 class="text-lg font-bold">{p.name}</h3>
-              <p data-num class="text-xl font-bold text-palm-700">{range(p)} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
-              <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-                {p.variants.map((v) => <span>{variantName(v.label, v.sizeMl, ' ')}</span>)}
-                {p.variants.some((v) => v.priceIsSample) && <SampleBadge />}
-              </p>
-            </div>
-          </a>
-        </li>
+        <li><ProductCard product={p} price={range(p)} variants eager={saleHives.length === 0 && i === 0} /></li>
       ))}
     </ul>
   </section>

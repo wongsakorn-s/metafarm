@@ -1,7 +1,7 @@
 ---
-import Icon from '../../components/Icon.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
-import VideoPlayer from '../../components/VideoPlayer.astro';
+import MediaGallery from '../../components/MediaGallery.astro';
 import HowToOrder from '../../components/HowToOrder.astro';
 import ContactButtons from '../../components/ContactButtons.astro';
 import SampleBadge from '../../components/SampleBadge.astro';
@@ -10,7 +10,6 @@ import { getPublicProducts } from '../../server/public.ts';
 import { formatPrice, orderMessage, pricePer100ml, SHIPPING_NOTE, stockLabel, variantName } from '../../lib/products.ts';
 import { site } from '../../config/site.ts';
 import { placeholder } from '../../lib/placeholders.ts';
-import { GRID_COLS, photoSrcset, thumbUrl } from '../../lib/media.ts';
 import NotFound from '../../components/NotFound.astro';
 import { breadcrumbLd, productLd } from '../../lib/seo.ts';
 import { keepThaiWords } from '../../lib/labels.ts';
@@ -24,7 +23,6 @@ if (!product) Astro.response.status = 404;
 Astro.response.headers.set('Cache-Control', 'public, max-age=60');
 
 const image = product?.imageKey ? `/img/${product.imageKey}` : product?.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
-const totalMedia = (product?.photos.length ?? 0) + (product?.video ? 1 : 0);
 const videoPoster = product?.video?.key
   ? `/video/${posterKeyOf(product.video.key)}`
   : product?.video?.youtubeId
@@ -51,119 +49,23 @@ const jsonLd = product
   </PublicLayout>
 ) : (
   <PublicLayout title={product.name} description={anySample ? (product.description ?? product.name) : `${product.description ?? product.name} ราคาเริ่มต้น ${formatPrice(cheapest)}`} lineMessage={orderMessage(product.name)} active="products" ogImage={product.imageKey ? image : undefined} jsonLd={jsonLd}>
-    <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/products">← สินค้า</a></p>
+    <Breadcrumbs items={[{ label: 'หน้าแรก', href: '/' }, { label: 'สินค้า', href: '/products' }, { label: product.name }]} />
     <div class="grid gap-6 md:grid-cols-[1fr_1.1fr]" data-gallery>
       <div data-zoom-group>
-        {totalMedia > 0 ? (
-          <>
-            <div class="relative overflow-hidden rounded-2xl bg-palm-50 shadow-card aspect-[4/3] md:aspect-square" data-gallery-stage>
-              {product.photos.length > 0 ? (
-                <a
-                  href={`/img/${product.photos[0]!.key}`}
-                  data-zoom
-                  data-caption={product.name}
-                  aria-label={`ดูรูปสินค้า ${product.name} ขยาย`}
-                  class="relative block size-full"
-                  data-gallery-main
-                  data-zoom-index="0"
-                >
-                  <img
-                    src={`/img/${product.photos[0]!.key}`}
-                    srcset={photoSrcset(`/img/${product.photos[0]!.key}`)}
-                    sizes="(min-width: 768px) 45vw, 100vw"
-                    alt={product.name}
-                    class="size-full object-cover transition-opacity duration-150"
-                    data-gallery-img
-                  />
-                </a>
-              ) : null}
-
-              {product.video && (
-                <div
-                  data-gallery-video
-                  class:list={[
-                    'absolute inset-0 size-full bg-black flex items-center justify-center',
-                    product.photos.length > 0 && 'hidden',
-                  ]}
-                >
-                  <VideoPlayer video={product.video} title={`วิดีโอ ${product.name}`} poster={videoPoster} fill />
-                </div>
-              )}
-
-              <button
-                type="button"
-                data-zoom
-                data-gallery-expand
-                data-zoom-index="0"
-                aria-label="ดูขยาย"
-                class="pointer-events-auto absolute bottom-2 right-2 z-10 flex min-h-11 items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
-              >
-                <Icon name="search" class="size-3.5" data-gallery-icon-search />
-                <Icon name="video" class="hidden size-3.5" data-gallery-icon-video />
-                <span data-gallery-counter>{totalMedia > 1 ? `1/${totalMedia}` : (product.photos.length > 0 ? 'ขยาย' : 'วิดีโอ')}</span>
-              </button>
-            </div>
-
-            {totalMedia > 1 && (
-              <ul class:list={['scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:overflow-visible sm:p-0', GRID_COLS[totalMedia] ?? 'sm:grid-cols-6']} data-gallery-thumbs>
-                {product.photos.map((ph, i) => (
-                  <li class="shrink-0 sm:w-auto">
-                    <a
-                      href={`/img/${ph.key}`}
-                      data-gallery-thumb
-                      data-index={i}
-                      data-src={`/img/${ph.key}`}
-                      data-srcset={photoSrcset(`/img/${ph.key}`)}
-                      data-alt={`รูปสินค้า ${product.name} รูปที่ ${i + 1}`}
-                      data-caption={product.name}
-                      class:list={[
-                        'block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
-                        i === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100',
-                      ]}
-                      aria-label={`ดูรูปสินค้า ${product.name} รูปที่ ${i + 1}`}
-                      aria-current={i === 0 ? 'true' : 'false'}
-                    >
-                      <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
-                    </a>
-                  </li>
-                ))}
-                {product.video && (
-                  <li class="shrink-0 sm:w-auto">
-                    <a
-                      href={product.video.key ? `/video/${product.video.key}` : `https://www.youtube.com/watch?v=${product.video.youtubeId}`}
-                      data-gallery-thumb
-                      data-is-video="true"
-                      data-index={product.photos.length}
-                      data-zoom-video={product.video.key ? `/video/${product.video.key}` : undefined}
-                      data-src={videoPoster}
-                      data-caption={`วิดีโอ ${product.name}`}
-                      data-alt={`วิดีโอ ${product.name}`}
-                      class:list={[
-                        'group relative block aspect-square w-[72px] overflow-hidden rounded-xl bg-black transition-all duration-150 sm:w-full focus-visible:outline-2 focus-visible:outline-palm-600',
-                        product.photos.length === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100',
-                      ]}
-                      aria-label={`ดูวิดีโอ ${product.name}`}
-                      aria-current={product.photos.length === 0 ? 'true' : 'false'}
-                    >
-                      <img src={videoPoster} width="160" height="160" alt="" loading="lazy" onerror="this.style.display='none'" class="absolute inset-0 size-full rounded-xl object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
-                      <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
-                        <span class="grid size-6 place-items-center rounded-full bg-black/60 text-white backdrop-blur sm:size-7">
-                          <Icon name="video" class="ml-0.5 size-3.5 sm:size-4" />
-                        </span>
-                      </span>
-                      <span class="pointer-events-none absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium leading-none text-white">
-                        วิดีโอ
-                      </span>
-                    </a>
-                  </li>
-                )}
-              </ul>
-            )}
-          </>
-        ) : (
-          // ยังไม่มีรูปสินค้า: กรอบเตี้ยลงบนมือถือ ไม่กินทั้งจอ (รีวิว UX 2026-10-18)
-          <img src={image} alt="" class="aspect-[5/2] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
-        )}
+        <MediaGallery
+          photos={product.photos.map((ph, i) => ({ key: ph.key, alt: `รูปสินค้า ${product.name} รูปที่ ${i + 1}` }))}
+          video={product.video}
+          videoPoster={videoPoster}
+          label={product.name}
+          kind="สินค้า"
+          caption={product.name}
+          videoTitle={`วิดีโอ ${product.name}`}
+          sizes="(min-width: 768px) 45vw, 100vw"
+          square
+        >
+          {/* ยังไม่มีรูปสินค้า: กรอบเตี้ยลงบนมือถือ ไม่กินทั้งจอ (รีวิว UX 2026-10-18) */}
+          <img slot="empty" src={image} alt="" class="aspect-[5/2] w-full rounded-2xl bg-palm-50 object-cover md:aspect-square" />
+        </MediaGallery>
       </div>
       <section>
         <h1 class="text-3xl font-bold leading-snug text-palm-900">{keepThaiWords(product.name)}</h1>

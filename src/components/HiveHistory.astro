@@ -1,0 +1,29 @@
+---
+// ประวัติของรังในสมุดพก (ขั้น 2 ของ docs/14-public-ux-plan.md)
+// หน้า passport/[code] วางไว้ข้างรูปในคอมเมื่อประวัติไม่เกิน 6 รายการ (คำตอบเจ้าของ Q5) มิฉะนั้นอยู่เต็มความกว้างใต้รูป
+import Icon from './Icon.astro';
+import { formatThaiDate } from '../lib/thai-date.ts';
+import type { PublicEvent } from '../server/public.ts';
+
+interface Props { events: PublicEvent[]; class?: string }
+const { events, class: cls = 'card mt-5' } = Astro.props;
+const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน'], queen_cell_taken: ['queen', 'เก็บไข่นางพญา'], brood_split: ['brood', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['note', ''] } as const;
+---
+
+<section class={cls} aria-labelledby="tl-h">
+  <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติของรัง ({events.length})</h2>
+  {events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติที่บันทึกไว้</p> : (
+    <ol class="divide-y divide-line">
+      {events.map((e) => (
+        <li class="flex gap-3 py-3">
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventLabel[e.type][0]} class="size-4" /></span>
+          <div class="min-w-0 flex-1">
+            <p class="font-medium">{e.type === 'note' ? e.text : eventLabel[e.type][1]}
+              {e.targetCode && <span> → <a class="text-palm-700 underline" href={`/passport/${e.targetCode}`}>รัง {e.targetCode}</a></span>}</p>
+          </div>
+          <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.precision)}</time>
+        </li>
+      ))}
+    </ol>
+  )}
+</section>

@@ -1,0 +1,10 @@
+---
+// ป้าย "แผนในอนาคต · ยังไม่เปิดให้บริการ" — ใช้กับอบรม และฟาร์มสเตย์ (ข้อความเดียวกันทุกที่ เจ้าของขอ 2026-10-20)
+import Icon from './Icon.astro';
+import type { IconName } from '../lib/icons.ts';
+
+interface Props { icon?: IconName; class?: string }
+const { icon = 'warning', class: cls } = Astro.props;
+---
+
+<p class:list={[cls]}><span class="badge gap-1 bg-honey-100 text-honey-700"><Icon name={icon} class="size-4" />แผนในอนาคต · ยังไม่เปิดให้บริการ</span></p>

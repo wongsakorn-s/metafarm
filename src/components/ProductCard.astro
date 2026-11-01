@@ -1,0 +1,35 @@
+---
+// การ์ดสินค้าบนหน้าแรกและหน้ารายการสินค้า (ขั้น 2 ของ docs/14-public-ux-plan.md)
+// price = ข้อความราคาที่หน้าเรียกคำนวณเอง (หน้าแรกกับหน้าสินค้าใช้รูปแบบต่างกันในตอนนี้ ดู docs/14 ข้อ 2 และคำถามเรื่องราคา)
+// variants = แสดงรายชื่อขนาดแทนป้ายราคาตัวอย่าง (หน้ารายการสินค้า)
+import SampleBadge from './SampleBadge.astro';
+import { SHIPPING_NOTE, variantName } from '../lib/products.ts';
+import { placeholder } from '../lib/placeholders.ts';
+import type { PublicProduct } from '../server/public.ts';
+
+interface Props {
+  product: PublicProduct;
+  price: string;
+  variants?: boolean;
+  eager?: boolean;
+}
+const { product: p, price, variants = false, eager = false } = Astro.props;
+const image = p.imageKey ? `/img/${p.imageKey}` : p.category === 'honey' ? placeholder.honey : placeholder.hiveBox;
+const hasSample = p.variants.some((v) => v.priceIsSample);
+---
+
+<a href={`/products/${p.slug}`} class="card-link flex h-full flex-col overflow-hidden !p-0">
+  <img src={image} alt="" width="800" height="450" loading={eager ? 'eager' : 'lazy'} class="aspect-[16/9] w-full bg-palm-50 object-cover" />
+  <div class="p-4">
+    <h3 class="text-lg font-bold">{p.name}</h3>
+    <p data-num class="text-xl font-bold text-palm-700">{price} <span class="text-sm font-normal text-muted">({SHIPPING_NOTE})</span></p>
+    {variants ? (
+      <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+        {p.variants.map((v) => <span>{variantName(v.label, v.sizeMl, ' ')}</span>)}
+        {hasSample && <SampleBadge />}
+      </p>
+    ) : (
+      hasSample && <p class="mt-1"><SampleBadge /></p>
+    )}
+  </div>
+</a>

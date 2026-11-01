@@ -1,0 +1,97 @@
+---
+// แกลเลอรีรูป + วิดีโอของหน้ารายละเอียด (สินค้า / รังที่ขาย / สมุดพก) — ขั้น 2 ของ docs/14-public-ux-plan.md
+// ใช้ร่วมกันทุกหน้า: รูปหลักขยายได้ (lightbox) · แถบรูปย่อเปลี่ยนรูปหลักด้วย src/scripts/gallery-preview.ts
+// ผู้เรียกต้องห่อด้วย <div data-zoom-group> และให้ element ที่ครอบมี data-gallery (ให้ gallery-preview หาเจอ)
+// ไม่มีรูปและวิดีโอ → แสดงช่อง slot "empty" ที่ผู้เรียกส่งมาเอง (แต่ละหน้าหน้าตาไม่เหมือนกัน)
+import Icon from './Icon.astro';
+import VideoPlayer from './VideoPlayer.astro';
+import type { PublicVideo } from '../server/public.ts';
+import { GRID_COLS, photoSrcset, thumbUrl } from '../lib/media.ts';
+
+interface Props {
+  /** รูปตามลำดับ · alt คำนวณโดยหน้าที่เรียก (รูปแรก = รูปหลักที่เห็นตอนเปิดหน้า) */
+  photos: { key: string; alt: string }[];
+  video: PublicVideo | null;
+  /** รูปปกของวิดีโอ (โปสเตอร์) */
+  videoPoster: string;
+  /** ชื่อที่ใช้ในข้อความ aria: ชื่อสินค้า หรือรหัสรัง */
+  label: string;
+  /** "สินค้า" หรือ "รัง" — ต่อข้างหน้า label ในข้อความ aria */
+  kind: 'สินค้า' | 'รัง';
+  /** คำอธิบายรูปในกล่องขยาย (lightbox) */
+  caption: string;
+  /** ชื่อวิดีโอ (ตัวเล่น, คำอธิบาย และรูปย่อวิดีโอ) */
+  videoTitle: string;
+  sizes: string;
+  /** สินค้า: กรอบรูปเป็นจัตุรัสบนคอม */
+  square?: boolean;
+  /** รูปแรกโหลดทันที (หน้าสมุดพก) */
+  eager?: boolean;
+}
+const { photos, video, videoPoster, label, kind, caption, videoTitle, sizes, square = false, eager = false } = Astro.props;
+const totalMedia = photos.length + (video ? 1 : 0);
+const videoHref = video?.key ? `/video/${video.key}` : `https://www.youtube.com/watch?v=${video?.youtubeId}`;
+---
+
+{totalMedia > 0 ? (
+  <>
+    <div class:list={['relative overflow-hidden rounded-2xl bg-palm-50 shadow-card aspect-[4/3]', square && 'md:aspect-square']} data-gallery-stage>
+      {photos.length > 0 ? (
+        <a href={`/img/${photos[0]!.key}`} data-zoom data-caption={caption} aria-label={`ดูรูป${kind} ${label} ขยาย`} class="relative block size-full" data-gallery-main data-zoom-index="0">
+          <img src={`/img/${photos[0]!.key}`} srcset={photoSrcset(`/img/${photos[0]!.key}`)} sizes={sizes} width="800" height="600"
+            alt={photos[0]!.alt} loading={eager ? 'eager' : undefined} fetchpriority={eager ? 'high' : undefined}
+            class="size-full object-cover transition-opacity duration-150" data-gallery-img />
+        </a>
+      ) : null}
+
+      {video && (
+        <div data-gallery-video class:list={['absolute inset-0 size-full bg-black flex items-center justify-center', photos.length > 0 && 'hidden']}>
+          <VideoPlayer video={video} title={videoTitle} poster={videoPoster} fill />
+        </div>
+      )}
+
+      <button type="button" data-zoom data-gallery-expand data-zoom-index="0" aria-label="ดูขยาย"
+        class="pointer-events-auto absolute bottom-2 right-2 z-10 flex min-h-11 items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white">
+        <Icon name="search" class="size-3.5" data-gallery-icon-search />
+        <Icon name="video" class="hidden size-3.5" data-gallery-icon-video />
+        <span data-gallery-counter>{totalMedia > 1 ? `1/${totalMedia}` : (photos.length > 0 ? 'ขยาย' : 'วิดีโอ')}</span>
+      </button>
+    </div>
+
+    {totalMedia > 1 && (
+      <ul class:list={['scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:overflow-visible sm:p-0', GRID_COLS[totalMedia] ?? 'sm:grid-cols-6']} data-gallery-thumbs>
+        {photos.map((p, i) => (
+          <li class="shrink-0 sm:w-auto">
+            <a href={`/img/${p.key}`} data-gallery-thumb data-index={i} data-src={`/img/${p.key}`} data-srcset={photoSrcset(`/img/${p.key}`)}
+              data-alt={p.alt} data-caption={caption} aria-label={`ดูรูป${kind} ${label} รูปที่ ${i + 1}`} aria-current={i === 0 ? 'true' : 'false'}
+              class:list={['block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
+                i === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100']}>
+              <img src={thumbUrl(`/img/${p.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
+            </a>
+          </li>
+        ))}
+        {video && (
+          <li class="shrink-0 sm:w-auto">
+            <a href={videoHref} data-gallery-thumb data-is-video="true" data-index={photos.length}
+              data-zoom-video={video.key ? `/video/${video.key}` : undefined} data-src={videoPoster} data-caption={videoTitle} data-alt={videoTitle}
+              aria-label={`ดูวิดีโอ ${label}`} aria-current={photos.length === 0 ? 'true' : 'false'}
+              class:list={['group relative block aspect-square w-[72px] overflow-hidden rounded-xl bg-black transition-all duration-150 sm:w-full focus-visible:outline-2 focus-visible:outline-palm-600',
+                photos.length === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100']}>
+              <img src={videoPoster} width="160" height="160" alt="" loading="lazy" onerror="this.style.display='none'" class="absolute inset-0 size-full rounded-xl object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
+              <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
+                <span class="grid size-6 place-items-center rounded-full bg-black/60 text-white backdrop-blur sm:size-7">
+                  <Icon name="video" class="ml-0.5 size-3.5 sm:size-4" />
+                </span>
+              </span>
+              <span class="pointer-events-none absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium leading-none text-white">
+                วิดีโอ
+              </span>
+            </a>
+          </li>
+        )}
+      </ul>
+    )}
+  </>
+) : (
+  <slot name="empty" />
+)}

@@ -1,0 +1,35 @@
+---
+// เรื่องราวของฟาร์ม + จุดเด่น 3 ข้อ บนหน้าแรก (ขั้น 2 ของ docs/14-public-ux-plan.md)
+// เดิมเขียนซ้ำสองชุด (มี/ไม่มีวิดีโอ) — ตอนนี้ข้อความชุดเดียว ต่างกันแค่การจัดวางตาม withVideo
+// หน้าแรกวางวิดีโอไว้ข้างนี้เอง (องค์ประกอบ order-2) ดู src/pages/index.astro
+import Icon from './Icon.astro';
+import { site } from '../config/site.ts';
+
+interface Props { withVideo?: boolean }
+const { withVideo = false } = Astro.props;
+const highlights = [
+  { icon: 'wood' as const, title: `รังไม้สัก ${site.name}`, text: 'รัง 2 ห้องแนวนอน เคลือบโพลียูรีเทนสูตรน้ำเพื่อยืดอายุการใช้งาน' },
+  { icon: 'queen' as const, title: 'พัฒนาสายพันธุ์ขนเงิน', text: 'ให้เหมาะกับภูมิอากาศของภาคตะวันออกโดยเฉพาะ' },
+  { icon: 'passport' as const, title: 'ทุกรังมีสมุดพก', text: 'จดบันทึกที่มาของนางพญา วันเกิด และกิจกรรมต่าง ๆ ของแต่ละรัง' },
+];
+---
+
+<div class:list={['contents', withVideo && 'lg:block']}>
+  <div class:list={[withVideo && 'order-1']}>
+    <h2 id="story-h" class="text-2xl font-bold">เรื่องราวของฟาร์ม</h2>
+    <div class="mt-3 space-y-3 text-lg">
+      <p>เราเริ่มจากการทดลองเลี้ยงชันโรงหลายสายพันธุ์ ทั้งขนเงิน ถ้วยดำ จิ่วดุ ปากแตร อิตาม่า และบิงฮามี่</p>
+      <p>แต่ภูมิอากาศที่ จ.ระยอง ค่อนข้างร้อน และบางช่วงฝนไม่ตกต่อเนื่องหลายเดือน ทำให้หลายสายพันธุ์อยู่ไม่รอด</p>
+      <p><strong>ชันโรงขนเงิน</strong> (<em>Tetragonula pagdeni</em>) คือสายพันธุ์ที่เราพบว่าเหมาะกับอากาศที่นี่ที่สุด เราจึงพัฒนารังเลี้ยงสำหรับขนเงินโดยเฉพาะ</p>
+    </div>
+  </div>
+  <ul class:list={[withVideo ? 'order-3 grid gap-3 lg:mt-6' : 'grid gap-3']} aria-label="จุดเด่น">
+    {highlights.map((h) => (
+      <li class="card flex gap-4">
+        <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-palm-50 text-palm-700"><Icon name={h.icon} class="size-6" /></div>
+        <div><h3 class="text-lg font-semibold">{h.title}</h3>
+        <p class="mt-1 text-muted">{h.text}</p></div>
+      </li>
+    ))}
+  </ul>
+</div>

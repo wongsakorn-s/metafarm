@@ -60,12 +60,15 @@ async function capture(label) {
   for (const [vk, vp] of Object.entries(VIEWPORTS)) {
     const dir = join(SNAP, label, vk);
     mkdirSync(dir, { recursive: true });
-    const ctx = await browser.newContext({ ...vp, deviceScaleFactor: 1 });
+    // ต้องส่งขนาดใน viewport (ไม่ใช่ width/height ระดับบนสุด — Playwright จะเงียบ ๆ ใช้ 1280×720 แทน)
+    const ctx = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, isMobile: vp.isMobile ?? false, hasTouch: vp.hasTouch ?? false, deviceScaleFactor: 1 });
     const page = await ctx.newPage();
     for (const path of pages) {
       const res = await page.goto(BASE + path, { waitUntil: 'load', timeout: 30000 }).catch((e) => ({ error: e.message.slice(0, 80) }));
       if (res.error) { console.log(`ERR ${vk} ${path} ${res.error}`); continue; }
       await page.waitForTimeout(500);
+      const width = await page.evaluate(() => window.innerWidth);
+      if (width !== vp.width) { console.log(`ขนาดจอผิด: ${vk} ได้ ${width}px (คาด ${vp.width}px)`); process.exit(2); }
       // ซ่อน dev toolbar ของ Astro ที่ลอยทับเนื้อหาตอนจับภาพ (เฉพาะโหมด dev)
       await page.addStyleTag({ content: 'astro-dev-toolbar{display:none !important}' });
       const text = await page.evaluate(() => {

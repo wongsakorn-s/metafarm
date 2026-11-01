@@ -1,13 +1,13 @@
 ---
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import { isHiveCode, normalizeHiveCode } from '../../lib/hive-code.ts';
-import Icon from '../../components/Icon.astro';
-import VideoPlayer from '../../components/VideoPlayer.astro';
+import MediaGallery from '../../components/MediaGallery.astro';
+import HiveHistory from '../../components/HiveHistory.astro';
 import PublicLayout from '../../layouts/PublicLayout.astro';
 import { getDb } from '../../server/db.ts';
 import { getPublicHive } from '../../server/public.ts';
 import { formatThaiDate } from '../../lib/thai-date.ts';
 import { placeholder } from '../../lib/placeholders.ts';
-import { GRID_COLS, photoSrcset, thumbUrl } from '../../lib/media.ts';
 import { site } from '../../config/site.ts';
 import NotFound from '../../components/NotFound.astro';
 import { acquiredLabel, boxLabel, originText as originOf, speciesLabel } from '../../lib/labels.ts';
@@ -29,16 +29,19 @@ if (!hive) {
 }
 
 const originText = hive ? originOf(hive.origin, hive.province, site.name) : '';
-const totalMedia = (hive?.photos.length ?? 0) + (hive?.video ? 1 : 0);
+// ประวัติไม่เกิน 6 รายการวางไว้ข้างรูปในคอม (คำตอบเจ้าของ Q5) ที่เหลือวางเต็มความกว้างใต้รูป
+const shortHistory = (hive?.events.length ?? 0) <= 6;
 const videoPoster = hive?.video?.key
   ? `/video/${posterKeyOf(hive.video.key)}`
   : hive?.video?.youtubeId
     ? `https://i.ytimg.com/vi/${hive.video.youtubeId}/hqdefault.jpg`
     : (hive?.photos[0] ? `/img/${hive.photos[0].key}` : placeholder.hive);
+// ข้อความแทนรูปของรัง: ถ้าเจ้าของไม่ได้ใส่คำอธิบาย ใช้ข้อความอธิบายรูปแรก (สถานที่ตั้งในสวน) และรูปถัดไปตามลำดับ
+const photoAlt = (p: { alt: string | null }, i: number) =>
+  p.alt && p.alt !== `รูปรัง ${hive?.code}` ? p.alt : (i === 0 ? `รูปรัง ${hive?.code} และสถานที่ตั้งในสวน` : `รูปรัง ${hive?.code} รูปที่ ${i + 1}`);
 
 const statusBadge = hive && ({ active: ['ยังเลี้ยงอยู่', 'bg-palm-100 text-palm-900'], sold: ['ขายแล้ว', 'bg-honey-100 text-honey-700'], collapsed: ['รังล่ม', 'bg-slate-200 text-slate-700'] } as const)[hive.status as 'active'];
 
-const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน'], queen_cell_taken: ['queen', 'เก็บไข่นางพญา'], brood_split: ['brood', 'แยกไข่อ่อน/ตัวงานไปทำรังใหม่'], note: ['note', ''] } as const;
 ---
 
 {!hive ? (
@@ -56,7 +59,7 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
     jsonLd={breadcrumbLd([['หน้าแรก', '/'], ['สมุดพกชันโรง', '/passport'], [`รัง ${hive.code}`, `/passport/${hive.code}`]], Astro.url.origin)}
   >
     <article>
-      <p class="mb-2 text-sm text-muted"><a class="inline-flex min-h-11 items-center underline" href="/passport">← สมุดพกชันโรง</a></p>
+      <Breadcrumbs items={[{ label: 'หน้าแรก', href: '/' }, { label: 'สมุดพกชันโรง', href: '/passport' }, { label: `รัง ${hive.code}` }]} />
       <header class="mb-5 flex flex-wrap items-center gap-3">
         <h1 class="text-3xl font-bold text-palm-900">รัง {hive.code}</h1>
         {statusBadge && <span class:list={['badge text-sm', statusBadge[1]]}>{statusBadge[0]}</span>}
@@ -66,104 +69,22 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
           มือถือ: เรียงลงตามปกติ */}
       <div class="grid gap-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start" data-gallery>
         <section aria-label="รูปรัง" class="md:sticky md:top-24" data-zoom-group>
-          {totalMedia > 0 ? (
-            <>
-              <div class="relative overflow-hidden rounded-2xl bg-palm-50 shadow-card aspect-[4/3]" data-gallery-stage>
-                {hive.photos.length > 0 ? (
-                  <a href={`/img/${hive.photos[0]!.key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} ขยาย`} class="relative block size-full" data-gallery-main data-zoom-index="0">
-                    <img src={`/img/${hive.photos[0]!.key}`} srcset={photoSrcset(`/img/${hive.photos[0]!.key}`)} sizes="(min-width: 768px) 40vw, 100vw" width="800" height="600"
-                      alt={hive.photos[0]!.alt && hive.photos[0]!.alt !== `รูปรัง ${hive.code}` ? hive.photos[0]!.alt : `รูปรัง ${hive.code} และสถานที่ตั้งในสวน`} loading="eager" fetchpriority="high" class="size-full object-cover transition-opacity duration-150" data-gallery-img />
-                  </a>
-                ) : null}
-
-                {hive.video && (
-                  <div
-                    data-gallery-video
-                    class:list={[
-                      'absolute inset-0 size-full bg-black flex items-center justify-center',
-                      hive.photos.length > 0 && 'hidden',
-                    ]}
-                  >
-                    <VideoPlayer video={hive.video} title={`วิดีโอรัง ${hive.code}`} poster={videoPoster} fill />
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  data-zoom
-                  data-gallery-expand
-                  data-zoom-index="0"
-                  aria-label="ดูขยาย"
-                  class="pointer-events-auto absolute bottom-2 right-2 z-10 flex min-h-11 items-center gap-1.5 rounded-full bg-black/60 px-3 py-2 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  <Icon name="search" class="size-3.5" data-gallery-icon-search />
-                  <Icon name="video" class="hidden size-3.5" data-gallery-icon-video />
-                  <span data-gallery-counter>{totalMedia > 1 ? `1/${totalMedia}` : (hive.photos.length > 0 ? 'ขยาย' : 'วิดีโอ')}</span>
-                </button>
-              </div>
-
-              {totalMedia > 1 && (
-                <ul class:list={['scroll-fade mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:overflow-visible sm:p-0', GRID_COLS[totalMedia] ?? 'sm:grid-cols-6']} data-gallery-thumbs>
-                  {hive.photos.map((ph, i) => (
-                    <li class="shrink-0 sm:w-auto">
-                      <a
-                        href={`/img/${ph.key}`}
-                        data-gallery-thumb
-                        data-index={i}
-                        data-src={`/img/${ph.key}`}
-                        data-srcset={photoSrcset(`/img/${ph.key}`)}
-                        data-caption={`รัง ${hive.code}`}
-                        data-alt={ph.alt && ph.alt !== `รูปรัง ${hive.code}` ? ph.alt : (i === 0 ? `รูปรัง ${hive.code} และสถานที่ตั้งในสวน` : `รูปรัง ${hive.code} รูปที่ ${i + 1}`)}
-                        aria-label={`ดูรูปรัง ${hive.code} รูปที่ ${i + 1}`}
-                        aria-current={i === 0 ? 'true' : 'false'}
-                        class:list={[
-                          'block overflow-hidden rounded-xl transition-all duration-150 focus-visible:outline-2 focus-visible:outline-palm-600',
-                          i === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100'
-                        ]}
-                      >
-                        <img src={thumbUrl(`/img/${ph.key}`)} width="160" height="160" alt="" loading="lazy" class="aspect-square w-[72px] rounded-xl bg-palm-50 object-cover transition-transform duration-(--duration-base) hover:scale-105 sm:w-full" />
-                      </a>
-                    </li>
-                  ))}
-                  {hive.video && (
-                    <li class="shrink-0 sm:w-auto">
-                      <a
-                        href={hive.video.key ? `/video/${hive.video.key}` : `https://www.youtube.com/watch?v=${hive.video.youtubeId}`}
-                        data-gallery-thumb
-                        data-is-video="true"
-                        data-index={hive.photos.length}
-                        data-zoom-video={hive.video.key ? `/video/${hive.video.key}` : undefined}
-                        data-src={videoPoster}
-                        data-caption={`วิดีโอรัง ${hive.code}`}
-                        data-alt={`วิดีโอรัง ${hive.code}`}
-                        class:list={[
-                          'group relative block aspect-square w-[72px] overflow-hidden rounded-xl bg-black transition-all duration-150 sm:w-full focus-visible:outline-2 focus-visible:outline-palm-600',
-                          hive.photos.length === 0 ? 'ring-2 ring-palm-600 ring-offset-2 ring-offset-surface opacity-100' : 'opacity-70 hover:opacity-100'
-                        ]}
-                        aria-label={`ดูวิดีโอรัง ${hive.code}`}
-                        aria-current={hive.photos.length === 0 ? 'true' : 'false'}
-                      >
-                        <img src={videoPoster} width="160" height="160" alt="" loading="lazy" onerror="this.style.display='none'" class="absolute inset-0 size-full rounded-xl object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
-                        <span class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/20">
-                          <span class="grid size-6 place-items-center rounded-full bg-black/60 text-white backdrop-blur sm:size-7">
-                            <Icon name="video" class="ml-0.5 size-3.5 sm:size-4" />
-                          </span>
-                        </span>
-                        <span class="pointer-events-none absolute bottom-1 right-1 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium leading-none text-white">
-                          วิดีโอ
-                        </span>
-                      </a>
-                    </li>
-                  )}
-                </ul>
-              )}
-            </>
-          ) : (
-            <div class="rounded-3xl border border-dashed border-line bg-surface p-4 text-center">
+          <MediaGallery
+            photos={hive.photos.map((ph, i) => ({ key: ph.key, alt: photoAlt(ph, i) }))}
+            video={hive.video}
+            videoPoster={videoPoster}
+            label={hive.code}
+            kind="รัง"
+            caption={`รัง ${hive.code}`}
+            videoTitle={`วิดีโอรัง ${hive.code}`}
+            sizes="(min-width: 768px) 40vw, 100vw"
+            eager
+          >
+            <div slot="empty" class="rounded-3xl border border-dashed border-line bg-surface p-4 text-center">
               <img src={placeholder.hive} alt="" width="800" height="600" class="mx-auto aspect-[4/3] w-full max-w-xs rounded-2xl" />
               <p class="hint">ยังไม่มีรูปของรังนี้</p>
             </div>
-          )}
+          </MediaGallery>
         </section>
 
         <div class="grid gap-5">
@@ -193,26 +114,11 @@ const eventLabel = { honey_harvest: ['honey', 'เก็บน้ำหวาน
               ) : <span class="text-muted">–</span>}</dd>
             </dl>
           </section>
+          {shortHistory && <HiveHistory events={hive.events} class="card" />}
         </div>
       </div>
+      {!shortHistory && <HiveHistory events={hive.events} />}
 
-      <section class="card mt-5" aria-labelledby="tl-h">
-        <h2 id="tl-h" class="mb-3 text-lg font-semibold">ประวัติของรัง ({hive.events.length})</h2>
-        {hive.events.length === 0 ? <p class="text-muted">ยังไม่มีประวัติที่บันทึกไว้</p> : (
-          <ol class="divide-y divide-line">
-            {hive.events.map((e) => (
-              <li class="flex gap-3 py-3">
-                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-palm-50 text-palm-700"><Icon name={eventLabel[e.type][0]} class="size-4" /></span>
-                <div class="min-w-0 flex-1">
-                  <p class="font-medium">{e.type === 'note' ? e.text : eventLabel[e.type][1]}
-                    {e.targetCode && <span> → <a class="text-palm-700 underline" href={`/passport/${e.targetCode}`}>รัง {e.targetCode}</a></span>}</p>
-                </div>
-                <time class="shrink-0 text-sm text-muted" datetime={e.occurredOn}>{formatThaiDate(e.occurredOn, e.precision)}</time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
 
       {/* ทางไปต่อสำหรับคนที่สแกน QR ที่รัง — ไม่บอกว่ารังนี้ขายอยู่หรือไม่ (for_sale เป็นข้อมูลภายใน ไม่แสดงในสมุดพก) */}
       <section class="card mt-5" aria-labelledby="next-h">

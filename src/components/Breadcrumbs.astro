@@ -1,0 +1,26 @@
+---
+// ทางเดินของหน้า (ขั้น 2b ของ docs/14-public-ux-plan.md)
+// มือถือ: ลิงก์กลับหน้าก่อนหน้า "← สินค้า" เหมือนเดิม · คอม: ทั้งเส้นทาง "หน้าแรก › สินค้า › ชื่อหน้า"
+// รายการสุดท้ายคือหน้าปัจจุบัน (ไม่ใช่ลิงก์) · ข้อความต้องตรงกับ breadcrumbLd ของหน้านั้น
+interface Props { items: { label: string; href?: string }[] }
+const { items } = Astro.props;
+const parent = items.length >= 2 ? items[items.length - 2] : undefined;
+---
+
+{parent?.href && (
+  <p class="mb-2 text-sm text-muted md:hidden"><a class="inline-flex min-h-11 items-center underline" href={parent.href}>← {parent.label}</a></p>
+)}
+<nav aria-label="ตำแหน่งของหน้า" class="mb-2 hidden text-sm text-muted md:block">
+  <ol class="flex flex-wrap items-center">
+    {items.map((it, i) => (
+      <li class="flex items-center">
+        {i > 0 && <span aria-hidden="true" class="px-2">›</span>}
+        {it.href ? (
+          <a class="inline-flex min-h-9 items-center underline hover:text-palm-700" href={it.href}>{it.label}</a>
+        ) : (
+          <span aria-current="page" class="text-ink">{it.label}</span>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>

@@ -1,0 +1,34 @@
+---
+// การ์ดรังหนึ่งรังในรายการสมุดพก (ค้นหา/หมวด) — รูปปก + รหัสรัง + ป้ายสถานะ หรือคำว่า "ดูสมุดพก" (ขั้น 2 ของ docs/14-public-ux-plan.md)
+import Icon from './Icon.astro';
+import { placeholder } from '../lib/placeholders.ts';
+import { photoSrcset, thumbUrl } from '../lib/media.ts';
+
+interface Props {
+  code: string;
+  /** รูปปก (key ของรูปในสมุดพก) ไม่มี = รูปตัวอย่าง */
+  photoKey: string | null;
+  /** ป้ายสถานะ [ข้อความ, คลาส] */
+  badge?: readonly [string, string];
+  /** แสดงไอคอนสมุดพก + คำว่า "ดูสมุดพก" (บนมือถือแสดงเฉพาะไอคอน) แทนป้ายสถานะ */
+  hint?: boolean;
+}
+const { code, photoKey, badge, hint = false } = Astro.props;
+---
+
+<a href={`/passport/${code}`} class="group block overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+  {photoKey ? (
+    <img src={thumbUrl(`/img/${photoKey}`)} srcset={photoSrcset(`/img/${photoKey}`)} sizes="(min-width: 768px) 220px, 50vw" width="480" height="360" alt={`รังชันโรงขนเงิน ${code}`} loading="lazy" decoding="async"
+      class="aspect-[4/3] w-full bg-palm-50 object-cover transition-transform duration-(--duration-base) group-hover:scale-105" />
+  ) : (
+    <img src={placeholder.hive} alt="" width="480" height="360" loading="lazy" class="aspect-[4/3] w-full bg-palm-50 object-cover" />
+  )}
+  <span class="flex min-h-11 items-center justify-between gap-2 px-3 py-2">
+    <span class="whitespace-nowrap font-semibold text-palm-700">รัง {code}</span>
+    {hint ? (
+      <span class="inline-flex shrink-0 items-center gap-1 text-sm text-muted"><Icon name="passport" class="size-4" /><span class="hidden md:inline">ดูสมุดพก</span></span>
+    ) : (
+      badge && <span class:list={['badge', badge[1]]}>{badge[0]}</span>
+    )}
+  </span>
+</a>
