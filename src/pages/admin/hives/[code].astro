@@ -305,6 +305,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
             <div><label class="label" for="s-price">ราคาขาย (บาท)</label><input class="field" id="s-price" name="salePrice" type="number" inputmode="numeric" min="0" value={f.sale.v('salePrice', String(hive.salePrice ?? ''))} />{f.sale.err('salePrice') && <p class="error">{f.sale.err('salePrice')}</p>}</div>
             <button class="btn-honey w-full" type="submit">บันทึกการตั้งขาย</button>
           </form>
+          <a class="btn-ghost mt-3 w-full" href={`/admin/orders/new?hive=${hive.code}`}><Icon name="receipt" class="size-5" />มีลูกค้าสั่งรังนี้ — จดออเดอร์</a>
         </details>
       )}
       {targets.length > 0 && (
@@ -319,7 +320,7 @@ const ref = (c: string | null, known: boolean) => c ?? (known ? UNKNOWN : '–')
               <option value="" disabled selected={!f.status.v('status') && !(openIntent === 'collapse' && targets.includes('collapsed'))}>เลือกสถานะ…</option>
               {targets.map((s) => <option value={s} selected={f.status.v('status') === s || (openIntent === 'collapse' && !f.status.v('status') && s === 'collapsed')}>{statusLabel[s]}</option>)}
             </select>{f.status.err('status') && <p class="error">{f.status.err('status')}</p>}
-            {owner && targets.includes('sold') && <p class="hint" data-when="sold">ขายให้ลูกค้าที่ทักมา → กด <a class="underline" href={`/admin/orders/new?hive=${hive.code}`}>จดออเดอร์</a></p>}</div>
+            {owner && targets.includes('sold') && <p class="hint" data-when="sold">ขายให้ลูกค้าที่ทักมา ให้กด จดออเดอร์ ในหัวข้อตั้งขายแทน</p>}</div>
           <div><label class="label" for="st-d">วันที่</label><input class="field" id="st-d" name="occurredOn" type="date" max={today} value={f.status.v('occurredOn', today)} required />{f.status.err('occurredOn') && <p class="error">{f.status.err('occurredOn')}</p>}</div>
           {targets.includes('sold') && <div data-when="sold"><label class="label" for="st-p">ราคาขายจริง (บาท)</label><input class="field" id="st-p" name="soldPrice" type="number" inputmode="numeric" min="0" value={f.status.v('soldPrice', String(hive.salePrice ?? ''))} />{f.status.err('soldPrice') && <p class="error">{f.status.err('soldPrice')}</p>}</div>}
           <div data-when="collapsed"><label class="label" for="st-r">สาเหตุที่ล่ม</label><input class="field" id="st-r" name="collapseReason" maxlength="300" value={f.status.v('collapseReason')} autofocus={focusOn('collapse')} />{f.status.err('collapseReason') && <p class="error">{f.status.err('collapseReason')}</p>}

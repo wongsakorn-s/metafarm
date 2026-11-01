@@ -1,0 +1,18 @@
+---
+// แถบย่อยของหมวด "รัง": รังทั้งหมด · รอถ่ายรูป · ข้อมูลไม่ครบ (ตัวเลขมาจากหน้าที่เรียกใช้)
+import SubTabs from './SubTabs.astro';
+
+interface Props {
+  active: 'hives' | 'photos' | 'todo';
+  photoCount: number;
+  incompleteCount: number;
+}
+const { active, photoCount, incompleteCount } = Astro.props;
+const tabs = [
+  { key: 'hives', href: '/admin/hives', icon: 'hive', short: 'รัง', label: 'รังทั้งหมด' },
+  { key: 'photos', href: '/admin/photos', icon: 'camera', short: 'รอถ่ายรูป', label: 'รอถ่ายรูป', count: photoCount },
+  { key: 'todo', href: '/admin/todo', icon: 'note', short: 'ข้อมูลไม่ครบ', label: 'ข้อมูลไม่ครบ', count: incompleteCount },
+] as const;
+---
+
+<SubTabs label="หมวดรัง" active={active} tabs={tabs} />

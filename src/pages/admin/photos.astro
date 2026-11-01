@@ -1,7 +1,7 @@
 ---
 import Icon from '../../components/Icon.astro';
 import PhotoTips from '../../components/PhotoTips.astro';
-import SubTabs from '../../components/SubTabs.astro';
+import HiveTabs from '../../components/HiveTabs.astro';
 import Val from '../../components/Val.astro';
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getDb } from '../../server/db.ts';
@@ -21,15 +21,10 @@ const [rows, photoCount, incompleteCount] = await Promise.all([
 ]);
 const msg = Astro.url.searchParams.get('msg');
 
-const hiveTabs = [
-  { key: 'hives', href: '/admin/hives', icon: 'hive', short: 'รัง', label: 'รังทั้งหมด' },
-  { key: 'photos', href: '/admin/photos', icon: 'camera', short: 'รอถ่ายรูป', label: 'รอถ่ายรูป', count: photoCount },
-  { key: 'todo', href: '/admin/todo', icon: 'note', short: 'ข้อมูลไม่ครบ', label: 'ข้อมูลไม่ครบ', count: incompleteCount },
-] as const;
 ---
 
 <AdminLayout title="รังรอถ่ายรูป" active="photos">
-  <SubTabs label="หมวดรัง" active="photos" tabs={hiveTabs} />
+  <HiveTabs active="photos" photoCount={photoCount} incompleteCount={incompleteCount} />
   {msg && <p role="status" class="mb-4 rounded-xl bg-palm-100 p-3 font-medium text-palm-900"><Icon name="check" class="inline-block size-[1.15em] align-[-0.2em]" /> {msg}</p>}
 
   <section class="card mb-4">

@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import Icon from '../../../components/Icon.astro';
-import SubTabs from '../../../components/SubTabs.astro';
+import HiveTabs from '../../../components/HiveTabs.astro';
 import Val from '../../../components/Val.astro';
 import { getDb } from '../../../server/db.ts';
 import { HIVE_SORTS, listHives, countHivesWithoutPhoto, countIncompleteHives, type HiveSort } from '../../../server/hives.ts';
@@ -31,11 +31,6 @@ const [{ rows, total, page, pages }, photoCount, incompleteCount] = await Promis
   countHivesWithoutPhoto(db),
   countIncompleteHives(db),
 ]);
-const hiveTabs = [
-  { key: 'hives', href: '/admin/hives', icon: 'hive', short: 'รัง', label: 'รังทั้งหมด' },
-  { key: 'photos', href: '/admin/photos', icon: 'camera', short: 'รอถ่ายรูป', label: 'รอถ่ายรูป', count: photoCount },
-  { key: 'todo', href: '/admin/todo', icon: 'note', short: 'ข้อมูลไม่ครบ', label: 'ข้อมูลไม่ครบ', count: incompleteCount },
-] as const;
 const activeFilters = [filter.status, filter.origin, filter.forSale, filter.incomplete].filter(Boolean).length;
 
 const link = (p: number) => {
@@ -72,7 +67,7 @@ const quickOn = (set: Record<string, string>) =>
 ---
 
 <AdminLayout title="รังทั้งหมด" active="hives">
-  <SubTabs label="หมวดรัง" active="hives" tabs={hiveTabs} />
+  <HiveTabs active="hives" photoCount={photoCount} incompleteCount={incompleteCount} />
 
   <div class="mb-4 flex items-center justify-between gap-3">
     <p class="text-sm text-muted" aria-live="polite">พบ {total.toLocaleString('th-TH')} รัง {activeFilters + (filter.q ? 1 : 0) > 0 && <a class="ml-1 inline-flex min-h-11 items-center underline" href="/admin/hives">ล้างตัวกรอง</a>}</p>
