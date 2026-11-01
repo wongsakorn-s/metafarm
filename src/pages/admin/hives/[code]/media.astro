@@ -5,6 +5,7 @@ import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { getDb, getMedia } from '../../../../server/db.ts';
 import { getHiveDetail } from '../../../../server/hives.ts';
 import { deleteMedia, listMedia, moveHiveMedia, reorderHiveMedia, setVideo, uploadImages } from '../../../../server/media.ts';
+import PhotoTips from '../../../../components/PhotoTips.astro';
 import VideoUploader from '../../../../components/VideoUploader.astro';
 import { jsonResult, wantsJson } from '../../../../lib/http.ts';
 import { LIMITS, thumbUrl, MAX_FILES_PER_REQUEST, remainingSlots, uploadSummary, youtubeWatchUrl } from '../../../../lib/media.ts';
@@ -81,20 +82,18 @@ const video = by('video')[0];
 // รังที่ตั้งขายอยู่: แสดงรูปสำหรับขายก่อน · รังอื่น: รูปสมุดพกก่อน
 const sets = ([
   {
-    kind: 'passport',
+    kind: 'passport' as const,
     title: 'รูปสมุดพก',
     items: passport,
     tag: '★ รูปหลัก (เห็นที่ตั้งรัง)',
-    guide: 'รูปที่ 1 เป็นรูปหลัก: ควรถ่ายมุมกว้าง ให้เห็นตัวรังพร้อมสภาพแวดล้อมที่ตั้ง เพื่อให้เดินหาตำแหน่งรังในสวนได้ง่าย · รูปที่ 2–6 เป็นรูปมุมใกล้ ตัวรัง หรือการดูแล',
     hint: 'รูปที่ลูกค้าและคนดูแลเห็นในสมุดพกของรัง (หน้าประวัติรัง)',
   },
   {
-    kind: 'sale',
+    kind: 'sale' as const,
     title: 'รูปสำหรับขาย',
     items: sale,
     tag: '★ รูปปก (เปิดฝาโชว์รัง)',
-    guide: 'รูปที่ 1 สำคัญที่สุด: ควรถ่ายเปิดฝาโชว์ข้างในรังผ่านแผ่นพลาสติกใส ให้เห็นประชากรชันโรง ไข่อ่อน-ไข่แก่ และถ้วยน้ำหวาน เพื่อสร้างความมั่นใจให้ผู้ซื้อ · รูปที่ 2–6 เป็นรูปมุมข้างหรือตัวรังภายนอก',
-    hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย) · ถ้ายังไม่มีรูปสำหรับขาย หน้าขายจะใช้ 3 รูปแรกของสมุดพกให้ก่อน',
+    hint: 'รูปที่ลูกค้าเห็นในหน้ารังที่ขาย (เห็นเฉพาะตอนตั้งขาย)',
   },
 ] as const).toSorted((a) => (hive.forSale ? (a.kind === 'sale' ? -1 : 1) : (a.kind === 'passport' ? -1 : 1)));
 ---
@@ -115,27 +114,28 @@ const sets = ([
         <h2 id={`h-${st.kind}`} class="text-lg font-semibold"><Icon name={st.kind === 'sale' ? 'tag' : 'camera'} class="inline-block size-[1.15em] align-[-0.2em]" /> {st.title} <span class="text-sm font-normal text-muted">({st.items.length}/{LIMITS[st.kind]})</span></h2>
         <p class="hint">{st.hint}</p>
 
-        <div class="rounded-xl border border-palm-100 bg-palm-50/70 p-3 text-sm text-palm-900">
-          <p class="font-semibold text-palm-800"><Icon name="info" class="inline-block size-[1.15em] align-[-0.2em]" /> แนะนำการเลือกรูป:</p>
-          <p class="mt-1 leading-relaxed text-muted">{st.guide}</p>
-        </div>
+        <PhotoTips kind={st.kind} class="rounded-xl border border-palm-100 bg-palm-50/70 p-3 text-palm-900" />
 
         {st.items.length === 0 ? <p class="text-muted">ยังไม่มีรูป</p> : (
           <>
-            {st.items.length > 1 && <p class="hint">อยากเปลี่ยนลำดับ ให้เอานิ้วกดค้างที่ปุ่มจุด ๆ มุมขวาบนของรูป แล้วลากไปวางตำแหน่งที่ต้องการ</p>}
+            {st.items.length > 1 && <PhotoTips kind="sort" class="mb-2" />}
             <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3" data-zoom-group data-sortable data-category={st.kind}>
               {st.items.map((m, i) => (
                 <li class="space-y-2" data-photo-id={m.id}>
                   <div class="relative overflow-hidden rounded-xl">
                     <a href={`/media/${m.r2Key}`} data-zoom data-caption={`รัง ${hive.code}`} aria-label={`ดูรูปรัง ${hive.code} (${st.title}) รูปที่ ${i + 1} ขยาย`} class="relative block" target="_blank" rel="noopener">
                       <span aria-hidden="true" data-num data-pos class="absolute left-2 top-2 grid min-w-7 place-items-center rounded-full bg-black/60 px-2 py-0.5 text-sm font-semibold text-white">{i + 1}</span>
-                      <span data-first-label class:list={['pointer-events-none absolute inset-x-2 bottom-2 rounded-lg bg-black/75 px-2 py-1 text-center text-xs font-semibold text-white shadow-sm backdrop-blur', i !== 0 && 'hidden']}>
+                      <span data-first-label class:list={['pointer-events-none absolute left-2 bottom-2 right-14 rounded-lg bg-black/75 px-2 py-1 text-center text-xs font-semibold text-white shadow-sm backdrop-blur', i !== 0 && 'hidden']}>
                         {st.tag}
                       </span>
                       <img src={thumbUrl(`/media/${m.r2Key}`)} alt={m.alt ?? ''} loading="lazy" class="aspect-[3/4] w-full rounded-xl bg-palm-50 object-cover" />
                     </a>
                     <button type="button" data-drag-handle aria-pressed="false" aria-label={`จัดลำดับรูปที่ ${i + 1} จาก ${st.items.length} — กด Space เพื่อหยิบ แล้วใช้ลูกศรเลื่อน`}
                       class="absolute right-2 top-2 grid size-11 cursor-grab touch-none select-none place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-black/75 active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Icon name="grip" class="size-5" /></button>
+                    <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?" class="absolute bottom-2 right-2 z-10">
+                      <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
+                      <button class="grid size-11 place-items-center rounded-full bg-black/60 text-white backdrop-blur hover:bg-danger active:bg-danger" type="submit" aria-label="ลบรูป"><Icon name="trash" class="size-5" /></button>
+                    </form>
                   </div>
                   <noscript><div class="flex items-center gap-1" role="group" aria-label={`ลำดับรูปที่ ${i + 1} จาก ${st.items.length}`}>
                     {(['up', 'down', 'top'] as const).map((d) => {
@@ -149,10 +149,6 @@ const sets = ([
                       );
                     })}
                   </div></noscript>
-                  <form method="post" data-confirm="ลบรูปนี้ถาวรหรือไม่?">
-                    <input type="hidden" name="intent" value="delete" /><input type="hidden" name="mediaId" value={m.id} />
-                    <button class="btn-danger w-full" type="submit"><Icon name="trash" class="inline-block size-[1.15em] align-[-0.2em]" /> ลบ</button>
-                  </form>
                 </li>
               ))}
             </ul>
@@ -164,7 +160,7 @@ const sets = ([
           <div>
             <label class="label flex min-h-11 items-end" for={`file-${st.kind}`}>เพิ่ม{st.title} (ถ่ายใหม่หรือเลือกจากเครื่อง)</label>
             <input class="field-file" id={`file-${st.kind}`} name="file" type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple disabled={free === 0} />
-            <p class="hint">{free === 0 ? `ครบ ${LIMITS[st.kind]} รูปแล้ว — ถ้าจะเพิ่ม ให้ลบรูปเก่าก่อน` : `เพิ่มได้อีก ${free} รูป (ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป) · ระบบย่อรูปให้เล็กลงและลบตำแหน่งที่ถ่ายออกให้เอง`}</p>
+            <p class="hint">{free === 0 ? `ครบ ${LIMITS[st.kind]} รูปแล้ว — ถ้าจะเพิ่ม ให้ลบรูปเก่าก่อน` : `เพิ่มได้อีก ${free} รูป (ครั้งละไม่เกิน ${MAX_FILES_PER_REQUEST} รูป) · ระบบย่อรูปและลบตำแหน่งที่ถ่ายให้เอง`}</p>
           </div>
           <p data-upload-status class="hidden rounded-xl bg-honey-50 p-3 text-sm font-medium text-honey-700" role="status" aria-live="polite"></p>
           <button class="btn-primary w-full" type="submit" disabled={free === 0}>อัปโหลด{st.title}</button>

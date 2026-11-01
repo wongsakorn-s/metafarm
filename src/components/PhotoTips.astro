@@ -1,0 +1,43 @@
+---
+import Icon from './Icon.astro';
+
+interface Props {
+  kind: 'passport' | 'sale' | 'sort' | 'upload';
+  class?: string;
+}
+
+const { kind, class: className } = Astro.props;
+
+const tips: Record<'passport' | 'sale' | 'sort' | 'upload', { short: string; detail?: string }> = {
+  passport: {
+    short: 'รูป 1 = มุมกว้าง เห็นรังกับที่ตั้ง',
+    detail: 'ควรถ่ายมุมกว้าง ให้เห็นตัวรังพร้อมสภาพแวดล้อมที่ตั้ง เพื่อให้เดินหาตำแหน่งรังในสวนได้ง่าย · รูปที่ 2–6 เป็นรูปมุมใกล้ ตัวรัง หรือการดูแล',
+  },
+  sale: {
+    short: 'รูป 1 = เปิดฝาโชว์ข้างใน',
+    detail: 'ควรถ่ายเปิดฝาโชว์ข้างในรังผ่านแผ่นพลาสติกใส ให้เห็นประชากรชันโรง ไข่อ่อน-ไข่แก่ และถ้วยน้ำหวาน เพื่อสร้างความมั่นใจให้ผู้ซื้อ · รูปที่ 2–6 เป็นรูปมุมข้างหรือตัวรังภายนอก',
+  },
+  sort: {
+    short: 'กดค้างที่ปุ่มจุด ๆ แล้วลาก',
+  },
+  upload: {
+    short: 'ระบบย่อรูปและลบตำแหน่งที่ถ่ายให้เอง',
+  },
+};
+
+const item = tips[kind];
+---
+
+<div class:list={['text-sm text-muted', className]}>
+  <p class="inline-flex flex-wrap items-center gap-1.5">
+    <Icon name="info" class="inline-block size-4 text-palm-700" />
+    <span>{item.short}</span>
+  </p>
+  {item.detail && (
+    <details class="disclosure mt-1 text-xs">
+      <summary class="disclosure min-h-11 cursor-pointer py-2 text-muted hover:text-ink">วิธีเลือกรูป</summary>
+      <p class="mt-1 leading-relaxed text-muted">{item.detail}</p>
+    </details>
+  )}
+</div>
+
